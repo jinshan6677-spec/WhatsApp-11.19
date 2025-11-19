@@ -180,6 +180,88 @@
 
     // Hide tooltip during drag
     hideTooltip();
+
+    // Add visual feedback
+    showDragTooltip(item, '拖拽到目标位置释放');
+  }
+
+  /**
+   * Show reorder feedback
+   */
+  function showReorderFeedback(element, message, isError = false) {
+    const feedback = document.createElement('div');
+    feedback.textContent = message;
+    feedback.style.cssText = `
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: ${isError ? '#f44336' : '#4caf50'};
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    `;
+    
+    element.style.position = 'relative';
+    element.appendChild(feedback);
+
+    // Show feedback
+    setTimeout(() => {
+      feedback.style.opacity = '1';
+      feedback.style.transform = 'translateY(-50%) translateX(-4px)';
+    }, 10);
+
+    // Hide and remove feedback
+    setTimeout(() => {
+      feedback.style.opacity = '0';
+      feedback.style.transform = 'translateY(-50%) translateX(10px)';
+      setTimeout(() => {
+        if (feedback.parentNode) {
+          feedback.remove();
+        }
+      }, 300);
+    }, 2000);
+  }
+
+  /**
+   * Show drag tooltip
+   */
+  function showDragTooltip(element, text) {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'drag-tooltip';
+    tooltip.textContent = text;
+    tooltip.style.cssText = `
+      position: fixed;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 10000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    `;
+    document.body.appendChild(tooltip);
+
+    // Position tooltip
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = `${rect.left + rect.width / 2}px`;
+    tooltip.style.top = `${rect.top - 40}px`;
+    tooltip.style.transform = 'translateX(-50%)';
+
+    // Show tooltip
+    setTimeout(() => {
+      tooltip.style.opacity = '1';
+    }, 100);
+
+    // Store reference for cleanup
+    element._dragTooltip = tooltip;
   }
 
   /**
@@ -195,6 +277,12 @@
     document.querySelectorAll('.account-item').forEach(el => {
       el.classList.remove('drag-over');
     });
+
+    // Remove drag tooltip
+    if (item._dragTooltip) {
+      item._dragTooltip.remove();
+      delete item._dragTooltip;
+    }
 
     draggedElement = null;
     draggedAccountId = null;
@@ -263,21 +351,35 @@
       targetItem.parentNode.insertBefore(draggedElement, targetItem);
     }
 
+    // Get new order of account IDs
+    const reorderedItems = Array.from(accountList.querySelectorAll('.account-item'));
+    const newAccountIds = reorderedItems.map(item => item.dataset.accountId);
+
     // Send reorder request to main process
     try {
       if (window.electronAPI) {
-        await window.electronAPI.invoke('reorder-accounts', {
-          accountId: draggedAccountId,
-          targetAccountId: targetAccountId,
-          insertBefore: draggedIndex > targetIndex
-        });
+        const result = await window.electronAPI.reorderAccounts(newAccountIds);
+
+        if (!result.success) {
+          const errorMessage = result.errors ? result.errors.join(', ') : (result.error || 'Unknown error');
+          throw new Error(errorMessage);
+        }
+
+        // Show success feedback
+        showReorderFeedback(targetItem, '已重新排序');
       }
     } catch (error) {
       console.error('Failed to reorder accounts:', error);
+      
+      // Show error feedback
+      showReorderFeedback(targetItem, '排序失败', true);
+      
       // Reload accounts to restore correct order
-      if (window.sidebar && window.sidebar.loadAccounts) {
-        window.sidebar.loadAccounts();
-      }
+      setTimeout(() => {
+        if (window.sidebar && window.sidebar.loadAccounts) {
+          window.sidebar.loadAccounts();
+        }
+      }, 1500);
     }
   }
 

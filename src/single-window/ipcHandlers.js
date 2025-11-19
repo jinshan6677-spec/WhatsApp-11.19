@@ -640,7 +640,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       console.error('[IPC] Failed to reorder accounts:', error);
       return {
         success: false,
-        error: error.message
+        errors: [error.message]
       };
     }
   });
@@ -690,7 +690,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       console.error('[IPC] Failed to reorder accounts via drag and drop:', error);
       return {
         success: false,
-        error: error.message
+        errors: [error.message]
       };
     }
   });

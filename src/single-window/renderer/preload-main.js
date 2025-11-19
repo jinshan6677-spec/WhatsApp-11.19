@@ -421,6 +421,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'switch-to-previous-account',
       'account:get-active',
       'account:reorder',
+      'reorder-accounts',
       'account:view-status',
       'account:reload-view',
       'account:login-status',
