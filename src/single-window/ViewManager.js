@@ -636,6 +636,10 @@ class ViewManager {
       viewState.status = 'ready';
       this.log('info', `View loaded for account ${accountId}`);
       
+      // Wait a bit for WhatsApp Web to render the UI
+      // WhatsApp Web is a React app that needs time to initialize
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Detect login status (QR code vs logged in)
       await this._detectLoginStatus(accountId, view);
       
@@ -649,6 +653,31 @@ class ViewManager {
         loginStatus: viewState.loginStatus,
         connectionStatus: viewState.connectionStatus
       });
+      
+      // Set up periodic login status check (every 5 seconds for the first minute)
+      // This helps catch login state changes that happen after initial load
+      let checkCount = 0;
+      const maxChecks = 12; // Check for 1 minute (12 * 5 seconds)
+      const periodicCheck = setInterval(async () => {
+        checkCount++;
+        if (checkCount >= maxChecks || !viewState || viewState.status === 'destroyed') {
+          clearInterval(periodicCheck);
+          return;
+        }
+        
+        try {
+          await this._detectLoginStatus(accountId, view);
+        } catch (error) {
+          this.log('debug', `Periodic login check failed for account ${accountId}:`, error);
+          clearInterval(periodicCheck);
+        }
+      }, 5000);
+      
+      // Store interval ID for cleanup
+      if (!viewState.intervals) {
+        viewState.intervals = [];
+      }
+      viewState.intervals.push(periodicCheck);
     });
 
     // Handle load failures
@@ -795,27 +824,38 @@ class ViewManager {
           // Check for QR code canvas (not logged in)
           const qrCode = document.querySelector('canvas[aria-label*="QR"]') || 
                          document.querySelector('canvas[aria-label*="Code"]') ||
+                         document.querySelector('canvas[aria-label*="code"]') ||
                          document.querySelector('[data-ref][data-ref*="qr"]') ||
                          document.querySelector('div[data-ref="qr-code"]');
           
-          // Check for chat interface (logged in)
+          // Check for chat interface (logged in) - multiple selectors for reliability
           const chatPane = document.querySelector('[data-testid="chat-list"]') ||
                           document.querySelector('#pane-side') ||
+                          document.querySelector('div[id="pane-side"]') ||
                           document.querySelector('[data-testid="conversation-panel-wrapper"]') ||
-                          document.querySelector('div[data-testid="chat"]');
+                          document.querySelector('div[data-testid="chat"]') ||
+                          document.querySelector('div#side') ||
+                          document.querySelector('div[role="navigation"]');
           
           // Check for main app container
-          const appContainer = document.querySelector('#app') || document.querySelector('[data-testid="app"]');
+          const appContainer = document.querySelector('#app') || 
+                              document.querySelector('[data-testid="app"]') ||
+                              document.querySelector('div#app');
           
           // Check for login prompt text
           const loginPrompt = document.querySelector('[data-testid="qrcode-container"]') ||
-                             document.querySelector('div[data-ref="qr-code-container"]');
+                             document.querySelector('div[data-ref="qr-code-container"]') ||
+                             document.querySelector('[data-ref="qr-code"]');
           
           // Check if QR code is visible (not just present in DOM)
           const qrCodeVisible = qrCode && qrCode.offsetParent !== null;
           
           // Check if chat pane is visible
           const chatPaneVisible = chatPane && chatPane.offsetParent !== null;
+          
+          // Additional check: look for chat items
+          const hasChatItems = document.querySelectorAll('[data-testid="cell-frame-container"]').length > 0 ||
+                              document.querySelectorAll('div[role="listitem"]').length > 0;
           
           return {
             hasQRCode: !!qrCode,
@@ -824,7 +864,8 @@ class ViewManager {
             chatPaneVisible: chatPaneVisible,
             hasAppContainer: !!appContainer,
             hasLoginPrompt: !!loginPrompt,
-            isLoggedIn: chatPaneVisible && !qrCodeVisible
+            hasChatItems: hasChatItems,
+            isLoggedIn: (chatPaneVisible || hasChatItems) && !qrCodeVisible
           };
         })();
       `);
@@ -845,17 +886,25 @@ class ViewManager {
       if (loginStatus.isLoggedIn) {
         viewState.connectionStatus = 'online';
         viewState.connectionError = null;
+        viewState.status = 'ready'; // Ensure status is not stuck on loading
       } else if (loginStatus.qrCodeVisible || loginStatus.hasLoginPrompt) {
         viewState.connectionStatus = 'offline';
         viewState.connectionError = null;
+        viewState.status = 'ready'; // Ensure status is not stuck on loading
+      } else {
+        // Status unclear - but at least move from loading to offline
+        if (viewState.status === 'loading') {
+          viewState.connectionStatus = 'offline';
+          viewState.status = 'ready';
+        }
       }
 
       if (loginStatus.qrCodeVisible || loginStatus.hasLoginPrompt) {
         this.log('info', `Account ${accountId} showing QR code (not logged in)`);
       } else if (loginStatus.isLoggedIn) {
-        this.log('info', `Account ${accountId} is logged in`);
+        this.log('info', `Account ${accountId} is logged in (chatPaneVisible: ${loginStatus.chatPaneVisible}, hasChatItems: ${loginStatus.hasChatItems})`);
       } else {
-        this.log('debug', `Account ${accountId} login status unclear, may still be loading`);
+        this.log('warn', `Account ${accountId} login status unclear - Details:`, JSON.stringify(loginStatus, null, 2));
       }
 
       // Notify renderer about login status with detailed information
@@ -866,15 +915,17 @@ class ViewManager {
         loginInfo: viewState.loginInfo
       });
 
-      // Notify about connection status change if login status changed
-      if (wasLoggedIn !== loginStatus.isLoggedIn) {
-        this._notifyRenderer('connection-status-changed', {
-          accountId,
-          connectionStatus: viewState.connectionStatus,
-          isLoggedIn: loginStatus.isLoggedIn,
-          hasQRCode: loginStatus.qrCodeVisible || loginStatus.hasLoginPrompt
-        });
-      }
+      // Always notify about connection status to ensure UI updates
+      this._notifyRenderer('connection-status-changed', {
+        accountId,
+        connectionStatus: viewState.connectionStatus,
+        isLoggedIn: loginStatus.isLoggedIn,
+        hasQRCode: loginStatus.qrCodeVisible || loginStatus.hasLoginPrompt,
+        details: {
+          wasLoggedIn,
+          statusChanged: wasLoggedIn !== loginStatus.isLoggedIn
+        }
+      });
 
       return loginStatus.isLoggedIn;
     } catch (error) {
@@ -1214,6 +1265,15 @@ class ViewManager {
       // Get session data path for logging
       const sessionDataPath = this.sessionManager.getUserDataDir(accountId);
       this.log('info', `Session data will be preserved at: ${sessionDataPath}`);
+
+      // Clear any periodic check intervals
+      if (viewState.intervals && Array.isArray(viewState.intervals)) {
+        viewState.intervals.forEach(interval => clearInterval(interval));
+        viewState.intervals = [];
+      }
+
+      // Mark as destroyed to stop any ongoing checks
+      viewState.status = 'destroyed';
 
       // Hide view first if visible
       if (viewState.isVisible) {

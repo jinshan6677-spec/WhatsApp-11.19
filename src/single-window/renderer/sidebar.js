@@ -743,6 +743,7 @@
    */
   function handleViewLoading(data) {
     const { accountId } = data;
+    console.log(`[Sidebar] handleViewLoading for ${accountId}`);
     updateAccountStatus(accountId, 'loading');
   }
 
@@ -751,6 +752,8 @@
    */
   function handleViewReady(data) {
     const { accountId, loginStatus, connectionStatus } = data;
+    
+    console.log(`[Sidebar] handleViewReady for ${accountId}:`, { loginStatus, connectionStatus });
     
     // Update status based on connection status if available, otherwise use login state
     if (connectionStatus) {
@@ -788,6 +791,8 @@
   function handleLoginStatusChanged(data) {
     const { accountId, isLoggedIn, hasQRCode, loginInfo } = data;
     
+    console.log(`[Sidebar] handleLoginStatusChanged for ${accountId}:`, { isLoggedIn, hasQRCode, loginInfo });
+    
     // Update the account in our local state
     const account = accounts.find(acc => acc.id === accountId);
     if (account) {
@@ -802,6 +807,7 @@
     } else if (hasQRCode) {
       updateAccountStatus(accountId, 'offline');
     }
+    // Don't update status if both are false - keep current status (loading)
     
     // Update account item to show login status
     const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
@@ -813,20 +819,23 @@
           statusElement.textContent = '需要登录';
           statusElement.title = '点击扫描二维码登录';
           statusElement.classList.add('login-required');
-          statusElement.classList.remove('online', 'error');
+          statusElement.classList.remove('online', 'error', 'loading');
           statusElement.classList.add('offline');
         } else if (isLoggedIn) {
           // Show logged in status
           statusElement.textContent = '在线';
           statusElement.title = '已连接并登录';
-          statusElement.classList.remove('login-required', 'offline', 'error');
+          statusElement.classList.remove('login-required', 'offline', 'error', 'loading');
           statusElement.classList.add('online');
         } else {
-          // Loading or unclear status
-          statusElement.textContent = '加载中...';
-          statusElement.title = '加载中...';
-          statusElement.classList.remove('login-required', 'online', 'error');
-          statusElement.classList.add('offline');
+          // Loading or unclear status - only update if not already showing a definitive status
+          const currentClasses = statusElement.classList;
+          if (!currentClasses.contains('online') && !currentClasses.contains('login-required')) {
+            statusElement.textContent = '加载中...';
+            statusElement.title = '加载中...';
+            statusElement.classList.remove('login-required', 'online', 'error', 'offline');
+            statusElement.classList.add('loading');
+          }
         }
       }
     }
@@ -850,6 +859,8 @@
    */
   function handleConnectionStatusChanged(data) {
     const { accountId, connectionStatus, error, details, isLoggedIn, hasQRCode } = data;
+    
+    console.log(`[Sidebar] handleConnectionStatusChanged for ${accountId}:`, { connectionStatus, isLoggedIn, hasQRCode, details });
     
     // Update the account in our local state
     const account = accounts.find(acc => acc.id === accountId);
