@@ -1,6 +1,11 @@
 /**
  * Sidebar component for account management
  * Handles account list rendering, selection, and CRUD operations
+ *
+ * 设计目标：
+ * - KISS：集中管理账号状态和视图渲染，避免散落的 DOM 操作
+ * - DRY：账号行的操作按钮和状态展示只实现一份渲染逻辑
+ * - 单一职责：事件 -> 更新内存状态 -> 渲染 UI
  */
 
 (function() {
@@ -15,7 +20,7 @@
   const emptyState = document.getElementById('empty-state');
   const addAccountBtn = document.getElementById('add-account');
 
-  // OPTIMIZATION: Debounce timers for high-frequency updates
+  // Debounce for high-frequency updates (e.g. accounts-updated)
   const updateTimers = new Map();
   const DEBOUNCE_DELAY = 100; // ms
 
@@ -42,16 +47,16 @@
       window.electronAPI.on('account-switched', handleAccountSwitched);
       window.electronAPI.on('account-status-changed', handleAccountStatusChanged);
       window.electronAPI.on('account:active-changed', handleActiveAccountChanged);
-      
-      // Listen for view manager events
+
+      // View manager events（登录/连接状态）
       window.electronAPI.on('view-manager:view-loading', handleViewLoading);
       window.electronAPI.on('view-manager:view-ready', handleViewReady);
       window.electronAPI.on('view-manager:view-error', handleViewError);
       window.electronAPI.on('view-manager:login-status-changed', handleLoginStatusChanged);
       window.electronAPI.on('view-manager:view-crashed', handleViewCrashed);
       window.electronAPI.on('view-manager:connection-status-changed', handleConnectionStatusChanged);
-      
-      // Listen for manual account control events
+
+      // Manual account control events（打开/关闭账号）
       window.electronAPI.on('view-manager:account-opening', handleAccountOpening);
       window.electronAPI.on('view-manager:account-opened', handleAccountOpened);
       window.electronAPI.on('view-manager:account-open-failed', handleAccountOpenFailed);
@@ -65,32 +70,25 @@
    * Load accounts from main process
    */
   async function loadAccounts() {
+    if (!window.electronAPI || !accountList) return;
+
     try {
-      if (window.electronAPI) {
-        const accountsData = await window.electronAPI.invoke('get-accounts');
-        accounts = accountsData || [];
-        
-        // Get active account
-        const activeResult = await window.electronAPI.invoke('account:get-active');
-        if (activeResult && activeResult.success && activeResult.accountId) {
-          activeAccountId = activeResult.accountId;
-        }
-        
-        // Get running status for all accounts
-        const statusResult = await window.electronAPI.invoke('get-all-account-statuses');
-        if (statusResult && statusResult.success && statusResult.statuses) {
-          // Merge status information into accounts
-          accounts.forEach(account => {
-            const statusInfo = statusResult.statuses[account.id];
-            if (statusInfo) {
-              account.runningStatus = statusInfo.status;
-              account.isRunning = statusInfo.isRunning;
-            }
-          });
-        }
-        
-        renderAccountList();
+      const accountsData = await window.electronAPI.invoke('get-accounts');
+      accounts = accountsData || [];
+
+      // Get active account
+      const activeResult = await window.electronAPI.invoke('account:get-active');
+      if (activeResult && activeResult.success && activeResult.accountId) {
+        activeAccountId = activeResult.accountId;
       }
+
+      // Get running status for all accounts
+      const statusResult = await window.electronAPI.invoke('get-all-account-statuses');
+      if (statusResult && statusResult.success && statusResult.statuses) {
+        mergeRunningStatuses(statusResult.statuses);
+      }
+
+      await renderAccountList();
     } catch (error) {
       console.error('Failed to load accounts:', error);
       showError('加载账号失败');
@@ -98,13 +96,28 @@
   }
 
   /**
+   * Merge running status info into current accounts
+   */
+  function mergeRunningStatuses(statuses) {
+    accounts.forEach((account) => {
+      const statusInfo = statuses[account.id];
+      if (statusInfo) {
+        account.runningStatus = statusInfo.status;
+        account.isRunning = !!statusInfo.isRunning;
+      }
+    });
+  }
+
+  /**
    * Render the account list
-   * OPTIMIZED: Uses document fragment for batch DOM updates
+   * 使用 document fragment 做批量更新，减少重排
    */
   async function renderAccountList() {
-    // Clear existing items (except empty state)
+    if (!accountList) return;
+
+    // Clear existing items
     const existingItems = accountList.querySelectorAll('.account-item');
-    existingItems.forEach(item => item.remove());
+    existingItems.forEach((item) => item.remove());
 
     // Show/hide empty state
     if (accounts.length === 0) {
@@ -112,50 +125,38 @@
         emptyState.classList.remove('hidden');
       }
       return;
-    } else {
-      if (emptyState) {
-        emptyState.classList.add('hidden');
-      }
     }
 
-    // Get current running status for all accounts
+    if (emptyState) {
+      emptyState.classList.add('hidden');
+    }
+
+    // Ensure running status is up-to-date
     if (window.electronAPI) {
       try {
         const statusResult = await window.electronAPI.getAllAccountStatuses();
         if (statusResult && statusResult.success && statusResult.statuses) {
-          // Update accounts with current running status
-          // statusResult.statuses is an object: { 'account-id': { status, isRunning } }
-          accounts.forEach(account => {
-            const statusData = statusResult.statuses[account.id];
-            if (statusData) {
-              account.runningStatus = statusData.status;
-              account.isRunning = statusData.isRunning;
-            }
-          });
+          mergeRunningStatuses(statusResult.statuses);
         }
       } catch (error) {
         console.error('Failed to get account statuses:', error);
       }
     }
 
-    // Sort accounts by order field
+    // Sort accounts by order
     const sortedAccounts = [...accounts].sort((a, b) => {
       const orderA = a.order !== undefined ? a.order : 999;
       const orderB = b.order !== undefined ? b.order : 999;
       return orderA - orderB;
     });
 
-    // OPTIMIZATION: Use document fragment for batch DOM updates
-    // This reduces reflows and improves performance with many accounts
     const fragment = document.createDocumentFragment();
 
-    // Render each account
-    sortedAccounts.forEach(account => {
+    sortedAccounts.forEach((account) => {
       const accountItem = createAccountItem(account);
       fragment.appendChild(accountItem);
     });
 
-    // Single DOM update
     accountList.appendChild(fragment);
   }
 
@@ -170,18 +171,17 @@
     item.setAttribute('role', 'button');
     item.setAttribute('aria-label', `切换到 ${account.name}`);
 
-    // Mark as active if this is the active account
     if (account.id === activeAccountId) {
       item.classList.add('active');
     }
 
-    // Create avatar with first letter of account name
+    // Avatar
     const avatar = document.createElement('div');
     avatar.className = 'account-avatar';
     avatar.textContent = getAccountInitial(account.name);
     avatar.style.background = getAccountColor(account.id);
 
-    // Create account info section
+    // Info
     const info = document.createElement('div');
     info.className = 'account-info';
 
@@ -190,7 +190,6 @@
     name.textContent = account.name || '未命名账号';
     name.title = account.name || '未命名账号';
 
-    // Add note if available
     if (account.note) {
       const note = document.createElement('div');
       note.className = 'account-note';
@@ -202,50 +201,115 @@
       info.appendChild(name);
     }
 
-    // Add status indicator
+    // Status
     const status = document.createElement('div');
-    const statusValue = account.connectionStatus || account.status || 'offline';
-    const loginStatus = account.loginStatus !== undefined ? account.loginStatus : null;
-    
-    status.className = `account-status ${statusValue}`;
-    
-    // Set status text and tooltip based on login and connection status
-    if (loginStatus === false && statusValue === 'offline') {
-      // Not logged in - show login prompt
-      status.textContent = '需要登录';
-      status.title = '点击扫描二维码登录';
-      status.classList.add('login-required');
-    } else {
-      status.textContent = getStatusText(statusValue);
-      
-      // Set tooltip based on connection status
-      if (account.connectionError) {
-        status.title = `错误: ${account.connectionError.message || '未知错误'}`;
-      } else if (statusValue === 'online') {
-        status.title = '已连接并登录';
-      } else if (statusValue === 'offline') {
-        status.title = '未连接';
-      } else if (statusValue === 'loading') {
-        status.title = '加载中...';
-      }
-    }
-    
+    status.className = 'account-status';
+    renderAccountStatusForAccount(account, status);
     info.appendChild(status);
 
-    // Create actions section
+    // Actions
     const actions = document.createElement('div');
     actions.className = 'account-actions';
+    renderAccountActions(account, actions);
 
-    // Determine account running status
+    // Assemble
+    item.appendChild(avatar);
+    item.appendChild(info);
+    item.appendChild(actions);
+
+    // Selection handlers
+    item.addEventListener('click', () => handleAccountSelect(account.id));
+    item.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleAccountSelect(account.id);
+      }
+    });
+
+    return item;
+  }
+
+  /**
+   * 渲染账号的状态展示（文本 + class + tooltip）
+   * 统一处理 loginStatus / connectionStatus / hasQRCode / error 等字段
+   */
+  function renderAccountStatusForAccount(account, statusElement) {
+    if (!statusElement || !account) return;
+
+    // 基础 class
+    statusElement.className = 'account-status';
+
+    // 派生状态值：逻辑状态优先于连接状态
+    const statusValue = account.status || account.connectionStatus || 'offline';
+    const loginStatus = account.loginStatus;
+    const hasQRCode = account.hasQRCode;
+    const details = account.connectionDetails;
+    const error = account.connectionError;
+
+    // 清理额外状态 class
+    statusElement.classList.remove('online', 'offline', 'error', 'loading', 'login-required');
+
+    // 登录相关特殊处理
+    if (
+      statusValue === 'offline' &&
+      (loginStatus === false || hasQRCode || (details && details.needsQRScan))
+    ) {
+      statusElement.classList.add('offline', 'login-required');
+      statusElement.textContent = '需要登录';
+      statusElement.title = '点击扫描二维码登录';
+      return;
+    }
+
+    if (statusValue === 'online') {
+      statusElement.classList.add('online');
+      statusElement.textContent = '在线';
+      statusElement.title = '已连接并登录';
+      return;
+    }
+
+    if (statusValue === 'loading') {
+      statusElement.classList.add('loading');
+      statusElement.textContent = '加载中...';
+      statusElement.title = '加载中...';
+      return;
+    }
+
+    if (statusValue === 'error') {
+      statusElement.classList.add('error');
+      const msg = (error && error.message) || '连接错误';
+      statusElement.textContent = '错误';
+      statusElement.title = `错误: ${msg}`;
+      return;
+    }
+
+    // 默认离线态
+    statusElement.classList.add('offline');
+    statusElement.textContent = '离线';
+
+    if (details && details.phoneDisconnected) {
+      statusElement.title = '手机未连接';
+    } else {
+      statusElement.title = '未连接';
+    }
+  }
+
+  /**
+   * 渲染账号的操作按钮（打开 / 关闭 / 重试 + 编辑 / 删除）
+   * DRY：用于首屏渲染和运行状态更新
+   */
+  function renderAccountActions(account, actions) {
+    if (!actions || !account) return;
+
+    actions.innerHTML = '';
+
     const runningStatus = account.runningStatus || 'not_started';
-    const isRunning = account.isRunning || false;
+    const isRunning = !!account.isRunning;
 
-    // Add open/close button based on running status
     if (runningStatus === 'not_started' || !isRunning) {
-      // Show open button
+      // 打开
       const openBtn = document.createElement('button');
       openBtn.className = 'open-btn';
-      openBtn.innerHTML = '<span class="icon">▶</span><span class="text">打开</span>';
+      openBtn.innerHTML = '<span class="icon">➕</span><span class="text">打开</span>';
       openBtn.title = '打开账号';
       openBtn.setAttribute('aria-label', '打开账号');
       openBtn.addEventListener('click', (e) => {
@@ -254,16 +318,17 @@
       });
       actions.appendChild(openBtn);
     } else if (runningStatus === 'loading') {
-      // Show loading indicator
+      // 加载中
       const loadingIndicator = document.createElement('div');
       loadingIndicator.className = 'loading-indicator';
-      loadingIndicator.innerHTML = '<span class="spinner"></span><span class="text">加载中...</span>';
+      loadingIndicator.innerHTML =
+        '<span class="spinner"></span><span class="text">加载中...</span>';
       actions.appendChild(loadingIndicator);
     } else if (runningStatus === 'connected' || isRunning) {
-      // Show close button
+      // 关闭
       const closeBtn = document.createElement('button');
       closeBtn.className = 'close-btn';
-      closeBtn.innerHTML = '<span class="icon">⏹</span><span class="text">关闭</span>';
+      closeBtn.innerHTML = '<span class="icon">✖</span><span class="text">关闭</span>';
       closeBtn.title = '关闭账号';
       closeBtn.setAttribute('aria-label', '关闭账号');
       closeBtn.addEventListener('click', (e) => {
@@ -272,10 +337,10 @@
       });
       actions.appendChild(closeBtn);
     } else if (runningStatus === 'error') {
-      // Show retry button
+      // 重试
       const retryBtn = document.createElement('button');
       retryBtn.className = 'retry-btn';
-      retryBtn.innerHTML = '<span class="icon">⟳</span><span class="text">重试</span>';
+      retryBtn.innerHTML = '<span class="icon">↻</span><span class="text">重试</span>';
       retryBtn.title = '重试打开账号';
       retryBtn.setAttribute('aria-label', '重试打开账号');
       retryBtn.addEventListener('click', (e) => {
@@ -285,6 +350,7 @@
       actions.appendChild(retryBtn);
     }
 
+    // 通用编辑按钮
     const editBtn = document.createElement('button');
     editBtn.className = 'edit-btn';
     editBtn.innerHTML = '⚙️';
@@ -295,6 +361,7 @@
       handleEditAccount(account.id);
     });
 
+    // 通用删除按钮
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '🗑️';
@@ -307,24 +374,6 @@
 
     actions.appendChild(editBtn);
     actions.appendChild(deleteBtn);
-
-    // Assemble the item
-    item.appendChild(avatar);
-    item.appendChild(info);
-    item.appendChild(actions);
-
-    // Add click handler for account selection
-    item.addEventListener('click', () => handleAccountSelect(account.id));
-    
-    // Add keyboard support
-    item.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        handleAccountSelect(account.id);
-      }
-    });
-
-    return item;
   }
 
   /**
@@ -332,7 +381,7 @@
    */
   function getAccountInitial(name) {
     if (!name) return '?';
-    return name.charAt(0).toUpperCase();
+    return String(name).charAt(0).toUpperCase();
   }
 
   /**
@@ -352,7 +401,10 @@
       'linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%)'
     ];
 
-    // Use account ID to consistently select a color
+    if (!accountId) {
+      return colors[0];
+    }
+
     let hash = 0;
     for (let i = 0; i < accountId.length; i++) {
       hash = accountId.charCodeAt(i) + ((hash << 5) - hash);
@@ -378,31 +430,25 @@
    * Handle account selection
    */
   async function handleAccountSelect(accountId) {
+    if (!window.electronAPI) return;
     if (accountId === activeAccountId) {
-      return; // Already active
+      return;
     }
 
     try {
-      // Check if account is running
       const accountStatus = await window.electronAPI.getAccountStatus(accountId);
-      
       if (!accountStatus || !accountStatus.isRunning) {
-        // Account is not running, don't switch
         console.log('Account is not running, cannot switch');
         return;
       }
 
-      // Update UI immediately for responsiveness
+      // Optimistic UI
       setActiveAccount(accountId);
 
-      // Send switch request to main process
-      if (window.electronAPI) {
-        await window.electronAPI.invoke('switch-account', accountId);
-      }
+      await window.electronAPI.invoke('switch-account', accountId);
     } catch (error) {
       console.error('Failed to switch account:', error);
       showError('切换账号失败');
-      // Revert UI change
       setActiveAccount(activeAccountId);
     }
   }
@@ -413,9 +459,10 @@
   function setActiveAccount(accountId) {
     activeAccountId = accountId;
 
-    // Update active class on all items
+    if (!accountList) return;
+
     const items = accountList.querySelectorAll('.account-item');
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.dataset.accountId === accountId) {
         item.classList.add('active');
       } else {
@@ -428,16 +475,14 @@
    * Handle add account button click - Quick add with default settings
    */
   async function handleAddAccount() {
-    try {
-      if (!window.electronAPI) {
-        showError('无法连接到主进程');
-        return;
-      }
+    if (!window.electronAPI) {
+      showError('无法连接到主进程');
+      return;
+    }
 
-      // Generate default account name
+    try {
       const defaultAccountName = generateDefaultAccountName();
 
-      // Default account configuration
       const defaultConfig = {
         name: defaultAccountName,
         note: '',
@@ -461,14 +506,12 @@
         }
       };
 
-      // Create account directly
       const result = await window.electronAPI.invoke('create-account', defaultConfig);
-
-      if (result.success) {
+      if (result && result.success) {
         console.log('Account created successfully:', result.account);
-        // Account list will be updated via 'accounts-updated' event
+        // 列表会通过 accounts-updated 事件刷新
       } else {
-        const errorMessage = result.errors ? result.errors.join(', ') : '创建账号失败';
+        const errorMessage = result && result.errors ? result.errors.join(', ') : '创建账号失败';
         showError(errorMessage);
       }
     } catch (error) {
@@ -481,12 +524,12 @@
    * Generate default account name in format "账号 N"
    */
   function generateDefaultAccountName() {
-    const existingNames = accounts.map(acc => acc.name);
+    const existingNames = accounts.map((acc) => acc.name);
     let counter = 1;
     let defaultName = `账号 ${counter}`;
 
     while (existingNames.includes(defaultName)) {
-      counter++;
+      counter += 1;
       defaultName = `账号 ${counter}`;
     }
 
@@ -497,30 +540,28 @@
    * Handle edit account button click
    */
   function handleEditAccount(accountId) {
-    if (window.electronAPI) {
-      window.electronAPI.send('account:edit', accountId);
-    }
+    if (!window.electronAPI) return;
+    window.electronAPI.send('account:edit', accountId);
   }
 
   /**
    * Handle delete account button click
    */
   async function handleDeleteAccount(accountId) {
-    const account = accounts.find(acc => acc.id === accountId);
+    if (!window.electronAPI) return;
+
+    const account = accounts.find((acc) => acc.id === accountId);
     const accountName = account ? account.name : '此账号';
 
-    // Confirm deletion
-    const confirmed = confirm(`确定要删除账号"${accountName}"吗？\n\n这将删除账号配置但保留会话数据。`);
-    
-    if (!confirmed) {
-      return;
-    }
+    const confirmed = confirm(
+      `确定要删除账号 "${accountName}" 吗？\n\n这将删除账号配置但保留会话数据。`
+    );
+
+    if (!confirmed) return;
 
     try {
-      if (window.electronAPI) {
-        await window.electronAPI.invoke('delete-account', accountId);
-        // Account list will be updated via 'accounts-updated' event
-      }
+      await window.electronAPI.invoke('delete-account', accountId);
+      // 列表会通过 accounts-updated 事件刷新
     } catch (error) {
       console.error('Failed to delete account:', error);
       showError('删除账号失败');
@@ -531,20 +572,17 @@
    * Handle open account button click
    */
   async function handleOpenAccount(accountId) {
+    if (!window.electronAPI) return;
+
     try {
-      // Update UI immediately to show loading state
       updateAccountRunningStatus(accountId, 'loading');
 
-      if (window.electronAPI) {
-        const result = await window.electronAPI.invoke('open-account', accountId);
-        
-        if (!result.success) {
-          throw new Error(result.error || '打开账号失败');
-        }
-
-        // Success - UI will be updated via events
-        console.log(`Account ${accountId} opened successfully`);
+      const result = await window.electronAPI.invoke('open-account', accountId);
+      if (!result || !result.success) {
+        throw new Error((result && result.error) || '打开账号失败');
       }
+
+      console.log(`Account ${accountId} opened successfully`);
     } catch (error) {
       console.error('Failed to open account:', error);
       updateAccountRunningStatus(accountId, 'error');
@@ -556,20 +594,17 @@
    * Handle close account button click
    */
   async function handleCloseAccount(accountId) {
+    if (!window.electronAPI) return;
+
     try {
-      // Update UI immediately to show loading state
       updateAccountRunningStatus(accountId, 'loading');
 
-      if (window.electronAPI) {
-        const result = await window.electronAPI.invoke('close-account', accountId);
-        
-        if (!result.success) {
-          throw new Error(result.error || '关闭账号失败');
-        }
-
-        // Success - UI will be updated via events
-        console.log(`Account ${accountId} closed successfully`);
+      const result = await window.electronAPI.invoke('close-account', accountId);
+      if (!result || !result.success) {
+        throw new Error((result && result.error) || '关闭账号失败');
       }
+
+      console.log(`Account ${accountId} closed successfully`);
     } catch (error) {
       console.error('Failed to close account:', error);
       updateAccountRunningStatus(accountId, 'error');
@@ -581,123 +616,48 @@
    * Handle retry account button click (after error)
    */
   async function handleRetryAccount(accountId) {
-    // Retry is the same as opening
     await handleOpenAccount(accountId);
   }
 
   /**
-   * Update account running status in UI
-   * OPTIMIZED: Only updates the action buttons, not the entire item
+   * Update account running status in UI（只更新按钮区，不重渲染整行）
    */
   function updateAccountRunningStatus(accountId, runningStatus) {
-    // Update the account in our local state
-    const account = accounts.find(acc => acc.id === accountId);
-    if (account) {
-      account.runningStatus = runningStatus;
-      account.isRunning = runningStatus !== 'not_started' && runningStatus !== 'error';
-    }
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (!account) return;
 
-    // Find the account item
+    account.runningStatus = runningStatus;
+    account.isRunning = runningStatus !== 'not_started' && runningStatus !== 'error';
+
+    if (!accountList) return;
+
     const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (!item || !account) {
-      return;
-    }
+    if (!item) return;
 
-    // Find the actions container
     const actions = item.querySelector('.account-actions');
-    if (!actions) {
-      return;
-    }
+    if (!actions) return;
 
-    // Clear existing actions
-    actions.innerHTML = '';
-
-    // Add appropriate button based on running status
-    if (runningStatus === 'not_started' || !account.isRunning) {
-      // Show open button
-      const openBtn = document.createElement('button');
-      openBtn.className = 'open-btn';
-      openBtn.innerHTML = '<span class="icon">▶</span><span class="text">打开</span>';
-      openBtn.title = '打开账号';
-      openBtn.setAttribute('aria-label', '打开账号');
-      openBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleOpenAccount(account.id);
-      });
-      actions.appendChild(openBtn);
-    } else if (runningStatus === 'loading') {
-      // Show loading indicator
-      const loadingIndicator = document.createElement('div');
-      loadingIndicator.className = 'loading-indicator';
-      loadingIndicator.innerHTML = '<span class="spinner"></span><span class="text">加载中...</span>';
-      actions.appendChild(loadingIndicator);
-    } else if (runningStatus === 'connected' || account.isRunning) {
-      // Show close button
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'close-btn';
-      closeBtn.innerHTML = '<span class="icon">⏹</span><span class="text">关闭</span>';
-      closeBtn.title = '关闭账号';
-      closeBtn.setAttribute('aria-label', '关闭账号');
-      closeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleCloseAccount(account.id);
-      });
-      actions.appendChild(closeBtn);
-    } else if (runningStatus === 'error') {
-      // Show retry button
-      const retryBtn = document.createElement('button');
-      retryBtn.className = 'retry-btn';
-      retryBtn.innerHTML = '<span class="icon">⟳</span><span class="text">重试</span>';
-      retryBtn.title = '重试打开账号';
-      retryBtn.setAttribute('aria-label', '重试打开账号');
-      retryBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleRetryAccount(account.id);
-      });
-      actions.appendChild(retryBtn);
-    }
-
-    // Re-add edit and delete buttons
-    const editBtn = document.createElement('button');
-    editBtn.className = 'edit-btn';
-    editBtn.innerHTML = '⚙️';
-    editBtn.title = '编辑账号';
-    editBtn.setAttribute('aria-label', '编辑账号');
-    editBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleEditAccount(account.id);
-    });
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.title = '删除账号';
-    deleteBtn.setAttribute('aria-label', '删除账号');
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleDeleteAccount(account.id);
-    });
-
-    actions.appendChild(editBtn);
-    actions.appendChild(deleteBtn);
+    renderAccountActions(account, actions);
   }
 
   /**
    * Handle accounts updated event from main process
-   * OPTIMIZED: Debounces rapid updates to avoid excessive re-renders
+   * 使用防抖避免频繁重渲染
    */
   function handleAccountsUpdated(accountsData) {
     accounts = accountsData || [];
-    
-    // OPTIMIZATION: Debounce rapid account list updates
+
     if (updateTimers.has('accountList')) {
       clearTimeout(updateTimers.get('accountList'));
     }
-    
-    updateTimers.set('accountList', setTimeout(() => {
-      renderAccountList();
-      updateTimers.delete('accountList');
-    }, DEBOUNCE_DELAY));
+
+    updateTimers.set(
+      'accountList',
+      setTimeout(() => {
+        renderAccountList();
+        updateTimers.delete('accountList');
+      }, DEBOUNCE_DELAY)
+    );
   }
 
   /**
@@ -720,22 +680,7 @@
    */
   function handleAccountStatusChanged(data) {
     const { accountId, status } = data;
-    
-    // Update the account in our local state
-    const account = accounts.find(acc => acc.id === accountId);
-    if (account) {
-      account.status = status;
-    }
-
-    // Update the status indicator in the UI
-    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (item) {
-      const statusElement = item.querySelector('.account-status');
-      if (statusElement) {
-        statusElement.className = `account-status ${status}`;
-        statusElement.textContent = getStatusText(status);
-      }
-    }
+    updateAccountStatus(accountId, status);
   }
 
   /**
@@ -752,10 +697,22 @@
    */
   function handleViewReady(data) {
     const { accountId, loginStatus, connectionStatus } = data;
-    
-    console.log(`[Sidebar] handleViewReady for ${accountId}:`, { loginStatus, connectionStatus });
-    
-    // Update status based on connection status if available, otherwise use login state
+
+    console.log(`[Sidebar] handleViewReady for ${accountId}:`, {
+      loginStatus,
+      connectionStatus
+    });
+
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (account) {
+      if (loginStatus !== undefined) {
+        account.loginStatus = loginStatus;
+      }
+      if (connectionStatus) {
+        account.connectionStatus = connectionStatus;
+      }
+    }
+
     if (connectionStatus) {
       updateAccountStatus(accountId, connectionStatus);
     } else if (loginStatus) {
@@ -770,19 +727,16 @@
    */
   function handleViewError(data) {
     const { accountId, error } = data;
-    updateAccountStatus(accountId, 'error');
-    
-    // Show error details in console
-    console.error(`View error for account ${accountId}:`, error);
-    
-    // Add error indicator to account item
-    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (item) {
-      const statusElement = item.querySelector('.account-status');
-      if (statusElement && error) {
-        statusElement.title = `Error: ${error.message || 'Unknown error'}`;
-      }
+
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (account) {
+      account.connectionStatus = 'error';
+      account.connectionError = error;
     }
+
+    updateAccountStatus(accountId, 'error');
+
+    console.error(`View error for account ${accountId}:`, error);
   }
 
   /**
@@ -790,54 +744,26 @@
    */
   function handleLoginStatusChanged(data) {
     const { accountId, isLoggedIn, hasQRCode, loginInfo } = data;
-    
-    console.log(`[Sidebar] handleLoginStatusChanged for ${accountId}:`, { isLoggedIn, hasQRCode, loginInfo });
-    
-    // Update the account in our local state
-    const account = accounts.find(acc => acc.id === accountId);
+
+    console.log(`[Sidebar] handleLoginStatusChanged for ${accountId}:`, {
+      isLoggedIn,
+      hasQRCode,
+      loginInfo
+    });
+
+    const account = accounts.find((acc) => acc.id === accountId);
     if (account) {
       account.loginStatus = isLoggedIn;
       account.hasQRCode = hasQRCode;
       account.loginInfo = loginInfo;
     }
-    
-    // Update status based on login state
+
     if (isLoggedIn) {
       updateAccountStatus(accountId, 'online');
     } else if (hasQRCode) {
       updateAccountStatus(accountId, 'offline');
-    }
-    // Don't update status if both are false - keep current status (loading)
-    
-    // Update account item to show login status
-    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (item) {
-      const statusElement = item.querySelector('.account-status');
-      if (statusElement) {
-        if (hasQRCode) {
-          // Show login required prompt
-          statusElement.textContent = '需要登录';
-          statusElement.title = '点击扫描二维码登录';
-          statusElement.classList.add('login-required');
-          statusElement.classList.remove('online', 'error', 'loading');
-          statusElement.classList.add('offline');
-        } else if (isLoggedIn) {
-          // Show logged in status
-          statusElement.textContent = '在线';
-          statusElement.title = '已连接并登录';
-          statusElement.classList.remove('login-required', 'offline', 'error', 'loading');
-          statusElement.classList.add('online');
-        } else {
-          // Loading or unclear status - only update if not already showing a definitive status
-          const currentClasses = statusElement.classList;
-          if (!currentClasses.contains('online') && !currentClasses.contains('login-required')) {
-            statusElement.textContent = '加载中...';
-            statusElement.title = '加载中...';
-            statusElement.classList.remove('login-required', 'online', 'error', 'offline');
-            statusElement.classList.add('loading');
-          }
-        }
-      }
+    } else {
+      updateAccountStatus(accountId, account && account.status ? account.status : 'loading');
     }
   }
 
@@ -846,12 +772,16 @@
    */
   function handleViewCrashed(data) {
     const { accountId, error } = data;
+
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (account) {
+      account.connectionStatus = 'error';
+      account.connectionError = error;
+    }
+
     updateAccountStatus(accountId, 'error');
-    
     console.error(`View crashed for account ${accountId}:`, error);
-    
-    // Show error message to user
-    showError(`账号"${getAccountName(accountId)}"已崩溃，请重新加载。`);
+    showError(`账号 "${getAccountName(accountId)}" 已崩溃，请重新加载。`);
   }
 
   /**
@@ -859,13 +789,19 @@
    */
   function handleConnectionStatusChanged(data) {
     const { accountId, connectionStatus, error, details, isLoggedIn, hasQRCode } = data;
-    
-    console.log(`[Sidebar] handleConnectionStatusChanged for ${accountId}:`, { connectionStatus, isLoggedIn, hasQRCode, details });
-    
-    // Update the account in our local state
-    const account = accounts.find(acc => acc.id === accountId);
+
+    console.log(`[Sidebar] handleConnectionStatusChanged for ${accountId}:`, {
+      connectionStatus,
+      isLoggedIn,
+      hasQRCode,
+      details
+    });
+
+    const account = accounts.find((acc) => acc.id === accountId);
     if (account) {
       account.connectionStatus = connectionStatus;
+      account.connectionError = error || null;
+      account.connectionDetails = details || null;
       if (isLoggedIn !== undefined) {
         account.loginStatus = isLoggedIn;
       }
@@ -873,85 +809,41 @@
         account.hasQRCode = hasQRCode;
       }
     }
-    
-    // Update account status in UI
+
     updateAccountStatus(accountId, connectionStatus);
-    
-    // Update status element with additional details
-    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (item) {
-      const statusElement = item.querySelector('.account-status');
-      if (statusElement) {
-        // Set text and tooltip based on connection details and login status
-        if (connectionStatus === 'online') {
-          statusElement.textContent = '在线';
-          statusElement.title = '已连接并登录';
-          statusElement.classList.remove('login-required', 'offline', 'error');
-          statusElement.classList.add('online');
-        } else if (connectionStatus === 'offline') {
-          if (hasQRCode || (details && details.needsQRScan)) {
-            // Show login required prompt
-            statusElement.textContent = '需要登录';
-            statusElement.title = '点击扫描二维码登录';
-            statusElement.classList.add('login-required');
-            statusElement.classList.remove('online', 'error');
-          } else if (details && details.phoneDisconnected) {
-            statusElement.textContent = '离线';
-            statusElement.title = '手机未连接';
-            statusElement.classList.remove('login-required', 'online', 'error');
-          } else if (details && details.loading) {
-            statusElement.textContent = '加载中...';
-            statusElement.title = '加载中...';
-            statusElement.classList.remove('login-required', 'online', 'error');
-          } else {
-            statusElement.textContent = '离线';
-            statusElement.title = '未连接';
-            statusElement.classList.remove('login-required', 'online', 'error');
-          }
-        } else if (connectionStatus === 'error') {
-          const errorMsg = error ? error.message : '连接错误';
-          statusElement.textContent = '错误';
-          statusElement.title = `错误: ${errorMsg}`;
-          statusElement.classList.remove('login-required', 'online', 'offline');
-          statusElement.classList.add('error');
-        }
-      }
-    }
-    
-    // Log connection status change
-    console.log(`Connection status changed for account ${accountId}:`, connectionStatus, details);
+
+    console.log(
+      `Connection status changed for account ${accountId}:`,
+      connectionStatus,
+      details
+    );
   }
 
   /**
-   * Update account status in UI
-   * OPTIMIZED: Updates only the specific element, avoiding full re-render
+   * Update account status in UI（集中管理 DOM 更新）
    */
   function updateAccountStatus(accountId, status) {
-    // Update the account in our local state
-    const account = accounts.find(acc => acc.id === accountId);
+    const account = accounts.find((acc) => acc.id === accountId);
     if (account) {
       account.status = status;
     }
 
-    // OPTIMIZATION: Update only the specific status element
-    // This avoids re-rendering the entire list
+    if (!accountList) return;
+
     const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (item) {
-      const statusElement = item.querySelector('.account-status');
-      if (statusElement) {
-        // Use classList for better performance than className replacement
-        statusElement.classList.remove('online', 'offline', 'error', 'loading');
-        statusElement.classList.add(status);
-        statusElement.textContent = getStatusText(status);
-      }
-    }
+    if (!item) return;
+
+    const statusElement = item.querySelector('.account-status');
+    if (!statusElement || !account) return;
+
+    renderAccountStatusForAccount(account, statusElement);
   }
 
   /**
    * Get account name by ID
    */
   function getAccountName(accountId) {
-    const account = accounts.find(acc => acc.id === accountId);
+    const account = accounts.find((acc) => acc.id === accountId);
     return account ? account.name : '未知账号';
   }
 
@@ -1007,9 +899,9 @@
 
   /**
    * Show error message to user
+   * 这里保持 alert 行为以避免改变用户当前体验
    */
   function showError(message) {
-    // Simple error display - could be enhanced with a toast/notification system
     console.error(message);
     alert(message);
   }
@@ -1029,5 +921,5 @@
     getAccounts: () => accounts,
     getActiveAccountId: () => activeAccountId
   };
-
 })();
+
