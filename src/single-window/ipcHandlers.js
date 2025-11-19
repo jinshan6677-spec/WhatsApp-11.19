@@ -387,6 +387,20 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
         if (remainingAccounts.length > 0) {
           // Switch to first available account
           await viewManager.showView(remainingAccounts[0].id);
+        } else {
+          // No accounts remaining, clear active account state
+          console.log('[IPC] No accounts remaining after deletion, clearing active account state');
+          // Force clear active account ID from ViewManager's internal state
+          if (viewManager.hasView(accountId)) {
+            // View should have been destroyed already, but double-check
+            await viewManager.destroyView(accountId);
+          }
+          // Ensure state storage is cleaned up
+          try {
+            viewManager._saveActiveAccountId();
+          } catch (stateError) {
+            console.warn('[IPC] Failed to save cleared active account state:', stateError);
+          }
         }
       }
 

@@ -326,12 +326,72 @@
   }
 
   /**
-   * Handle add account button click
+   * Handle add account button click - Quick add with default settings
    */
-  function handleAddAccount() {
-    if (window.electronAPI) {
-      window.electronAPI.send('account:create');
+  async function handleAddAccount() {
+    try {
+      if (!window.electronAPI) {
+        showError('无法连接到主进程');
+        return;
+      }
+
+      // Generate default account name
+      const defaultAccountName = generateDefaultAccountName();
+
+      // Default account configuration
+      const defaultConfig = {
+        name: defaultAccountName,
+        note: '',
+        autoStart: false,
+        proxy: {
+          enabled: false,
+          protocol: 'http',
+          host: '',
+          port: 0,
+          username: '',
+          password: '',
+          bypass: ''
+        },
+        translation: {
+          enabled: true,
+          engine: 'google',
+          targetLanguage: 'zh-CN',
+          autoTranslate: false,
+          translateInput: false,
+          friendSettings: {}
+        }
+      };
+
+      // Create account directly
+      const result = await window.electronAPI.invoke('create-account', defaultConfig);
+
+      if (result.success) {
+        console.log('Account created successfully:', result.account);
+        // Account list will be updated via 'accounts-updated' event
+      } else {
+        const errorMessage = result.errors ? result.errors.join(', ') : '创建账号失败';
+        showError(errorMessage);
+      }
+    } catch (error) {
+      console.error('Failed to create account:', error);
+      showError(`创建账号失败: ${error.message}`);
     }
+  }
+
+  /**
+   * Generate default account name in format "账号 N"
+   */
+  function generateDefaultAccountName() {
+    const existingNames = accounts.map(acc => acc.name);
+    let counter = 1;
+    let defaultName = `账号 ${counter}`;
+
+    while (existingNames.includes(defaultName)) {
+      counter++;
+      defaultName = `账号 ${counter}`;
+    }
+
+    return defaultName;
   }
 
   /**
