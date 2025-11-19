@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>WhatsApp 桌面版 - 多账号</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="errorDisplay.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar for account management -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h2>账号列表</h2>
+        <button id="add-account" class="btn-primary" title="添加新账号">
+          <span class="icon">+</span>
+          <span class="text">添加</span>
+        </button>
+      </div>
+      
+      <div class="account-list" id="account-list">
+        <!-- Empty state -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📱</div>
+          <h3>暂无账号</h3>
+          <p>点击上方"添加"按钮创建您的第一个 WhatsApp 账号。</p>
+        </div>
+        
+        <!-- Account items will be dynamically inserted here -->
+      </div>
+    </div>
+
+    <!-- Resizable handle -->
+    <div id="resize-handle" class="resize-handle"></div>
+
+    <!-- View container for BrowserViews -->
+    <div id="view-container">
+      <!-- Empty state for view container -->
+      <div class="view-empty-state" id="view-empty-state">
+        <div class="view-empty-icon">💬</div>
+        <h2>欢迎使用 WhatsApp 桌面版</h2>
+        <p>从侧边栏选择一个账号开始使用，或添加新账号。</p>
+      </div>
+      
+      <!-- BrowserViews will be attached here by the main process -->
+    </div>
+  </div>
+
+  <script src="errorDisplay.js"></script>
+  <script src="app.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="uiEnhancements.js"></script>
+</body>
+</html>

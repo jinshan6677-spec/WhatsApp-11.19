@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>账号配置</title>
+  <link rel="stylesheet" href="accountDialog.css">
+</head>
+<body>
+  <div class="dialog-container">
+    <div class="dialog-header">
+      <h1 id="dialog-title">添加账号</h1>
+      <button class="close-btn" id="close-btn" aria-label="关闭对话框">×</button>
+    </div>
+
+    <form id="account-form" class="dialog-content">
+      <!-- Basic Information Section -->
+      <section class="form-section">
+        <h2 class="section-title">基本信息</h2>
+        
+        <div class="form-group">
+          <label for="account-name" class="required">账号名称</label>
+          <input 
+            type="text" 
+            id="account-name" 
+            name="name" 
+            class="form-input" 
+            placeholder="例如：个人 WhatsApp"
+            required
+            maxlength="100"
+            autocomplete="off"
+          >
+          <span class="field-error" id="name-error"></span>
+          <span class="field-hint">用于识别此账号的友好名称</span>
+        </div>
+
+        <div class="form-group">
+          <label for="account-note">备注（可选）</label>
+          <textarea 
+            id="account-note" 
+            name="note" 
+            class="form-input" 
+            placeholder="例如：客服工作账号"
+            rows="3"
+            maxlength="500"
+          ></textarea>
+          <span class="field-hint">关于此账号的附加说明</span>
+        </div>
+      </section>
+
+      <!-- Proxy Configuration Section -->
+      <section class="form-section">
+        <h2 class="section-title">代理配置</h2>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              id="proxy-enabled" 
+              name="proxy.enabled"
+              class="form-checkbox"
+            >
+            <span>启用代理</span>
+          </label>
+          <span class="field-hint">通过代理服务器路由此账号的流量</span>
+        </div>
+
+        <div id="proxy-fields" class="proxy-fields" style="display: none;">
+          <div class="form-group">
+            <label for="proxy-protocol" class="required">协议</label>
+            <select 
+              id="proxy-protocol" 
+              name="proxy.protocol" 
+              class="form-select"
+            >
+              <option value="socks5">SOCKS5</option>
+              <option value="http">HTTP</option>
+              <option value="https">HTTPS</option>
+            </select>
+            <span class="field-hint">代理协议类型</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="proxy-host" class="required">主机地址</label>
+              <input 
+                type="text" 
+                id="proxy-host" 
+                name="proxy.host" 
+                class="form-input" 
+                placeholder="例如：127.0.0.1"
+                autocomplete="off"
+              >
+              <span class="field-error" id="proxy-host-error"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="proxy-port" class="required">端口</label>
+              <input 
+                type="number" 
+                id="proxy-port" 
+                name="proxy.port" 
+                class="form-input" 
+                placeholder="例如：1080"
+                min="1"
+                max="65535"
+                autocomplete="off"
+              >
+              <span class="field-error" id="proxy-port-error"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                id="proxy-auth-enabled" 
+                class="form-checkbox"
+              >
+              <span>代理需要身份验证</span>
+            </label>
+          </div>
+
+          <div id="proxy-auth-fields" class="proxy-auth-fields" style="display: none;">
+            <div class="form-group">
+              <label for="proxy-username">用户名</label>
+              <input 
+                type="text" 
+                id="proxy-username" 
+                name="proxy.username" 
+                class="form-input" 
+                placeholder="代理用户名"
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="proxy-password">密码</label>
+              <input 
+                type="password" 
+                id="proxy-password" 
+                name="proxy.password" 
+                class="form-input" 
+                placeholder="代理密码"
+                autocomplete="off"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="proxy-bypass">绕过规则（可选）</label>
+            <input 
+              type="text" 
+              id="proxy-bypass" 
+              name="proxy.bypass" 
+              class="form-input" 
+              placeholder="例如：localhost,127.0.0.1"
+              autocomplete="off"
+            >
+            <span class="field-hint">逗号分隔的绕过代理的主机列表</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional Settings Section -->
+      <section class="form-section">
+        <h2 class="section-title">其他设置</h2>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              id="auto-start" 
+              name="autoStart"
+              class="form-checkbox"
+            >
+            <span>应用启动时自动启动此账号</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Form Errors -->
+      <div id="form-errors" class="form-errors" style="display: none;">
+        <div class="error-icon">⚠️</div>
+        <div class="error-content">
+          <h3>请修复以下错误：</h3>
+          <ul id="error-list"></ul>
+        </div>
+      </div>
+    </form>
+
+    <div class="dialog-footer">
+      <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
+      <button type="submit" form="account-form" class="btn btn-primary" id="save-btn">
+        <span class="btn-text">保存账号</span>
+        <span class="btn-spinner" style="display: none;">⏳</span>
+      </button>
+    </div>
+  </div>
+
+  <script src="accountDialog.js"></script>
+</body>
+</html>

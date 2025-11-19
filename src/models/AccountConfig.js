@@ -1,0 +1,233 @@
+/**
+ * AccountConfig 数据模型
+ * 
+ * 定义单个 WhatsApp 账号的完整配置信息
+ */
+
+const crypto = require('crypto');
+
+/**
+ * Generate a UUID v4
+ * @returns {string}
+ */
+function uuidv4() {
+  return crypto.randomUUID();
+}
+
+/**
+ * @typedef {Object} ProxyConfig
+ * @property {boolean} enabled - 是否启用代理
+ * @property {'socks5'|'http'|'https'} protocol - 代理协议
+ * @property {string} host - 代理服务器地址
+ * @property {number} port - 代理服务器端口
+ * @property {string} [username] - 代理认证用户名（可选）
+ * @property {string} [password] - 代理认证密码（可选）
+ * @property {string} [bypass] - 代理绕过规则（可选）
+ */
+
+/**
+ * @typedef {Object} FriendTranslationConfig
+ * @property {boolean} enabled - 是否启用翻译
+ * @property {string} targetLanguage - 目标语言
+ */
+
+/**
+ * @typedef {Object} TranslationConfig
+ * @property {boolean} enabled - 是否启用翻译
+ * @property {string} targetLanguage - 目标语言
+ * @property {'google'|'gpt4'|'gemini'|'deepseek'} engine - 翻译引擎
+ * @property {string} [apiKey] - API 密钥（可选）
+ * @property {boolean} autoTranslate - 是否自动翻译
+ * @property {boolean} translateInput - 是否翻译输入框
+ * @property {Object.<string, FriendTranslationConfig>} friendSettings - 好友特定设置
+ */
+
+/**
+ * @typedef {Object} NotificationConfig
+ * @property {boolean} enabled - 是否启用通知
+ * @property {boolean} sound - 是否启用声音
+ * @property {boolean} badge - 是否显示徽章
+ */
+
+/**
+ * @typedef {Object} AccountConfig
+ * @property {string} id - 唯一标识符（UUID）
+ * @property {string} name - 账号名称
+ * @property {string} [note] - 账号备注（可选）
+ * @property {number} order - 侧边栏显示顺序
+ * @property {Date} createdAt - 创建时间
+ * @property {Date} lastActiveAt - 最后活跃时间
+ * @property {boolean} autoStart - 是否自动启动
+ * @property {ProxyConfig} proxy - 代理配置
+ * @property {TranslationConfig} translation - 翻译配置
+ * @property {NotificationConfig} notifications - 通知配置
+ * @property {string} sessionDir - 会话数据目录路径
+ */
+
+/**
+ * AccountConfig 类
+ */
+class AccountConfig {
+  /**
+   * 创建新的账号配置
+   * @param {Partial<AccountConfig>} [config] - 配置选项
+   */
+  constructor(config = {}) {
+    this.id = config.id || uuidv4();
+    this.name = config.name || `Account ${this.id.substring(0, 8)}`;
+    this.note = config.note || '';
+    this.order = config.order !== undefined ? config.order : 0;
+    this.createdAt = config.createdAt ? new Date(config.createdAt) : new Date();
+    this.lastActiveAt = config.lastActiveAt ? new Date(config.lastActiveAt) : new Date();
+    this.autoStart = config.autoStart !== undefined ? config.autoStart : false;
+    
+    // 会话数据目录路径
+    this.sessionDir = config.sessionDir || `session-data/account-${this.id}`;
+    
+    // 代理配置
+    this.proxy = {
+      enabled: false,
+      protocol: 'socks5',
+      host: '',
+      port: 0,
+      username: '',
+      password: '',
+      bypass: '',
+      ...(config.proxy || {})
+    };
+    
+    // 翻译配置
+    this.translation = {
+      enabled: true,
+      targetLanguage: 'zh-CN',
+      engine: 'google',
+      apiKey: '',
+      autoTranslate: false,
+      translateInput: false,
+      friendSettings: {},
+      ...(config.translation || {})
+    };
+    
+    // 通知配置
+    this.notifications = {
+      enabled: true,
+      sound: true,
+      badge: true,
+      ...(config.notifications || {})
+    };
+    
+    // 向后兼容：如果存在旧的 window 配置，忽略它但不报错
+    // 这样旧配置文件仍然可以加载
+    if (config.window) {
+      console.warn(`Account ${this.id}: window configuration is deprecated and will be ignored`);
+    }
+  }
+
+  /**
+   * 转换为普通对象
+   * @returns {Object}
+   */
+  toJSON() {
+    // 确保日期对象有效
+    const createdAt = this.createdAt instanceof Date ? this.createdAt : new Date(this.createdAt || Date.now());
+    const lastActiveAt = this.lastActiveAt instanceof Date ? this.lastActiveAt : new Date(this.lastActiveAt || Date.now());
+    
+    return {
+      id: this.id,
+      name: this.name,
+      note: this.note,
+      order: this.order,
+      createdAt: createdAt.toISOString(),
+      lastActiveAt: lastActiveAt.toISOString(),
+      autoStart: this.autoStart,
+      sessionDir: this.sessionDir,
+      proxy: this.proxy,
+      translation: this.translation,
+      notifications: this.notifications
+    };
+  }
+
+  /**
+   * 从普通对象创建 AccountConfig 实例
+   * @param {Object} data - 数据对象
+   * @returns {AccountConfig}
+   */
+  static fromJSON(data) {
+    return new AccountConfig(data);
+  }
+
+  /**
+   * 验证配置是否有效
+   * @returns {{valid: boolean, errors: string[]}}
+   */
+  validate() {
+    const errors = [];
+
+    // 验证 ID
+    if (!this.id || typeof this.id !== 'string') {
+      errors.push('Invalid account ID');
+    }
+
+    // 验证名称
+    if (!this.name || typeof this.name !== 'string' || this.name.trim().length === 0) {
+      errors.push('Account name is required');
+    }
+
+    // 验证 order 字段
+    if (typeof this.order !== 'number' || this.order < 0) {
+      errors.push('Order must be a non-negative number');
+    }
+
+    // 验证 sessionDir
+    if (!this.sessionDir || typeof this.sessionDir !== 'string' || this.sessionDir.trim().length === 0) {
+      errors.push('Session directory path is required');
+    }
+
+    // 验证代理配置
+    if (this.proxy.enabled) {
+      if (!['socks5', 'http', 'https'].includes(this.proxy.protocol)) {
+        errors.push('Invalid proxy protocol. Must be socks5, http, or https');
+      }
+      
+      if (!this.proxy.host || typeof this.proxy.host !== 'string' || this.proxy.host.trim().length === 0) {
+        errors.push('Proxy host is required when proxy is enabled');
+      }
+      
+      if (!this.proxy.port || typeof this.proxy.port !== 'number' || this.proxy.port < 1 || this.proxy.port > 65535) {
+        errors.push('Invalid proxy port. Must be between 1 and 65535');
+      }
+    }
+
+    // 验证翻译配置
+    if (this.translation.enabled) {
+      if (!['google', 'gpt4', 'gemini', 'deepseek'].includes(this.translation.engine)) {
+        errors.push('Invalid translation engine. Must be google, gpt4, gemini, or deepseek');
+      }
+      
+      if (!this.translation.targetLanguage || typeof this.translation.targetLanguage !== 'string') {
+        errors.push('Target language is required when translation is enabled');
+      }
+      
+      // 某些引擎需要 API 密钥
+      if (['gpt4', 'gemini', 'deepseek'].includes(this.translation.engine)) {
+        if (!this.translation.apiKey || typeof this.translation.apiKey !== 'string' || this.translation.apiKey.trim().length === 0) {
+          errors.push(`API key is required for ${this.translation.engine} translation engine`);
+        }
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * 更新最后活跃时间
+   */
+  updateLastActive() {
+    this.lastActiveAt = new Date();
+  }
+}
+
+module.exports = AccountConfig;
