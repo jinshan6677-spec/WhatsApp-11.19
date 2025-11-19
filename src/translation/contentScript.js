@@ -865,7 +865,7 @@
       // 添加按钮样式 - 固定在输入框上方
       button.style.cssText = `
         position: fixed;
-        bottom: 80px;
+        bottom: 100px;
         right: 20px;
         padding: 8px;
         background: rgba(102, 126, 234, 0.95);
