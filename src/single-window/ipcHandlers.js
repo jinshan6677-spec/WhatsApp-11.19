@@ -1533,6 +1533,154 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
     }
   });
 
+  /**
+   * Open an account - Create and display BrowserView
+   * Handler: open-account
+   */
+  ipcMain.handle('open-account', async (event, accountId) => {
+    try {
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      // Check if account exists
+      const account = await accountManager.getAccount(accountId);
+      if (!account) {
+        throw new Error(`Account ${accountId} not found`);
+      }
+
+      // Open account using ViewManager
+      const result = await viewManager.openAccount(accountId, {
+        url: 'https://web.whatsapp.com',
+        proxy: account.proxy,
+        translation: account.translation
+      });
+
+      if (result.success) {
+        // Update last active time
+        await accountManager.updateAccount(accountId, {
+          lastActiveAt: new Date()
+        });
+
+        // Notify renderer about account opened
+        mainWindow.sendToRenderer('account:opened', {
+          accountId,
+          timestamp: Date.now()
+        });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('[IPC] Failed to open account:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Close an account - Destroy BrowserView and release resources
+   * Handler: close-account
+   */
+  ipcMain.handle('close-account', async (event, accountId) => {
+    try {
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      // Check if account exists
+      const account = await accountManager.getAccount(accountId);
+      if (!account) {
+        throw new Error(`Account ${accountId} not found`);
+      }
+
+      // Close account using ViewManager
+      const result = await viewManager.closeAccount(accountId);
+
+      if (result.success) {
+        // Notify renderer about account closed
+        mainWindow.sendToRenderer('account:closed', {
+          accountId,
+          timestamp: Date.now()
+        });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('[IPC] Failed to close account:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Get account status (running status)
+   * Handler: get-account-status
+   */
+  ipcMain.handle('get-account-status', async (event, accountId) => {
+    try {
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      const status = viewManager.getAccountRunningStatus(accountId);
+      const isRunning = viewManager.isAccountRunning(accountId);
+      const viewState = viewManager.getViewState(accountId);
+
+      return {
+        success: true,
+        accountId,
+        status,
+        isRunning,
+        details: viewState ? {
+          isVisible: viewState.isVisible,
+          isLoaded: viewState.isLoaded,
+          loginStatus: viewState.loginStatus,
+          connectionStatus: viewState.connectionStatus,
+          error: viewState.errorInfo || null
+        } : null
+      };
+    } catch (error) {
+      console.error('[IPC] Failed to get account status:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Get all account statuses
+   * Handler: get-all-account-statuses
+   */
+  ipcMain.handle('get-all-account-statuses', async () => {
+    try {
+      const accounts = await accountManager.getAccountsSorted();
+      const statuses = {};
+
+      for (const account of accounts) {
+        statuses[account.id] = {
+          status: viewManager.getAccountRunningStatus(account.id),
+          isRunning: viewManager.isAccountRunning(account.id)
+        };
+      }
+
+      return {
+        success: true,
+        statuses
+      };
+    } catch (error) {
+      console.error('[IPC] Failed to get all account statuses:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
   console.log('[IPC] Single-window handlers registered');
 }
 
@@ -1578,6 +1726,10 @@ function unregisterIPCHandlers() {
   ipcMain.removeHandler('account:stop-login-status-monitoring');
   ipcMain.removeHandler('account:start-all-login-status-monitoring');
   ipcMain.removeHandler('account:stop-all-login-status-monitoring');
+  ipcMain.removeHandler('open-account');
+  ipcMain.removeHandler('close-account');
+  ipcMain.removeHandler('get-account-status');
+  ipcMain.removeHandler('get-all-account-statuses');
   ipcMain.removeAllListeners('account:create');
   ipcMain.removeAllListeners('account:edit');
   ipcMain.removeAllListeners('sidebar-resized');

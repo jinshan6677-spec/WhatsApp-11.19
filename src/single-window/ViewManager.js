@@ -1211,6 +1211,10 @@ class ViewManager {
 
       this.log('info', `Destroying view for account ${accountId}`);
 
+      // Get session data path for logging
+      const sessionDataPath = this.sessionManager.getUserDataDir(accountId);
+      this.log('info', `Session data will be preserved at: ${sessionDataPath}`);
+
       // Hide view first if visible
       if (viewState.isVisible) {
         await this.hideView(accountId);
@@ -1224,7 +1228,7 @@ class ViewManager {
       // Remove from views map
       this.views.delete(accountId);
 
-      this.log('info', `View destroyed for account ${accountId}`);
+      this.log('info', `View destroyed for account ${accountId} (session data preserved)`);
 
       return true;
     } catch (error) {
@@ -3350,6 +3354,173 @@ class ViewManager {
         })),
       timestamp: memoryUsage.timestamp
     };
+  }
+
+  /**
+   * Open an account - Create and display BrowserView
+   * @param {string} accountId - Account ID
+   * @param {Object} [config] - Account configuration
+   * @param {Object} [config.proxy] - Proxy configuration
+   * @param {Object} [config.translation] - Translation configuration
+   * @param {string} [config.url] - URL to load (default: WhatsApp Web)
+   * @returns {Promise<{success: boolean, error?: string, alreadyOpen?: boolean}>}
+   */
+  async openAccount(accountId, config = {}) {
+    try {
+      // 1. Validate account ID
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      // 2. Check if account is already open
+      if (this.hasView(accountId)) {
+        this.log('warn', `Account ${accountId} is already open`);
+        return { success: true, alreadyOpen: true };
+      }
+
+      // 3. Check account limit
+      if (this.views.size >= this.options.maxConcurrentViews) {
+        const errorMsg = `Maximum concurrent accounts limit (${this.options.maxConcurrentViews}) reached`;
+        this.log('error', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      this.log('info', `Opening account ${accountId}`);
+
+      // 4. Notify UI that opening is starting
+      this._notifyRenderer('account-opening', { 
+        accountId,
+        timestamp: Date.now()
+      });
+
+      // 5. Create BrowserView
+      await this.createView(accountId, config);
+
+      // 6. Show BrowserView
+      await this.showView(accountId);
+
+      this.log('info', `Account ${accountId} opened successfully`);
+
+      // 7. Notify UI that opening succeeded
+      this._notifyRenderer('account-opened', { 
+        accountId,
+        timestamp: Date.now()
+      });
+
+      return { success: true };
+    } catch (error) {
+      this.log('error', `Failed to open account ${accountId}:`, error);
+      
+      // Notify UI that opening failed
+      this._notifyRenderer('account-open-failed', {
+        accountId,
+        error: error.message,
+        timestamp: Date.now()
+      });
+
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Close an account - Destroy BrowserView and release resources
+   * @param {string} accountId - Account ID
+   * @returns {Promise<{success: boolean, error?: string, alreadyClosed?: boolean}>}
+   */
+  async closeAccount(accountId) {
+    try {
+      // 1. Validate account ID
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      // 2. Check if account is open
+      if (!this.hasView(accountId)) {
+        this.log('warn', `Account ${accountId} is not open`);
+        return { success: true, alreadyClosed: true };
+      }
+
+      this.log('info', `Closing account ${accountId}`);
+
+      // 3. Notify UI that closing is starting
+      this._notifyRenderer('account-closing', { 
+        accountId,
+        timestamp: Date.now()
+      });
+
+      // 4. If this is the active account, switch to another account or clear active
+      if (this.activeAccountId === accountId) {
+        const otherAccountIds = Array.from(this.views.keys())
+          .filter(id => id !== accountId);
+        
+        if (otherAccountIds.length > 0) {
+          // Switch to the first available account
+          await this.switchView(otherAccountIds[0]);
+        } else {
+          // No other accounts, just hide this one
+          await this.hideView(accountId);
+        }
+      }
+
+      // 5. Destroy BrowserView
+      await this.destroyView(accountId);
+
+      this.log('info', `Account ${accountId} closed successfully`);
+
+      // 6. Notify UI that closing succeeded
+      this._notifyRenderer('account-closed', { 
+        accountId,
+        timestamp: Date.now()
+      });
+
+      return { success: true };
+    } catch (error) {
+      this.log('error', `Failed to close account ${accountId}:`, error);
+      
+      // Notify UI that closing failed
+      this._notifyRenderer('account-close-failed', {
+        accountId,
+        error: error.message,
+        timestamp: Date.now()
+      });
+
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get account running status
+   * @param {string} accountId - Account ID
+   * @returns {string} Status: 'not_started' | 'loading' | 'connected' | 'error'
+   */
+  getAccountRunningStatus(accountId) {
+    const viewState = this.views.get(accountId);
+    
+    if (!viewState) {
+      return 'not_started';
+    }
+
+    // Map viewState.status to running status
+    switch (viewState.status) {
+      case 'created':
+      case 'loading':
+        return 'loading';
+      case 'ready':
+        return 'connected';
+      case 'error':
+        return 'error';
+      default:
+        return 'not_started';
+    }
+  }
+
+  /**
+   * Check if account is running (has an active BrowserView)
+   * @param {string} accountId - Account ID
+   * @returns {boolean}
+   */
+  isAccountRunning(accountId) {
+    return this.hasView(accountId);
   }
 }
 

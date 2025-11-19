@@ -58,6 +58,8 @@ function uuidv4() {
  * @property {Date} createdAt - 创建时间
  * @property {Date} lastActiveAt - 最后活跃时间
  * @property {boolean} autoStart - 是否自动启动
+ * @property {boolean} keepAlive - 是否保持运行（应用关闭时记住状态）
+ * @property {string|null} lastRunningStatus - 最后运行状态（'not-started'|'loading'|'connected'|'error'|null）
  * @property {ProxyConfig} proxy - 代理配置
  * @property {TranslationConfig} translation - 翻译配置
  * @property {NotificationConfig} notifications - 通知配置
@@ -80,6 +82,8 @@ class AccountConfig {
     this.createdAt = config.createdAt ? new Date(config.createdAt) : new Date();
     this.lastActiveAt = config.lastActiveAt ? new Date(config.lastActiveAt) : new Date();
     this.autoStart = config.autoStart !== undefined ? config.autoStart : false;
+    this.keepAlive = config.keepAlive !== undefined ? config.keepAlive : true;
+    this.lastRunningStatus = config.lastRunningStatus || null;
     
     // 会话数据目录路径
     this.sessionDir = config.sessionDir || `session-data/account-${this.id}`;
@@ -140,6 +144,8 @@ class AccountConfig {
       createdAt: createdAt.toISOString(),
       lastActiveAt: lastActiveAt.toISOString(),
       autoStart: this.autoStart,
+      keepAlive: this.keepAlive,
+      lastRunningStatus: this.lastRunningStatus,
       sessionDir: this.sessionDir,
       proxy: this.proxy,
       translation: this.translation,
@@ -181,6 +187,22 @@ class AccountConfig {
     // 验证 sessionDir
     if (!this.sessionDir || typeof this.sessionDir !== 'string' || this.sessionDir.trim().length === 0) {
       errors.push('Session directory path is required');
+    }
+
+    // 验证 autoStart
+    if (typeof this.autoStart !== 'boolean') {
+      errors.push('autoStart must be a boolean');
+    }
+
+    // 验证 keepAlive
+    if (typeof this.keepAlive !== 'boolean') {
+      errors.push('keepAlive must be a boolean');
+    }
+
+    // 验证 lastRunningStatus
+    if (this.lastRunningStatus !== null && 
+        !['not-started', 'loading', 'connected', 'error'].includes(this.lastRunningStatus)) {
+      errors.push('lastRunningStatus must be null or one of: not-started, loading, connected, error');
     }
 
     // 验证代理配置

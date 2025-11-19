@@ -50,6 +50,14 @@
       window.electronAPI.on('view-manager:login-status-changed', handleLoginStatusChanged);
       window.electronAPI.on('view-manager:view-crashed', handleViewCrashed);
       window.electronAPI.on('view-manager:connection-status-changed', handleConnectionStatusChanged);
+      
+      // Listen for manual account control events
+      window.electronAPI.on('view-manager:account-opening', handleAccountOpening);
+      window.electronAPI.on('view-manager:account-opened', handleAccountOpened);
+      window.electronAPI.on('view-manager:account-open-failed', handleAccountOpenFailed);
+      window.electronAPI.on('view-manager:account-closing', handleAccountClosing);
+      window.electronAPI.on('view-manager:account-closed', handleAccountClosed);
+      window.electronAPI.on('view-manager:account-close-failed', handleAccountCloseFailed);
     }
   }
 
@@ -68,6 +76,19 @@
           activeAccountId = activeResult.accountId;
         }
         
+        // Get running status for all accounts
+        const statusResult = await window.electronAPI.invoke('get-all-account-statuses');
+        if (statusResult && statusResult.success && statusResult.statuses) {
+          // Merge status information into accounts
+          accounts.forEach(account => {
+            const statusInfo = statusResult.statuses[account.id];
+            if (statusInfo) {
+              account.runningStatus = statusInfo.status;
+              account.isRunning = statusInfo.isRunning;
+            }
+          });
+        }
+        
         renderAccountList();
       }
     } catch (error) {
@@ -80,7 +101,7 @@
    * Render the account list
    * OPTIMIZED: Uses document fragment for batch DOM updates
    */
-  function renderAccountList() {
+  async function renderAccountList() {
     // Clear existing items (except empty state)
     const existingItems = accountList.querySelectorAll('.account-item');
     existingItems.forEach(item => item.remove());
@@ -94,6 +115,26 @@
     } else {
       if (emptyState) {
         emptyState.classList.add('hidden');
+      }
+    }
+
+    // Get current running status for all accounts
+    if (window.electronAPI) {
+      try {
+        const statusResult = await window.electronAPI.getAllAccountStatuses();
+        if (statusResult && statusResult.success && statusResult.statuses) {
+          // Update accounts with current running status
+          // statusResult.statuses is an object: { 'account-id': { status, isRunning } }
+          accounts.forEach(account => {
+            const statusData = statusResult.statuses[account.id];
+            if (statusData) {
+              account.runningStatus = statusData.status;
+              account.isRunning = statusData.isRunning;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get account statuses:', error);
       }
     }
 
@@ -195,6 +236,55 @@
     const actions = document.createElement('div');
     actions.className = 'account-actions';
 
+    // Determine account running status
+    const runningStatus = account.runningStatus || 'not_started';
+    const isRunning = account.isRunning || false;
+
+    // Add open/close button based on running status
+    if (runningStatus === 'not_started' || !isRunning) {
+      // Show open button
+      const openBtn = document.createElement('button');
+      openBtn.className = 'open-btn';
+      openBtn.innerHTML = '<span class="icon">▶</span><span class="text">打开</span>';
+      openBtn.title = '打开账号';
+      openBtn.setAttribute('aria-label', '打开账号');
+      openBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleOpenAccount(account.id);
+      });
+      actions.appendChild(openBtn);
+    } else if (runningStatus === 'loading') {
+      // Show loading indicator
+      const loadingIndicator = document.createElement('div');
+      loadingIndicator.className = 'loading-indicator';
+      loadingIndicator.innerHTML = '<span class="spinner"></span><span class="text">加载中...</span>';
+      actions.appendChild(loadingIndicator);
+    } else if (runningStatus === 'connected' || isRunning) {
+      // Show close button
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-btn';
+      closeBtn.innerHTML = '<span class="icon">⏹</span><span class="text">关闭</span>';
+      closeBtn.title = '关闭账号';
+      closeBtn.setAttribute('aria-label', '关闭账号');
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleCloseAccount(account.id);
+      });
+      actions.appendChild(closeBtn);
+    } else if (runningStatus === 'error') {
+      // Show retry button
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'retry-btn';
+      retryBtn.innerHTML = '<span class="icon">⟳</span><span class="text">重试</span>';
+      retryBtn.title = '重试打开账号';
+      retryBtn.setAttribute('aria-label', '重试打开账号');
+      retryBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleRetryAccount(account.id);
+      });
+      actions.appendChild(retryBtn);
+    }
+
     const editBtn = document.createElement('button');
     editBtn.className = 'edit-btn';
     editBtn.innerHTML = '⚙️';
@@ -293,6 +383,15 @@
     }
 
     try {
+      // Check if account is running
+      const accountStatus = await window.electronAPI.getAccountStatus(accountId);
+      
+      if (!accountStatus || !accountStatus.isRunning) {
+        // Account is not running, don't switch
+        console.log('Account is not running, cannot switch');
+        return;
+      }
+
       // Update UI immediately for responsiveness
       setActiveAccount(accountId);
 
@@ -426,6 +525,161 @@
       console.error('Failed to delete account:', error);
       showError('删除账号失败');
     }
+  }
+
+  /**
+   * Handle open account button click
+   */
+  async function handleOpenAccount(accountId) {
+    try {
+      // Update UI immediately to show loading state
+      updateAccountRunningStatus(accountId, 'loading');
+
+      if (window.electronAPI) {
+        const result = await window.electronAPI.invoke('open-account', accountId);
+        
+        if (!result.success) {
+          throw new Error(result.error || '打开账号失败');
+        }
+
+        // Success - UI will be updated via events
+        console.log(`Account ${accountId} opened successfully`);
+      }
+    } catch (error) {
+      console.error('Failed to open account:', error);
+      updateAccountRunningStatus(accountId, 'error');
+      showError(`打开账号失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle close account button click
+   */
+  async function handleCloseAccount(accountId) {
+    try {
+      // Update UI immediately to show loading state
+      updateAccountRunningStatus(accountId, 'loading');
+
+      if (window.electronAPI) {
+        const result = await window.electronAPI.invoke('close-account', accountId);
+        
+        if (!result.success) {
+          throw new Error(result.error || '关闭账号失败');
+        }
+
+        // Success - UI will be updated via events
+        console.log(`Account ${accountId} closed successfully`);
+      }
+    } catch (error) {
+      console.error('Failed to close account:', error);
+      updateAccountRunningStatus(accountId, 'error');
+      showError(`关闭账号失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle retry account button click (after error)
+   */
+  async function handleRetryAccount(accountId) {
+    // Retry is the same as opening
+    await handleOpenAccount(accountId);
+  }
+
+  /**
+   * Update account running status in UI
+   * OPTIMIZED: Only updates the action buttons, not the entire item
+   */
+  function updateAccountRunningStatus(accountId, runningStatus) {
+    // Update the account in our local state
+    const account = accounts.find(acc => acc.id === accountId);
+    if (account) {
+      account.runningStatus = runningStatus;
+      account.isRunning = runningStatus !== 'not_started' && runningStatus !== 'error';
+    }
+
+    // Find the account item
+    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
+    if (!item || !account) {
+      return;
+    }
+
+    // Find the actions container
+    const actions = item.querySelector('.account-actions');
+    if (!actions) {
+      return;
+    }
+
+    // Clear existing actions
+    actions.innerHTML = '';
+
+    // Add appropriate button based on running status
+    if (runningStatus === 'not_started' || !account.isRunning) {
+      // Show open button
+      const openBtn = document.createElement('button');
+      openBtn.className = 'open-btn';
+      openBtn.innerHTML = '<span class="icon">▶</span><span class="text">打开</span>';
+      openBtn.title = '打开账号';
+      openBtn.setAttribute('aria-label', '打开账号');
+      openBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleOpenAccount(account.id);
+      });
+      actions.appendChild(openBtn);
+    } else if (runningStatus === 'loading') {
+      // Show loading indicator
+      const loadingIndicator = document.createElement('div');
+      loadingIndicator.className = 'loading-indicator';
+      loadingIndicator.innerHTML = '<span class="spinner"></span><span class="text">加载中...</span>';
+      actions.appendChild(loadingIndicator);
+    } else if (runningStatus === 'connected' || account.isRunning) {
+      // Show close button
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-btn';
+      closeBtn.innerHTML = '<span class="icon">⏹</span><span class="text">关闭</span>';
+      closeBtn.title = '关闭账号';
+      closeBtn.setAttribute('aria-label', '关闭账号');
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleCloseAccount(account.id);
+      });
+      actions.appendChild(closeBtn);
+    } else if (runningStatus === 'error') {
+      // Show retry button
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'retry-btn';
+      retryBtn.innerHTML = '<span class="icon">⟳</span><span class="text">重试</span>';
+      retryBtn.title = '重试打开账号';
+      retryBtn.setAttribute('aria-label', '重试打开账号');
+      retryBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleRetryAccount(account.id);
+      });
+      actions.appendChild(retryBtn);
+    }
+
+    // Re-add edit and delete buttons
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.innerHTML = '⚙️';
+    editBtn.title = '编辑账号';
+    editBtn.setAttribute('aria-label', '编辑账号');
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleEditAccount(account.id);
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.title = '删除账号';
+    deleteBtn.setAttribute('aria-label', '删除账号');
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleDeleteAccount(account.id);
+    });
+
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
   }
 
   /**
@@ -688,6 +942,56 @@
   function getAccountName(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     return account ? account.name : '未知账号';
+  }
+
+  /**
+   * Handle account opening event
+   */
+  function handleAccountOpening(data) {
+    const { accountId } = data;
+    updateAccountRunningStatus(accountId, 'loading');
+  }
+
+  /**
+   * Handle account opened event
+   */
+  function handleAccountOpened(data) {
+    const { accountId } = data;
+    updateAccountRunningStatus(accountId, 'connected');
+  }
+
+  /**
+   * Handle account open failed event
+   */
+  function handleAccountOpenFailed(data) {
+    const { accountId, error } = data;
+    updateAccountRunningStatus(accountId, 'error');
+    showError(`打开账号失败: ${error}`);
+  }
+
+  /**
+   * Handle account closing event
+   */
+  function handleAccountClosing(data) {
+    const { accountId } = data;
+    updateAccountRunningStatus(accountId, 'loading');
+  }
+
+  /**
+   * Handle account closed event
+   */
+  function handleAccountClosed(data) {
+    const { accountId } = data;
+    updateAccountRunningStatus(accountId, 'not_started');
+  }
+
+  /**
+   * Handle account close failed event
+   */
+  function handleAccountCloseFailed(data) {
+    const { accountId, error } = data;
+    updateAccountRunningStatus(accountId, 'error');
+    showError(`关闭账号失败: ${error}`);
   }
 
   /**

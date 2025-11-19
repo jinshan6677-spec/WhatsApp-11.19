@@ -147,6 +147,45 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // ============================================================================
+  // Manual Account Control Methods
+  // ============================================================================
+
+  /**
+   * Open an account - Create and display BrowserView
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  openAccount: (accountId) => {
+    return ipcRenderer.invoke('open-account', accountId);
+  },
+
+  /**
+   * Close an account - Destroy BrowserView and release resources
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  closeAccount: (accountId) => {
+    return ipcRenderer.invoke('close-account', accountId);
+  },
+
+  /**
+   * Get account status (running status)
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Account status information
+   */
+  getAccountStatus: (accountId) => {
+    return ipcRenderer.invoke('get-account-status', accountId);
+  },
+
+  /**
+   * Get all account statuses
+   * @returns {Promise<Object>} All account statuses
+   */
+  getAllAccountStatuses: () => {
+    return ipcRenderer.invoke('get-all-account-statuses');
+  },
+
+  // ============================================================================
   // View Status Methods
   // ============================================================================
 
@@ -447,6 +486,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'account:stop-login-status-monitoring',
       'account:start-all-login-status-monitoring',
       'account:stop-all-login-status-monitoring',
+      'open-account',
+      'close-account',
+      'get-account-status',
+      'get-all-account-statuses',
       'recovery:recover-session',
       'recovery:reset-account',
       'recovery:reconnect',
@@ -523,7 +566,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'view-manager:connection-status-changed',
       'view-manager:view-switching',
       'view-manager:view-switched',
-      'view-manager:view-switch-failed'
+      'view-manager:view-switch-failed',
+      'view-manager:account-opening',
+      'view-manager:account-opened',
+      'view-manager:account-open-failed',
+      'view-manager:account-closing',
+      'view-manager:account-closed',
+      'view-manager:account-close-failed'
     ];
 
     if (validChannels.includes(channel)) {
@@ -563,7 +612,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'view-manager:connection-status-changed',
       'view-manager:view-switching',
       'view-manager:view-switched',
-      'view-manager:view-switch-failed'
+      'view-manager:view-switch-failed',
+      'view-manager:account-opening',
+      'view-manager:account-opened',
+      'view-manager:account-open-failed',
+      'view-manager:account-closing',
+      'view-manager:account-closed',
+      'view-manager:account-close-failed'
     ];
 
     if (validChannels.includes(channel)) {
@@ -599,6 +654,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'view-manager:connection-status-changed',
       'view-manager:view-switching',
       'view-manager:view-switched',
+      'view-manager:view-switch-failed',
+      'view-manager:account-opening',
+      'view-manager:account-opened',
+      'view-manager:account-open-failed',
+      'view-manager:account-closing',
+      'view-manager:account-closed',
+      'view-manager:account-close-failed',
       'view-manager:view-switch-failed'
     ];
 

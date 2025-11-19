@@ -224,6 +224,25 @@ async function registerAllIPCHandlers() {
 }
 
 /**
+ * 加载账号列表并发送到渲染进程
+ */
+async function loadAndSendAccounts() {
+  try {
+    const accounts = await accountConfigManager.loadAccounts();
+    
+    // 发送账号列表到渲染进程（使用 accounts-updated 事件）
+    mainWindow.sendToRenderer('accounts-updated', accounts.map(acc => acc.toJSON()));
+    
+    log('info', `加载了 ${accounts.length} 个账号配置并发送到渲染进程`);
+  } catch (error) {
+    log('error', '加载账号列表失败:', error);
+    
+    // 发送空数组，避免 UI 显示错误
+    mainWindow.sendToRenderer('accounts-updated', []);
+  }
+}
+
+/**
  * 自动启动配置的账号
  */
 async function autoStartAccounts() {
@@ -243,42 +262,63 @@ async function autoStartAccounts() {
 
     log('info', `找到 ${autoStartAccounts.length} 个自动启动账号`);
 
-    // 启动第一个自动启动账号（在单窗口架构中）
-    if (autoStartAccounts.length > 0) {
-      const firstAccount = autoStartAccounts[0];
-      
+    // 启动所有配置了自动启动的账号
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const account of autoStartAccounts) {
       try {
-        log('info', `自动启动账号: ${firstAccount.name} (${firstAccount.id})`);
+        log('info', `自动启动账号: ${account.name} (${account.id})`);
         
-        // 使用 ViewManager 切换到该账号（会自动创建视图）
-        const result = await viewManager.switchView(firstAccount.id, {
-          createIfMissing: true,
-          viewConfig: {
-            url: 'https://web.whatsapp.com',
-            proxy: firstAccount.proxy,
-            translation: firstAccount.translation
-          }
+        // 使用 ViewManager 的 openAccount 方法打开账号
+        const result = await viewManager.openAccount(account.id, {
+          url: 'https://web.whatsapp.com',
+          proxy: account.proxy,
+          translation: account.translation
         });
         
         if (result.success) {
-          log('info', `账号 ${firstAccount.name} 启动成功`);
+          log('info', `账号 ${account.name} 启动成功`);
+          results.success++;
           
           // 更新最后活跃时间
-          await accountConfigManager.updateAccount(firstAccount.id, {
+          await accountConfigManager.updateAccount(account.id, {
             lastActiveAt: new Date()
           });
         } else {
-          log('error', `账号 ${firstAccount.name} 启动失败: ${result.error}`);
+          log('error', `账号 ${account.name} 启动失败: ${result.error}`);
+          results.failed++;
+          results.errors.push({
+            accountId: account.id,
+            accountName: account.name,
+            error: result.error
+          });
         }
         
       } catch (error) {
-        log('error', `自动启动账号 ${firstAccount.name} 时出错:`, error);
+        log('error', `自动启动账号 ${account.name} 时出错:`, error);
+        results.failed++;
+        results.errors.push({
+          accountId: account.id,
+          accountName: account.name,
+          error: error.message
+        });
       }
     }
 
-    log('info', '自动启动完成');
+    log('info', `自动启动完成: ${results.success} 成功, ${results.failed} 失败`);
+    
+    if (results.failed > 0) {
+      log('warn', '部分账号启动失败:', results.errors);
+    }
+
+    return results;
   } catch (error) {
     log('error', '自动启动失败:', error);
+    throw error;
   }
 }
 
@@ -495,66 +535,38 @@ app.whenReady().then(async () => {
     // 4. 注册所有 IPC 处理器
     await registerAllIPCHandlers();
 
-    // 4. 加载并显示账号列表
+    // 4. 等待窗口准备好，然后加载并显示账号列表
     try {
-      const accounts = await accountConfigManager.loadAccounts();
-      
-      // 发送账号列表到渲染进程
-      mainWindow.sendToRenderer('accounts-loaded', {
-        accounts: accounts.map(acc => acc.toJSON())
-      });
-      
-      log('info', `加载了 ${accounts.length} 个账号配置`);
+      // 等待窗口内容加载完成
+      const window = mainWindow.getWindow();
+      if (window && !window.webContents.isLoading()) {
+        // 窗口已经加载完成，直接发送
+        await loadAndSendAccounts();
+      } else {
+        // 等待窗口加载完成
+        log('info', '等待窗口加载完成...');
+        window.webContents.once('did-finish-load', async () => {
+          log('info', '窗口加载完成，发送账号列表');
+          await loadAndSendAccounts();
+        });
+      }
     } catch (error) {
       log('error', '加载账号列表失败:', error);
     }
 
-    // 5. 恢复上次活跃的账号或自动启动配置的账号
+    // 5. 手动账户控制 - 不自动打开任何账号
+    // 用户需要手动点击"打开"按钮来启动账号
+    // 如果账号配置了 autoStart: true，则会自动打开
     try {
-      // 首先尝试恢复上次活跃的账号
-      const savedAccountId = viewManager.getSavedActiveAccountId();
+      log('info', '手动账户控制模式：等待用户手动打开账号');
+      log('info', '提示：如果某些账号配置了"自动启动"，将在 1 秒后自动打开');
       
-      if (savedAccountId) {
-        const account = await accountConfigManager.getAccount(savedAccountId);
-        
-        if (account) {
-          const restoreResult = await viewManager.switchView(savedAccountId, {
-            createIfMissing: true,
-            viewConfig: {
-              url: 'https://web.whatsapp.com',
-              proxy: account.proxy,
-              translation: account.translation
-            }
-          });
-          
-          if (restoreResult.success) {
-            log('info', `恢复上次活跃账号: ${savedAccountId}`);
-          } else {
-            log('warn', `恢复账号失败: ${restoreResult.error}`);
-            // 尝试自动启动
-            if (config.autoStart !== false) {
-              setTimeout(async () => {
-                await autoStartAccounts();
-              }, 1000);
-            }
-          }
-        } else {
-          log('warn', `保存的账号 ${savedAccountId} 不存在`);
-          // 尝试自动启动
-          if (config.autoStart !== false) {
-            setTimeout(async () => {
-              await autoStartAccounts();
-            }, 1000);
-          }
-        }
-      } else if (config.autoStart !== false) {
-        // 如果没有上次活跃的账号，尝试自动启动
-        setTimeout(async () => {
-          await autoStartAccounts();
-        }, 1000);
-      }
+      // 延迟执行自动启动检查（仅针对配置了 autoStart: true 的账号）
+      setTimeout(async () => {
+        await autoStartAccounts();
+      }, 1000);
     } catch (error) {
-      log('error', '恢复账号失败:', error);
+      log('error', '自动启动检查失败:', error);
     }
 
     log('info', '应用启动完成');

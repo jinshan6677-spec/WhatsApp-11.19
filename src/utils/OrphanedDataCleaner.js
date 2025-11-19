@@ -57,6 +57,18 @@ class OrphanedDataCleaner {
   }
 
   /**
+   * 获取 Profiles 目录路径
+   * @private
+   * @returns {string}
+   */
+  _getProfilesPath() {
+    if (!this.userDataPath) {
+      throw new Error('User data path not configured');
+    }
+    return path.join(this.userDataPath, 'profiles');
+  }
+
+  /**
    * 扫描并清理 orphaned 账号目录
    * @param {string[]} existingAccountIds - 现有账号 ID 列表
    * @returns {Promise<{success: boolean, cleaned: number, errors: string[], details: Object}>}
@@ -65,76 +77,19 @@ class OrphanedDataCleaner {
     try {
       this.log('info', 'Starting orphaned data cleanup scan');
       
-      const partitionsPath = this._getPartitionsPath();
       const cleaned = [];
       const errors = [];
       let totalSizeFreed = 0;
 
-      // 检查 Partitions 目录是否存在
-      try {
-        await fs.access(partitionsPath);
-      } catch {
-        this.log('info', 'Partitions directory does not exist, nothing to clean');
-        return {
-          success: true,
-          cleaned: 0,
-          errors: [],
-          details: {
-            totalSizeFreed: 0,
-            cleanedDirectories: []
-          }
-        };
-      }
-
-      // 读取目录内容
-      const entries = await fs.readdir(partitionsPath, { withFileTypes: true });
-      
-      this.log('info', `Found ${entries.length} entries in Partitions directory`);
-      
-      // 筛选出账号目录 (account_* 格式)
-      const accountDirs = entries.filter(entry => 
-        entry.isDirectory() && entry.name.startsWith('account_')
-      );
-
-      this.log('info', `Found ${accountDirs.length} potential account directories`);
-      
       // 转换为 Set 以提高查找效率
       const existingIdsSet = new Set(existingAccountIds);
 
-      // 检查每个账号目录
-      for (const dir of accountDirs) {
-        const accountId = dir.name.replace('account_', '');
-        
-        if (!existingIdsSet.has(accountId)) {
-          this.log('info', `Found orphaned account directory: ${dir.name}`);
-          
-          try {
-            const dirPath = path.join(partitionsPath, dir.name);
-            const stats = await this._getDirectorySize(dirPath);
-            
-            await fs.rm(dirPath, { recursive: true, force: true });
-            
-            cleaned.push({
-              directory: dir.name,
-              path: dirPath,
-              size: stats.size,
-              fileCount: stats.files
-            });
-            
-            totalSizeFreed += stats.size;
-            
-            this.log('info', `Cleaned orphaned directory: ${dir.name} (${stats.size} bytes, ${stats.files} files)`);
-            
-          } catch (error) {
-            const errorMsg = `Failed to clean directory ${dir.name}: ${error.message}`;
-            errors.push(errorMsg);
-            this.log('error', errorMsg);
-          }
-        } else {
-          this.log('debug', `Skipping existing account directory: ${dir.name}`);
-        }
-      }
+      // 1. 清理 Partitions 目录
+      await this._cleanPartitionsDirectory(existingIdsSet, cleaned, errors, (size) => { totalSizeFreed += size; });
 
+      // 2. 清理 Profiles 目录
+      await this._cleanProfilesDirectory(existingIdsSet, cleaned, errors, (size) => { totalSizeFreed += size; });
+      
       // 记录清理历史
       this.cleanupHistory.push({
         timestamp: new Date().toISOString(),
@@ -172,6 +127,136 @@ class OrphanedDataCleaner {
           cleanedDirectories: []
         }
       };
+    }
+  }
+
+  /**
+   * 清理 Partitions 目录中的孤立账号数据
+   * @private
+   * @param {Set<string>} existingIdsSet - 现有账号 ID 集合
+   * @param {Array} cleaned - 已清理目录列表
+   * @param {Array} errors - 错误列表
+   * @param {Function} addSize - 添加大小的回调函数
+   */
+  async _cleanPartitionsDirectory(existingIdsSet, cleaned, errors, addSize) {
+    const partitionsPath = this._getPartitionsPath();
+
+    // 检查 Partitions 目录是否存在
+    try {
+      await fs.access(partitionsPath);
+    } catch {
+      this.log('info', 'Partitions directory does not exist, skipping');
+      return;
+    }
+
+    // 读取目录内容
+    const entries = await fs.readdir(partitionsPath, { withFileTypes: true });
+    this.log('info', `Found ${entries.length} entries in Partitions directory`);
+
+    // 筛选出账号目录 (account_* 格式)
+    const accountDirs = entries.filter(entry => 
+      entry.isDirectory() && entry.name.startsWith('account_')
+    );
+
+    this.log('info', `Found ${accountDirs.length} potential account directories in Partitions`);
+
+    // 检查每个账号目录
+    for (const dir of accountDirs) {
+      const accountId = dir.name.replace('account_', '');
+      
+      if (!existingIdsSet.has(accountId)) {
+        this.log('info', `Found orphaned Partitions directory: ${dir.name}`);
+        
+        try {
+          const dirPath = path.join(partitionsPath, dir.name);
+          const stats = await this._getDirectorySize(dirPath);
+          
+          await fs.rm(dirPath, { recursive: true, force: true });
+          
+          cleaned.push({
+            type: 'Partitions',
+            directory: dir.name,
+            path: dirPath,
+            size: stats.size,
+            fileCount: stats.files
+          });
+          
+          addSize(stats.size);
+          
+          this.log('info', `Cleaned orphaned Partitions directory: ${dir.name} (${stats.size} bytes, ${stats.files} files)`);
+          
+        } catch (error) {
+          const errorMsg = `Failed to clean Partitions directory ${dir.name}: ${error.message}`;
+          errors.push(errorMsg);
+          this.log('error', errorMsg);
+        }
+      } else {
+        this.log('debug', `Skipping existing Partitions account directory: ${dir.name}`);
+      }
+    }
+  }
+
+  /**
+   * 清理 Profiles 目录中的孤立账号数据
+   * @private
+   * @param {Set<string>} existingIdsSet - 现有账号 ID 集合
+   * @param {Array} cleaned - 已清理目录列表
+   * @param {Array} errors - 错误列表
+   * @param {Function} addSize - 添加大小的回调函数
+   */
+  async _cleanProfilesDirectory(existingIdsSet, cleaned, errors, addSize) {
+    const profilesPath = this._getProfilesPath();
+
+    // 检查 Profiles 目录是否存在
+    try {
+      await fs.access(profilesPath);
+    } catch {
+      this.log('info', 'Profiles directory does not exist, skipping');
+      return;
+    }
+
+    // 读取目录内容
+    const entries = await fs.readdir(profilesPath, { withFileTypes: true });
+    this.log('info', `Found ${entries.length} entries in Profiles directory`);
+
+    // 筛选出账号目录（直接使用账号 ID 作为目录名）
+    const profileDirs = entries.filter(entry => entry.isDirectory());
+
+    this.log('info', `Found ${profileDirs.length} potential profile directories`);
+
+    // 检查每个账号目录
+    for (const dir of profileDirs) {
+      const accountId = dir.name;
+      
+      if (!existingIdsSet.has(accountId)) {
+        this.log('info', `Found orphaned Profiles directory: ${dir.name}`);
+        
+        try {
+          const dirPath = path.join(profilesPath, dir.name);
+          const stats = await this._getDirectorySize(dirPath);
+          
+          await fs.rm(dirPath, { recursive: true, force: true });
+          
+          cleaned.push({
+            type: 'Profiles',
+            directory: dir.name,
+            path: dirPath,
+            size: stats.size,
+            fileCount: stats.files
+          });
+          
+          addSize(stats.size);
+          
+          this.log('info', `Cleaned orphaned Profiles directory: ${dir.name} (${stats.size} bytes, ${stats.files} files)`);
+          
+        } catch (error) {
+          const errorMsg = `Failed to clean Profiles directory ${dir.name}: ${error.message}`;
+          errors.push(errorMsg);
+          this.log('error', errorMsg);
+        }
+      } else {
+        this.log('debug', `Skipping existing Profiles account directory: ${dir.name}`);
+      }
     }
   }
 
