@@ -55,6 +55,7 @@
       window.electronAPI.on('view-manager:login-status-changed', handleLoginStatusChanged);
       window.electronAPI.on('view-manager:view-crashed', handleViewCrashed);
       window.electronAPI.on('view-manager:connection-status-changed', handleConnectionStatusChanged);
+      window.electronAPI.on('view-manager:account-profile-updated', handleAccountProfileUpdated);
 
       // Manual account control events（打开/关闭账号）
       window.electronAPI.on('view-manager:account-opening', handleAccountOpening);
@@ -201,6 +202,15 @@
       info.appendChild(name);
     }
 
+    // Phone number
+    if (account.phoneNumber) {
+      const phone = document.createElement('div');
+      phone.className = 'account-phone';
+      phone.textContent = account.phoneNumber;
+      phone.title = account.phoneNumber;
+      info.appendChild(phone);
+    }
+
     // Status
     const status = document.createElement('div');
     status.className = 'account-status';
@@ -226,7 +236,76 @@
       }
     });
 
+    // Apply profile info (真实头像 / 昵称 / 号码）如果已知
+    applyAccountProfileToItem(account, item);
+
     return item;
+  }
+
+  /**
+   * 根据账号 profile 信息更新账号项的头像 / 名称 / 号码展示
+   * @param {Object} account - 账号对象
+   * @param {HTMLElement} item - 对应的账号 DOM 节点
+   */
+  function applyAccountProfileToItem(account, item) {
+    if (!account || !item) return;
+
+    const displayName = account.profileName || account.name || '未命名账号';
+
+    // 更新名称
+    const nameEl = item.querySelector('.account-name');
+    if (nameEl) {
+      nameEl.textContent = displayName;
+      nameEl.title = displayName;
+    }
+
+    // 更新头像
+    const avatarEl = item.querySelector('.account-avatar');
+    if (avatarEl) {
+      // 清理旧内容
+      avatarEl.textContent = '';
+      const existingImg = avatarEl.querySelector('img');
+      if (existingImg) {
+        existingImg.remove();
+      }
+      avatarEl.style.background = '';
+
+      if (account.avatarUrl) {
+        const img = document.createElement('img');
+        img.src = account.avatarUrl;
+        img.alt = displayName;
+        img.className = 'account-avatar-image';
+        avatarEl.appendChild(img);
+      } else {
+        avatarEl.textContent = getAccountInitial(displayName);
+        avatarEl.style.background = getAccountColor(account.id);
+      }
+    }
+
+    // 更新号码（如果已经存在 node 就只更新文本，否则在状态前插入）
+    let phoneEl = item.querySelector('.account-phone');
+    if (!phoneEl && account.phoneNumber) {
+      phoneEl = document.createElement('div');
+      phoneEl.className = 'account-phone';
+
+      const infoEl = item.querySelector('.account-info');
+      const statusEl = infoEl ? infoEl.querySelector('.account-status') : null;
+      if (infoEl && statusEl) {
+        infoEl.insertBefore(phoneEl, statusEl);
+      } else if (infoEl) {
+        infoEl.appendChild(phoneEl);
+      }
+    }
+
+    if (phoneEl) {
+      if (account.phoneNumber) {
+        phoneEl.textContent = account.phoneNumber;
+        phoneEl.title = account.phoneNumber;
+      } else {
+        // 没有号码时隐藏该节点
+        phoneEl.remove();
+      }
+    }
   }
 
   /**
@@ -820,6 +899,36 @@
   }
 
   /**
+   * Handle account profile updated event (avatar / name / phone)
+   */
+  function handleAccountProfileUpdated(data) {
+    const { accountId, phoneNumber, profileName, avatarUrl } = data || {};
+
+    console.log('[Sidebar] account-profile-updated', data);
+
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (!account) {
+      return;
+    }
+
+    if (phoneNumber) {
+      account.phoneNumber = phoneNumber;
+    }
+    if (profileName) {
+      account.profileName = profileName;
+    }
+    if (avatarUrl) {
+      account.avatarUrl = avatarUrl;
+    }
+
+    if (!accountList) return;
+    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
+    if (!item) return;
+
+    applyAccountProfileToItem(account, item);
+  }
+
+  /**
    * Update account status in UI（集中管理 DOM 更新）
    */
   function updateAccountStatus(accountId, status) {
@@ -922,4 +1031,3 @@
     getActiveAccountId: () => activeAccountId
   };
 })();
-

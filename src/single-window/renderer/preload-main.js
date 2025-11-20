@@ -459,6 +459,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'switch-to-next-account',
       'switch-to-previous-account',
       'account:get-active',
+      'account:get-profile',
       'account:reorder',
       'reorder-accounts',
       'account:view-status',
@@ -572,7 +573,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'view-manager:account-open-failed',
       'view-manager:account-closing',
       'view-manager:account-closed',
-      'view-manager:account-close-failed'
+      'view-manager:account-close-failed',
+      'view-manager:account-profile-updated'
     ];
 
     if (validChannels.includes(channel)) {
@@ -618,7 +620,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'view-manager:account-open-failed',
       'view-manager:account-closing',
       'view-manager:account-closed',
-      'view-manager:account-close-failed'
+      'view-manager:account-close-failed',
+      'view-manager:account-profile-updated'
     ];
 
     if (validChannels.includes(channel)) {
@@ -661,7 +664,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'view-manager:account-closing',
       'view-manager:account-closed',
       'view-manager:account-close-failed',
-      'view-manager:view-switch-failed'
+      'view-manager:view-switch-failed',
+      'view-manager:account-profile-updated'
     ];
 
     if (validChannels.includes(channel)) {

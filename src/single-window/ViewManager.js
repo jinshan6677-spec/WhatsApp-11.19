@@ -43,6 +43,7 @@ class ViewManager {
     this.mainWindow = mainWindow;
     this.sessionManager = sessionManager;
     this.translationIntegration = options.translationIntegration || null;
+    this.accountManager = options.accountManager || null;
     this.options = {
       defaultSidebarWidth: options.defaultSidebarWidth || 280,
       debounceDelay: options.debounceDelay || 100,
@@ -907,6 +908,15 @@ class ViewManager {
         this.log('warn', `Account ${accountId} login status unclear - Details:`, JSON.stringify(loginStatus, null, 2));
       }
 
+      // If logged in, try to refresh WhatsApp profile info (头像 / 名称 / 号码)
+      if (loginStatus.isLoggedIn) {
+        try {
+          await this._updateAccountProfileFromWeb(accountId, view);
+        } catch (profileError) {
+          this.log('debug', `Failed to update account profile for ${accountId}:`, profileError);
+        }
+      }
+
       // Notify renderer about login status with detailed information
       this._notifyRenderer('login-status-changed', {
         accountId,
@@ -954,6 +964,193 @@ class ViewManager {
     const viewState = this.views.get(accountId);
     if (!viewState) return null;
     return viewState.loginInfo || null;
+  }
+
+  /**
+   * Extract WhatsApp profile information (avatar / display name / phone number)
+   * from the loaded WhatsApp Web page and notify renderer.
+   * @private
+   * @param {string} accountId - Account ID
+   * @param {BrowserView} view - BrowserView instance
+   * @returns {Promise<void>}
+   */
+  async _updateAccountProfileFromWeb(accountId, view) {
+    const viewState = this.views.get(accountId);
+    if (!viewState || !view || view.webContents.isDestroyed()) {
+      return;
+    }
+
+    try {
+      const profile = await view.webContents.executeJavaScript(`
+        (function() {
+          try {
+            // 1. Phone number: try localStorage \"last-wid\" first
+            let phoneNumber = null;
+            let lastWidRaw = null;
+            try {
+              const widStr = window.localStorage && window.localStorage.getItem('last-wid');
+              lastWidRaw = widStr || null;
+              if (widStr) {
+                const widObj = JSON.parse(widStr);
+                if (widObj) {
+                  if (widObj.user) {
+                    phoneNumber = String(widObj.user);
+                  } else if (widObj._serialized) {
+                    const parts = String(widObj._serialized).split('@');
+                    phoneNumber = parts[0] || null;
+                  }
+                }
+              }
+            } catch (e) {
+              // Ignore localStorage parse errors
+            }
+
+            // Fallback: scan all localStorage entries for a pattern like \"123456789@c.us\"
+            if (!phoneNumber && window.localStorage) {
+              try {
+                for (let i = 0; i < window.localStorage.length; i++) {
+                  const key = window.localStorage.key(i);
+                  let value = null;
+                  try {
+                    value = window.localStorage.getItem(key);
+                  } catch (_) {
+                    continue;
+                  }
+                  if (!value || typeof value !== 'string') continue;
+                  const match = value.match(/\"(\\d{5,15})@c\\.us\"/);
+                  if (match) {
+                    phoneNumber = match[1];
+                    if (!lastWidRaw) {
+                      lastWidRaw = key;
+                    }
+                    break;
+                  }
+                }
+              } catch (e) {
+                // Ignore scanning errors
+              }
+            }
+
+            // 2. Display name & avatar: best-effort DOM lookup around the profile button
+            let profileName = null;
+            let avatarUrl = null;
+
+            const candidates = [
+              // Newer WhatsApp Web headers
+              'header [data-testid=\"avatar\"]',
+              'header [data-testid=\"chat-avatar\"]',
+              // Fallbacks
+              'header [aria-label*=\"Profile\"]',
+              'header [aria-label*=\"个人资料\"]'
+            ];
+
+            let profileButton = null;
+            for (const sel of candidates) {
+              const el = document.querySelector(sel);
+              if (el) {
+                profileButton = el;
+                break;
+              }
+            }
+
+            if (profileButton) {
+              // Try to use title / aria-label as profile name
+              const title = profileButton.getAttribute('title');
+              const aria = profileButton.getAttribute('aria-label');
+              if (title && title.trim()) {
+                profileName = title.trim();
+              } else if (aria && aria.trim()) {
+                profileName = aria.trim();
+              }
+
+              const img =
+                profileButton.querySelector('img') ||
+                profileButton.querySelector('image') ||
+                profileButton.querySelector('svg image');
+              if (img && img.src) {
+                avatarUrl = img.src;
+              }
+            }
+
+            // Collect some lightweight debug info to help tuning selectors
+            const headerImgs = Array.from(
+              (document.querySelector('header') || document).querySelectorAll('img')
+            )
+              .slice(0, 3)
+              .map((img) => ({
+                alt: img.getAttribute('alt') || null,
+                title: img.getAttribute('title') || null,
+                src: img.getAttribute('src') || null
+              }));
+
+            if (!avatarUrl && headerImgs.length && headerImgs[0].src) {
+              avatarUrl = headerImgs[0].src;
+            }
+
+            return {
+              phoneNumber: phoneNumber || null,
+              profileName: profileName || null,
+              avatarUrl: avatarUrl || null,
+              debug: {
+                lastWidRaw,
+                headerImgSample: headerImgs
+              }
+            };
+          } catch (err) {
+            return {
+              phoneNumber: null,
+              profileName: null,
+              avatarUrl: null,
+              error: err && err.message ? err.message : String(err)
+            };
+          }
+        })();
+      `);
+
+      if (!profile || typeof profile !== 'object') {
+        return;
+      }
+
+      const { phoneNumber, profileName, avatarUrl, debug } = profile;
+
+      // Update in-memory view state for debugging / diagnostics
+      viewState.phoneNumber = phoneNumber || viewState.phoneNumber || null;
+      viewState.profileName = profileName || viewState.profileName || null;
+      viewState.avatarUrl = avatarUrl || viewState.avatarUrl || null;
+
+      this.log(
+        'info',
+        `Updated profile info for account ${accountId}:`,
+        JSON.stringify(
+          {
+            phoneNumber: viewState.phoneNumber,
+            profileName: viewState.profileName,
+            hasAvatar: !!viewState.avatarUrl,
+            debug: debug || null
+          },
+          null,
+          2
+        )
+      );
+
+      const profilePayload = {
+        accountId,
+        phoneNumber: viewState.phoneNumber,
+        profileName: viewState.profileName,
+        avatarUrl: viewState.avatarUrl
+      };
+
+      // Persist profile info to account configuration (for future sessions)
+      await this._persistAccountProfile(accountId, profilePayload);
+
+      // Notify renderer so that sidebar (and overlay) can refresh avatar/name/number
+      this._notifyRenderer('account-profile-updated', profilePayload);
+
+      // Additionally, apply profile info directly in the main window DOM for robustness
+      await this._applyProfileToSidebar(profilePayload);
+    } catch (error) {
+      this.log('debug', `Failed to execute profile extraction script for ${accountId}:`, error);
+    }
   }
 
   /**
@@ -1071,6 +1268,144 @@ class ViewManager {
       }
       
       return 'error';
+    }
+  }
+
+  /**
+   * Apply profile info (avatar / name / phone) directly to the sidebar DOM
+   * in the main window. This acts as a fallback to ensure the UI is updated
+   * even if renderer listeners are not attached correctly.
+   * @private
+   * @param {Object} payload - Profile payload
+   * @param {string} payload.accountId
+   * @param {string|null} payload.phoneNumber
+   * @param {string|null} payload.profileName
+   * @param {string|null} payload.avatarUrl
+   * @returns {Promise<void>}
+   */
+  async _applyProfileToSidebar(payload) {
+    const window = this.mainWindow.getWindow();
+    if (!window || window.isDestroyed()) {
+      return;
+    }
+
+    const { accountId, phoneNumber, profileName, avatarUrl } = payload || {};
+    if (!accountId) return;
+
+    const script = `
+      (function() {
+        try {
+          var accountId = ${JSON.stringify(accountId)};
+          var phoneNumber = ${JSON.stringify(phoneNumber || null)};
+          var profileName = ${JSON.stringify(profileName || null)};
+          var avatarUrl = ${JSON.stringify(avatarUrl || null)};
+
+          var list = document.getElementById('account-list');
+          if (!list) return;
+
+          var item = list.querySelector('.account-item[data-account-id="' + accountId + '"]');
+          if (!item) return;
+
+          // Name
+          var nameEl = item.querySelector('.account-name');
+          if (nameEl && profileName) {
+            nameEl.textContent = profileName;
+            nameEl.title = profileName;
+          }
+
+          // Avatar
+          var avatarEl = item.querySelector('.account-avatar');
+          if (avatarEl) {
+            // 清空原有文本内容
+            avatarEl.textContent = '';
+
+            // 使用背景图方式显示头像，覆盖原有渐变背景
+            if (avatarUrl) {
+              avatarEl.style.backgroundImage = 'url(\"' + avatarUrl + '\")';
+              avatarEl.style.backgroundSize = 'cover';
+              avatarEl.style.backgroundPosition = 'center';
+              avatarEl.style.backgroundRepeat = 'no-repeat';
+            } else {
+              // 如果没有头像 URL，保留原始样式（不做特别处理）
+              avatarEl.style.backgroundImage = '';
+            }
+          }
+
+          // Phone number
+          var phoneEl = item.querySelector('.account-phone');
+          if (!phoneEl && phoneNumber) {
+            phoneEl = document.createElement('div');
+            phoneEl.className = 'account-phone';
+
+            var infoEl = item.querySelector('.account-info');
+            var statusEl = infoEl ? infoEl.querySelector('.account-status') : null;
+            if (infoEl && statusEl) {
+              infoEl.insertBefore(phoneEl, statusEl);
+            } else if (infoEl) {
+              infoEl.appendChild(phoneEl);
+            }
+          }
+
+          if (phoneEl) {
+            if (phoneNumber) {
+              phoneEl.textContent = phoneNumber;
+              phoneEl.title = phoneNumber;
+            } else {
+              phoneEl.remove();
+            }
+          }
+
+        } catch (e) {
+          console.error('[ViewManager] Failed to apply profile to sidebar:', e);
+        }
+      })();
+    `;
+
+    try {
+      await window.webContents.executeJavaScript(script, true);
+    } catch (error) {
+      this.log('debug', 'Error executing sidebar profile script:', error);
+    }
+  }
+
+  /**
+   * Persist WhatsApp profile info into AccountConfig so that avatar / name / phone
+   * can be restored on next application launch without waiting for detection.
+   * @private
+   * @param {string} accountId
+   * @param {{phoneNumber?: string|null, profileName?: string|null, avatarUrl?: string|null}} profile
+   * @returns {Promise<void>}
+   */
+  async _persistAccountProfile(accountId, profile) {
+    if (!this.accountManager) {
+      return;
+    }
+
+    const updates = {};
+    if (profile.phoneNumber) {
+      updates.phoneNumber = profile.phoneNumber;
+    }
+    if (profile.profileName) {
+      updates.profileName = profile.profileName;
+    }
+    if (profile.avatarUrl) {
+      updates.avatarUrl = profile.avatarUrl;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
+
+    try {
+      const result = await this.accountManager.updateAccount(accountId, updates);
+      if (!result || !result.success) {
+        const errors = result && result.errors ? result.errors.join(', ') : 'unknown error';
+        this.log('warn', `Failed to persist profile info for account ${accountId}: ${errors}`);
+      } else {
+        this.log('info', `Persisted profile info for account ${accountId}`);
+      }
+    } catch (error) {
+      this.log('error', `Error persisting profile info for account ${accountId}:`, error);
     }
   }
 

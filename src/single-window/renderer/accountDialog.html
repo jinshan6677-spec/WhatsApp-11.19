@@ -36,6 +36,21 @@
         </div>
 
         <div class="form-group">
+          <label for="phoneNumber">WhatsApp 号码（可选）</label>
+          <input 
+            type="text" 
+            id="phoneNumber" 
+            name="phoneNumber" 
+            class="form-input" 
+            placeholder="例如：66803947997"
+            maxlength="32"
+            autocomplete="off"
+          >
+          <span class="field-error" id="phoneNumber-error"></span>
+          <span class="field-hint">在账号列表中展示的号码，仅用于本地标识</span>
+        </div>
+
+        <div class="form-group">
           <label for="account-note">备注（可选）</label>
           <textarea 
             id="account-note" 
@@ -194,7 +209,7 @@
       <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
       <button type="submit" form="account-form" class="btn btn-primary" id="save-btn">
         <span class="btn-text">保存账号</span>
-        <span class="btn-spinner" style="display: none;">⏳</span>
+        <span class="btn-spinner" style="display: none;">…</span>
       </button>
     </div>
   </div>

@@ -1,7 +1,10 @@
 /**
  * AccountConfig 数据模型
- * 
- * 定义单个 WhatsApp 账号的完整配置信息
+ *
+ * 定义单个 WhatsApp 账号的完整配置信息：
+ * - 应用侧的账号名称 / 备注 / 排序
+ * - 从 WhatsApp Web 解析到的真实头像、昵称、号码
+ * - 代理、翻译、通知等运行配置
  */
 
 const crypto = require('crypto');
@@ -52,7 +55,10 @@ function uuidv4() {
 /**
  * @typedef {Object} AccountConfig
  * @property {string} id - 唯一标识符（UUID）
- * @property {string} name - 账号名称
+ * @property {string} name - 应用内账号名称（用户自定义标签）
+ * @property {string} [phoneNumber] - WhatsApp 号码（从 Web 解析或手工填写，可选）
+ * @property {string} [profileName] - WhatsApp 真实昵称（从 Web 解析，可选）
+ * @property {string} [avatarUrl] - WhatsApp 真实头像 URL（从 Web 解析，可选）
  * @property {string} [note] - 账号备注（可选）
  * @property {number} order - 侧边栏显示顺序
  * @property {Date} createdAt - 创建时间
@@ -67,7 +73,7 @@ function uuidv4() {
  */
 
 /**
- * AccountConfig 类
+ * AccountConfig 实体
  */
 class AccountConfig {
   /**
@@ -77,6 +83,12 @@ class AccountConfig {
   constructor(config = {}) {
     this.id = config.id || uuidv4();
     this.name = config.name || `Account ${this.id.substring(0, 8)}`;
+
+    // 从 WhatsApp Web 提取的真实信息（可选）
+    this.phoneNumber = config.phoneNumber || '';
+    this.profileName = config.profileName || '';
+    this.avatarUrl = config.avatarUrl || '';
+
     this.note = config.note || '';
     this.order = config.order !== undefined ? config.order : 0;
     this.createdAt = config.createdAt ? new Date(config.createdAt) : new Date();
@@ -84,10 +96,10 @@ class AccountConfig {
     this.autoStart = config.autoStart !== undefined ? config.autoStart : false;
     this.keepAlive = config.keepAlive !== undefined ? config.keepAlive : true;
     this.lastRunningStatus = config.lastRunningStatus || null;
-    
+
     // 会话数据目录路径
     this.sessionDir = config.sessionDir || `session-data/account-${this.id}`;
-    
+
     // 代理配置
     this.proxy = {
       enabled: false,
@@ -99,7 +111,7 @@ class AccountConfig {
       bypass: '',
       ...(config.proxy || {})
     };
-    
+
     // 翻译配置
     this.translation = {
       enabled: true,
@@ -111,7 +123,7 @@ class AccountConfig {
       friendSettings: {},
       ...(config.translation || {})
     };
-    
+
     // 通知配置
     this.notifications = {
       enabled: true,
@@ -119,26 +131,34 @@ class AccountConfig {
       badge: true,
       ...(config.notifications || {})
     };
-    
+
     // 向后兼容：如果存在旧的 window 配置，忽略它但不报错
-    // 这样旧配置文件仍然可以加载
     if (config.window) {
+      // 旧配置文件中可能带有窗口信息，这里仅记录一次警告
       console.warn(`Account ${this.id}: window configuration is deprecated and will be ignored`);
     }
   }
 
   /**
-   * 转换为普通对象
+   * 转换为普通对象，方便持久化 / 通过 IPC 传输
    * @returns {Object}
    */
   toJSON() {
-    // 确保日期对象有效
-    const createdAt = this.createdAt instanceof Date ? this.createdAt : new Date(this.createdAt || Date.now());
-    const lastActiveAt = this.lastActiveAt instanceof Date ? this.lastActiveAt : new Date(this.lastActiveAt || Date.now());
-    
+    const createdAt =
+      this.createdAt instanceof Date
+        ? this.createdAt
+        : new Date(this.createdAt || Date.now());
+    const lastActiveAt =
+      this.lastActiveAt instanceof Date
+        ? this.lastActiveAt
+        : new Date(this.lastActiveAt || Date.now());
+
     return {
       id: this.id,
       name: this.name,
+      phoneNumber: this.phoneNumber,
+      profileName: this.profileName,
+      avatarUrl: this.avatarUrl,
       note: this.note,
       order: this.order,
       createdAt: createdAt.toISOString(),
@@ -174,9 +194,43 @@ class AccountConfig {
       errors.push('Invalid account ID');
     }
 
-    // 验证名称
+    // 验证名称（应用内标签，必填）
     if (!this.name || typeof this.name !== 'string' || this.name.trim().length === 0) {
       errors.push('Account name is required');
+    }
+
+    // 验证 profileName（可选）
+    if (this.profileName !== undefined && this.profileName !== null && this.profileName !== '') {
+      if (typeof this.profileName !== 'string') {
+        errors.push('profileName must be a string');
+      } else if (this.profileName.trim().length > 100) {
+        errors.push('profileName must not exceed 100 characters');
+      }
+    }
+
+    // 验证 WhatsApp 号码（可选）
+    if (this.phoneNumber !== undefined && this.phoneNumber !== null && this.phoneNumber !== '') {
+      if (typeof this.phoneNumber !== 'string') {
+        errors.push('phoneNumber must be a string');
+      } else {
+        const trimmed = this.phoneNumber.trim();
+        if (trimmed.length > 32) {
+          errors.push('phoneNumber must not exceed 32 characters');
+        }
+        const phonePattern = /^[0-9+\s-]+$/;
+        if (!phonePattern.test(trimmed)) {
+          errors.push('phoneNumber must contain only digits, spaces, plus sign or dashes');
+        }
+      }
+    }
+
+    // 验证 avatarUrl（可选）
+    if (this.avatarUrl !== undefined && this.avatarUrl !== null && this.avatarUrl !== '') {
+      if (typeof this.avatarUrl !== 'string') {
+        errors.push('avatarUrl must be a string');
+      } else if (this.avatarUrl.length > 512) {
+        errors.push('avatarUrl must not exceed 512 characters');
+      }
     }
 
     // 验证 order 字段
@@ -200,39 +254,52 @@ class AccountConfig {
     }
 
     // 验证 lastRunningStatus
-    if (this.lastRunningStatus !== null && 
-        !['not-started', 'loading', 'connected', 'error'].includes(this.lastRunningStatus)) {
-      errors.push('lastRunningStatus must be null or one of: not-started, loading, connected, error');
+    if (
+      this.lastRunningStatus !== null &&
+      !['not-started', 'loading', 'connected', 'error'].includes(this.lastRunningStatus)
+    ) {
+      errors.push(
+        'lastRunningStatus must be null or one of: not-started, loading, connected, error'
+      );
     }
 
     // 验证代理配置
-    if (this.proxy.enabled) {
+    if (this.proxy && this.proxy.enabled) {
       if (!['socks5', 'http', 'https'].includes(this.proxy.protocol)) {
         errors.push('Invalid proxy protocol. Must be socks5, http, or https');
       }
-      
+
       if (!this.proxy.host || typeof this.proxy.host !== 'string' || this.proxy.host.trim().length === 0) {
         errors.push('Proxy host is required when proxy is enabled');
       }
-      
-      if (!this.proxy.port || typeof this.proxy.port !== 'number' || this.proxy.port < 1 || this.proxy.port > 65535) {
+
+      if (
+        !this.proxy.port ||
+        typeof this.proxy.port !== 'number' ||
+        this.proxy.port < 1 ||
+        this.proxy.port > 65535
+      ) {
         errors.push('Invalid proxy port. Must be between 1 and 65535');
       }
     }
 
     // 验证翻译配置
-    if (this.translation.enabled) {
+    if (this.translation && this.translation.enabled) {
       if (!['google', 'gpt4', 'gemini', 'deepseek'].includes(this.translation.engine)) {
         errors.push('Invalid translation engine. Must be google, gpt4, gemini, or deepseek');
       }
-      
+
       if (!this.translation.targetLanguage || typeof this.translation.targetLanguage !== 'string') {
         errors.push('Target language is required when translation is enabled');
       }
-      
+
       // 某些引擎需要 API 密钥
       if (['gpt4', 'gemini', 'deepseek'].includes(this.translation.engine)) {
-        if (!this.translation.apiKey || typeof this.translation.apiKey !== 'string' || this.translation.apiKey.trim().length === 0) {
+        if (
+          !this.translation.apiKey ||
+          typeof this.translation.apiKey !== 'string' ||
+          this.translation.apiKey.trim().length === 0
+        ) {
           errors.push(`API key is required for ${this.translation.engine} translation engine`);
         }
       }

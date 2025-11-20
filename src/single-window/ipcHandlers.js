@@ -108,6 +108,42 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
   });
 
   /**
+   * Get runtime WhatsApp profile info for an account
+   * (avatar / profile name / phone number) from ViewManager
+   * Handler: account:get-profile
+   */
+  ipcMain.handle('account:get-profile', async (_event, accountId) => {
+    try {
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      const viewState = viewManager.getViewState(accountId);
+      if (!viewState) {
+        return {
+          success: false,
+          error: `View state for account ${accountId} not found`
+        };
+      }
+
+      return {
+        success: true,
+        profile: {
+          phoneNumber: viewState.phoneNumber || null,
+          profileName: viewState.profileName || null,
+          avatarUrl: viewState.avatarUrl || null
+        }
+      };
+    } catch (error) {
+      console.error('[IPC] Failed to get account profile:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
    * Open account dialog for creating or editing
    * Handler: open-account-dialog
    */
@@ -180,6 +216,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       const accountConfig = {
         id: uuidv4(),
         name: config.name.trim(),
+        phoneNumber: (config.phoneNumber || '').trim(),
         note: config.note || '',
         proxy: config.proxy || {
           enabled: false,
@@ -267,6 +304,9 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       
       if (updates.name !== undefined) {
         accountUpdates.name = updates.name.trim();
+      }
+      if (updates.phoneNumber !== undefined) {
+        accountUpdates.phoneNumber = (updates.phoneNumber || '').trim();
       }
       if (updates.note !== undefined) {
         accountUpdates.note = updates.note;

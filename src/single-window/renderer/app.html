@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <!-- 放宽图片加载策略，允许从 HTTPS 加载头像 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
   <title>WhatsApp 桌面版 - 多账号</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="errorDisplay.css">
@@ -52,5 +53,6 @@
   <script src="app.js"></script>
   <script src="sidebar.js"></script>
   <script src="uiEnhancements.js"></script>
+  <script src="accountProfileOverlay.js"></script>
 </body>
 </html>

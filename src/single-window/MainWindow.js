@@ -151,9 +151,8 @@ class MainWindow {
 
     // Handle console messages from renderer (for debugging)
     this.window.webContents.on('console-message', (_event, _level, message) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Renderer Console] ${message}`);
-      }
+      // 始终将渲染进程的日志转发到主进程控制台，方便在 dev 模式下调试
+      console.log(`[Renderer Console] ${message}`);
     });
   }
 

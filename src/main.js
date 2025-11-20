@@ -172,7 +172,8 @@ async function initializeManagers() {
     // 6. 初始化 ViewManager
     viewManager = new ViewManager(mainWindow, sessionManager, {
       defaultSidebarWidth: 280,
-      translationIntegration: translationIntegration
+      translationIntegration: translationIntegration,
+      accountManager: accountConfigManager
     });
     log('info', 'ViewManager 初始化完成');
 

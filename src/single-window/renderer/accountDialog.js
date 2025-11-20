@@ -22,6 +22,7 @@
 
   // Form fields
   const accountName = document.getElementById('account-name');
+  const accountPhoneNumber = document.getElementById('phoneNumber');
   const accountNote = document.getElementById('account-note');
   const autoStart = document.getElementById('auto-start');
 
@@ -65,6 +66,9 @@
 
     // Real-time validation
     accountName.addEventListener('input', () => validateField('name'));
+    if (accountPhoneNumber) {
+      accountPhoneNumber.addEventListener('input', () => validatePhoneNumberField());
+    }
     proxyHost.addEventListener('input', () => validateField('proxy-host'));
     proxyPort.addEventListener('input', () => validateField('proxy-port'));
 
@@ -113,6 +117,9 @@
   function populateForm(account) {
     // Basic information
     accountName.value = account.name || '';
+    if (accountPhoneNumber) {
+      accountPhoneNumber.value = account.phoneNumber || '';
+    }
     accountNote.value = account.note || '';
     autoStart.checked = account.autoStart || false;
 
@@ -206,6 +213,35 @@
   }
 
   /**
+   * Validate phone number field (optional)
+   */
+  function validatePhoneNumberField() {
+    if (!accountPhoneNumber) {
+      return true;
+    }
+
+    clearFieldError('phoneNumber');
+
+    const value = accountPhoneNumber.value.trim();
+    if (!value) {
+      return true;
+    }
+
+    const phonePattern = /^[0-9+\s-]+$/;
+    if (value.length > 32) {
+      setFieldError('phoneNumber', 'WhatsApp 号码不能超过 32 个字符');
+      return false;
+    }
+
+    if (!phonePattern.test(value)) {
+      setFieldError('phoneNumber', 'WhatsApp 号码格式不正确，只能包含数字、空格、+ 和 -');
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Validate entire form
    */
   function validateForm() {
@@ -235,6 +271,11 @@
     }
 
     // Translation validation removed - translation is now configured only within WhatsApp Web interface
+
+    // Additional phone number validation (optional)
+    if (!validatePhoneNumberField()) {
+      errors.push('WhatsApp 号码格式不正确');
+    }
 
     return errors;
   }
@@ -309,6 +350,7 @@
   function collectFormData() {
     const data = {
       name: accountName.value.trim(),
+      phoneNumber: accountPhoneNumber ? accountPhoneNumber.value.trim() : '',
       note: accountNote.value.trim(),
       autoStart: autoStart.checked,
       proxy: {
@@ -408,6 +450,7 @@
     if (!editMode || !originalData) {
       // In create mode, check if any field has been filled
       return accountName.value.trim() !== '' ||
+             (accountPhoneNumber && accountPhoneNumber.value.trim() !== '') ||
              accountNote.value.trim() !== '' ||
              proxyEnabled.checked ||
              autoStart.checked;
@@ -417,6 +460,7 @@
     const currentData = collectFormData();
     return JSON.stringify(currentData) !== JSON.stringify({
       name: originalData.name,
+      phoneNumber: originalData.phoneNumber || '',
       note: originalData.note,
       autoStart: originalData.autoStart,
       proxy: originalData.proxy,
