@@ -14,11 +14,16 @@
     <!-- Sidebar for account management -->
     <div id="sidebar">
       <div class="sidebar-header">
-        <h2>账号列表</h2>
-        <button id="add-account" class="btn-primary" title="添加新账号">
-          <span class="icon">+</span>
-          <span class="text">添加</span>
-        </button>
+        <div class="header-top">
+          <h2>账号列表</h2>
+          <button id="add-account" class="btn-icon" title="添加新账号">
+            <span class="icon">+</span>
+          </button>
+        </div>
+        <div class="search-container">
+          <input type="text" id="account-search" placeholder="搜索账号..." autocomplete="off">
+          <span class="search-icon">🔍</span>
+        </div>
       </div>
       
       <div class="account-list" id="account-list">

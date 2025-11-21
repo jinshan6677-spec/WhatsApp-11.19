@@ -43,13 +43,19 @@ html, body {
 }
 
 .sidebar-header {
-  padding: 16px;
+  padding: 12px 16px;
   background-color: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header-top {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
 }
 
 .sidebar-header h2 {
@@ -57,6 +63,63 @@ html, body {
   font-weight: 600;
   color: #111;
   margin: 0;
+}
+
+/* Search Container */
+.search-container {
+  position: relative;
+  width: 100%;
+}
+
+.search-container input {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: #fff;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.search-container input:focus {
+  border-color: #25d366;
+  box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.1);
+}
+
+.search-container .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #999;
+  pointer-events: none;
+}
+
+/* Icon Button */
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: #f0f2f5;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background-color: #e4e6eb;
+  color: #000;
+}
+
+.btn-icon .icon {
+  font-size: 20px;
+  line-height: 1;
 }
 
 /* ===== Button Styles ===== */
@@ -136,145 +199,107 @@ html, body {
 }
 
 /* ===== Account Item Styles ===== */
+/* ===== Account Item Styles ===== */
 .account-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px 12px 24px;
-  margin-bottom: 8px;
-  background: #ffffff;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background: transparent;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  cursor: grab;
-  border: 1px solid #f0f0f0;
+  border: 1px solid transparent;
   user-select: none;
 }
 
-.account-item:active {
-  cursor: grabbing;
-}
-
-.account-item:last-child {
-  margin-bottom: 0;
-}
-
-.account-item.dragging {
-  opacity: 0.6;
-  cursor: grabbing;
-  transform: rotate(2deg);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  background: #f0f8ff;
-}
-
-.account-item.drag-over {
-  border-top: 3px solid #25d366;
-  background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);
-  transform: translateX(4px);
-  box-shadow: -2px 0 8px rgba(37, 211, 102, 0.3);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 放置动画 */
-.account-item.drag-over::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(to bottom, #25d366, #20bd5a);
-  border-radius: 2px;
-  animation: slideInLeft 0.2s ease-out;
-}
-
-@keyframes slideInLeft {
-  from {
-    width: 0;
-    opacity: 0;
-  }
-  to {
-    width: 3px;
-    opacity: 1;
-  }
-}
-
-/* 拖拽提示 */
-.account-item {
-  position: relative;
-}
-
-.account-item::before {
-  content: '⋮⋮';
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  color: #ccc;
-  font-size: 12px;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
-}
-
-.account-item:hover::before {
-  opacity: 1;
-}
-
-.account-item.dragging::before {
-  opacity: 0;
-}
-
 .account-item:hover {
-  background-color: #f8f9fa;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border-color: #e9ecef;
+  background-color: #f5f6f7;
 }
 
 .account-item.active {
   background-color: #e8f5e9;
-  border-color: #25d366;
-  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.2);
+  border-color: transparent;
+}
+
+.account-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background-color: #25d366;
+    border-radius: 0 3px 3px 0;
+}
+
+/* Avatar & Status */
+.account-avatar-container {
+    position: relative;
+    margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .account-avatar {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ccc;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 16px;
-  flex-shrink: 0;
-  margin-right: 12px;
-  border: 2px solid #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  font-size: 18px;
+  border: 1px solid rgba(0,0,0,0.05);
 }
 
-.account-avatar img,
-.account-avatar-image {
+.account-avatar img {
   width: 100%;
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  display: block;
 }
 
+.status-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background-color: #ccc; /* offline default */
+}
+
+.status-dot.online { background-color: #25d366; }
+.status-dot.warning { background-color: #ff9800; }
+.status-dot.error { background-color: #f44336; }
+.status-dot.loading { 
+    background-color: #2196f3;
+    animation: pulse 1.5s infinite;
+}
+
+/* Info */
 .account-info {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: center;
+  gap: 2px;
+}
+
+.account-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .account-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: #111;
   white-space: nowrap;
@@ -282,203 +307,116 @@ html, body {
   text-overflow: ellipsis;
 }
 
-.account-phone {
-  font-size: 13px;
-  font-weight: 500;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.account-secondary {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.account-note {
-  font-size: 12px;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.account-status {
+/* Actions */
+.account-actions {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.account-status::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.account-status.online::before {
-  background-color: #25d366;
-}
-
-.account-status.offline::before {
-  background-color: #999;
-}
-
-.account-status.error::before {
-  background-color: #f44336;
-}
-
-.account-status.loading::before {
-  background-color: #ff9800;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-.account-status.login-required {
-  color: #ff9800;
-  font-weight: 600;
-}
-
-.account-status.login-required::before {
-  background-color: #ff9800;
-  animation: pulse-warning 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-@keyframes pulse-warning {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.1);
-  }
-}
-
-.account-actions {
-  display: flex;
-  gap: 6px;
-  opacity: 1; /* 始终显示，不再隐藏 */
+  opacity: 0;
   transition: opacity 0.2s ease;
+  margin-left: 8px;
 }
 
 .account-item:hover .account-actions {
   opacity: 1;
 }
 
-.account-actions button {
-  min-width: 60px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid #ddd;
-  background-color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+.action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
 }
 
-.account-actions button .icon {
-  font-size: 14px;
-  line-height: 1;
+.action-btn:hover {
+    background-color: #e0e0e0;
+    color: #333;
 }
 
-.account-actions button .text {
-  font-size: 13px;
-  line-height: 1;
+.action-btn.start { color: #25d366; }
+.action-btn.start:hover { background-color: #e8f5e9; }
+
+.action-btn.stop { color: #f44336; }
+.action-btn.stop:hover { background-color: #ffebee; }
+
+.action-btn.retry { color: #ff9800; }
+
+.mini-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0,0,0,0.1);
+    border-top-color: #25d366;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
 
-/* 打开按钮样式 */
-.account-actions .open-btn {
-  color: #25D366;
-  border-color: #25D366;
-  background-color: #fff;
+/* Context Menu */
+.custom-context-menu {
+    position: fixed;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid #e0e0e0;
+    padding: 4px 0;
+    min-width: 160px;
+    z-index: 9999;
+    animation: fadeIn 0.1s ease-out;
 }
 
-.account-actions .open-btn:hover {
-  background-color: #25D366;
-  color: #fff;
-  border-color: #25D366;
-  box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);
+.menu-item {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+    transition: background 0.1s;
 }
 
-.account-actions .open-btn:active {
-  background-color: #1fb855;
-  border-color: #1fb855;
+.menu-item:hover {
+    background-color: #f5f5f5;
 }
 
-/* 关闭按钮样式 */
-.account-actions .close-btn {
-  color: #dc3545;
-  border-color: #dc3545;
-  background-color: #fff;
+.menu-item.danger {
+    color: #f44336;
 }
 
-.account-actions .close-btn:hover {
-  background-color: #dc3545;
-  color: #fff;
-  border-color: #dc3545;
-  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+.menu-item.danger:hover {
+    background-color: #ffebee;
 }
 
-.account-actions .close-btn:active {
-  background-color: #c82333;
-  border-color: #c82333;
+.menu-icon {
+    width: 16px;
+    text-align: center;
+    font-size: 14px;
 }
 
-/* 重试按钮样式 */
-.account-actions .retry-btn {
-  color: #ffc107;
-  border-color: #ffc107;
-  background-color: #fff;
+.menu-separator {
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 4px 0;
 }
 
-.account-actions .retry-btn:hover {
-  background-color: #ffc107;
-  color: #fff;
-  border-color: #ffc107;
-  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2);
-}
-
-.account-actions .retry-btn:active {
-  background-color: #e0a800;
-  border-color: #e0a800;
-}
-
-/* 编辑和删除按钮保持小图标样式 */
-.account-actions .edit-btn,
-.account-actions .delete-btn {
-  min-width: 28px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  background-color: transparent;
-  box-shadow: none;
-}
-
-.account-actions .edit-btn:hover,
-.account-actions .delete-btn:hover {
-  background-color: #e0e0e0;
-  box-shadow: none;
-}
-
-.account-actions .edit-btn:active,
-.account-actions .delete-btn:active {
-  background-color: #d0d0d0;
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 /* ===== Tooltip Styles ===== */
