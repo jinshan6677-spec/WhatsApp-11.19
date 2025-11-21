@@ -773,3 +773,65 @@ contextBridge.exposeInMainWorld('translationAPI', {
 // Log that preload script has loaded
 console.log('[Preload] Main window preload script loaded');
 console.log('[Preload] electronAPI exposed to renderer');
+
+
+// ============================================================================
+// Proxy Configuration API
+// ============================================================================
+
+// Expose proxy API to renderer
+contextBridge.exposeInMainWorld('proxyAPI', {
+  /**
+   * Get all proxy configurations
+   * @returns {Promise<Object>} Result with configs array
+   */
+  getAllConfigs: () => ipcRenderer.invoke('proxy:get-all-configs'),
+
+  /**
+   * Get a single proxy configuration
+   * @param {string} id - Proxy config ID
+   * @returns {Promise<Object>} Result with config data
+   */
+  getConfig: (id) => ipcRenderer.invoke('proxy:get-config', id),
+
+  /**
+   * Save proxy configuration
+   * @param {Object} config - Proxy configuration
+   * @returns {Promise<Object>} Result with success status
+   */
+  saveConfig: (config) => ipcRenderer.invoke('proxy:save-config', config),
+
+  /**
+   * Delete proxy configuration
+   * @param {string} id - Proxy config ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  deleteConfig: (id) => ipcRenderer.invoke('proxy:delete-config', id),
+
+  /**
+   * Test proxy service
+   * @param {Object} config - Proxy configuration
+   * @returns {Promise<Object>} Detection result
+   */
+  testService: (config) => ipcRenderer.invoke('proxy:test-service', config),
+
+  /**
+   * Test current network
+   * @returns {Promise<Object>} Network information
+   */
+  testNetwork: () => ipcRenderer.invoke('proxy:test-network'),
+
+  /**
+   * Generate proxy config name
+   * @param {Object} config - Proxy configuration
+   * @returns {Promise<Object>} Result with generated name
+   */
+  generateName: (config) => ipcRenderer.invoke('proxy:generate-name', config),
+
+  /**
+   * Validate proxy configuration
+   * @param {Object} config - Proxy configuration
+   * @returns {Promise<Object>} Validation result
+   */
+  validateConfig: (config) => ipcRenderer.invoke('proxy:validate-config', config)
+});

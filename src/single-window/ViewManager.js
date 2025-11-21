@@ -356,9 +356,35 @@ class ViewManager {
         this.log('warn', `Session isolation validation warning for ${accountId}: ${isolationValidation.message}`);
       }
 
-      // Configure proxy if provided
+      // Configure proxy if provided (with timeout and error handling)
       if (config.proxy && config.proxy.enabled) {
-        await this._configureProxy(accountId, accountSession, config.proxy);
+        try {
+          // 使用超时机制，防止代理配置阻塞
+          await Promise.race([
+            this._configureProxy(accountId, accountSession, config.proxy),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('代理配置超时（3秒）')), 3000)
+            )
+          ]);
+        } catch (proxyError) {
+          // 代理配置失败不应该阻止视图创建
+          this.log('error', `代理配置失败，将使用直连: ${proxyError.message}`);
+          
+          // 清除代理配置，使用直连
+          try {
+            await accountSession.setProxy({ proxyRules: '' });
+            this.log('info', `已清除代理配置，账户 ${accountId} 将使用直连`);
+          } catch (clearError) {
+            this.log('warn', `清除代理配置失败: ${clearError.message}`);
+          }
+          
+          // 通知渲染进程代理失败
+          this._notifyRenderer('proxy-config-failed', {
+            accountId,
+            error: proxyError.message,
+            fallbackToDirect: true
+          });
+        }
       }
 
       // Create BrowserView with isolated session
@@ -569,24 +595,71 @@ class ViewManager {
    * @param {Object} proxyConfig - Proxy configuration
    */
   async _configureProxy(accountId, accountSession, proxyConfig) {
+    const startTime = Date.now();
+    
     try {
       const { protocol, host, port, username, password, bypass } = proxyConfig;
 
+      // 验证必需参数
       if (!host || !port) {
-        throw new Error('Proxy host and port are required');
+        throw new Error('代理主机和端口是必需的');
+      }
+
+      // 验证协议
+      const validProtocols = ['http', 'https', 'socks5', 'socks4'];
+      if (!validProtocols.includes(protocol)) {
+        throw new Error(`不支持的代理协议: ${protocol}。支持的协议: ${validProtocols.join(', ')}`);
+      }
+
+      // 验证端口范围
+      const portNum = parseInt(port);
+      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+        throw new Error(`无效的端口号: ${port}。端口必须在 1-65535 之间`);
       }
 
       // Build proxy rules
-      let proxyRules = `${protocol || 'http'}://${host}:${port}`;
+      let proxyRules;
       
-      // Set proxy configuration
-      await accountSession.setProxy({
+      if (protocol === 'socks5' || protocol === 'socks4') {
+        // SOCKS 代理
+        if (username && password) {
+          // SOCKS with authentication
+          proxyRules = `${protocol}://${username}:${password}@${host}:${port}`;
+        } else {
+          // SOCKS without authentication
+          proxyRules = `${protocol}://${host}:${port}`;
+        }
+      } else {
+        // HTTP/HTTPS 代理
+        proxyRules = `${protocol}://${host}:${port}`;
+      }
+      
+      this.log('info', `[代理配置] 账户 ${accountId}:`);
+      this.log('info', `  协议: ${protocol}`);
+      this.log('info', `  主机: ${host}`);
+      this.log('info', `  端口: ${port}`);
+      this.log('info', `  规则: ${proxyRules.replace(/:([^:@]+)@/, ':***@')}`);
+      this.log('info', `  认证: ${!!(username && password) ? '是' : '否'}`);
+      
+      // 设置代理配置（这个操作应该很快完成）
+      const proxyConfig = {
         proxyRules,
-        proxyBypassRules: bypass || 'localhost,127.0.0.1'
-      });
+        proxyBypassRules: bypass || 'localhost,127.0.0.1,<local>'
+      };
+      
+      await accountSession.setProxy(proxyConfig);
+      
+      const configTime = Date.now() - startTime;
+      this.log('info', `[代理配置] 配置完成，耗时 ${configTime}ms`);
 
-      // Handle proxy authentication if credentials provided
-      if (username && password) {
+      // Handle proxy authentication ONLY for HTTP/HTTPS proxies
+      // SOCKS authentication is handled in the proxy URL
+      if ((protocol === 'http' || protocol === 'https') && username && password) {
+        this.log('info', `[代理配置] 设置 HTTP 代理认证`);
+        
+        // 移除之前的监听器（如果存在）
+        accountSession.webRequest.onBeforeSendHeaders(null);
+        
         accountSession.webRequest.onBeforeSendHeaders((details, callback) => {
           const authHeader = Buffer.from(`${username}:${password}`).toString('base64');
           details.requestHeaders['Proxy-Authorization'] = `Basic ${authHeader}`;
@@ -594,10 +667,23 @@ class ViewManager {
         });
       }
 
-      this.log('info', `Proxy configured for account ${accountId}: ${proxyRules}`);
+      this.log('info', `✓ [代理配置] 账户 ${accountId} 配置成功`);
+      
+      return {
+        success: true,
+        configTime
+      };
     } catch (error) {
-      this.log('error', `Failed to configure proxy for account ${accountId}:`, error);
-      throw error;
+      const configTime = Date.now() - startTime;
+      this.log('error', `✗ [代理配置] 账户 ${accountId} 配置失败 (${configTime}ms): ${error.message}`);
+      
+      // 提供更详细的错误信息
+      const enhancedError = new Error(`代理配置失败: ${error.message}`);
+      enhancedError.originalError = error;
+      enhancedError.accountId = accountId;
+      enhancedError.configTime = configTime;
+      
+      throw enhancedError;
     }
   }
 
@@ -682,7 +768,7 @@ class ViewManager {
     });
 
     // Handle load failures
-    view.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    view.webContents.on('did-fail-load', async (_event, errorCode, errorDescription, validatedURL) => {
       // Ignore certain error codes that are not critical
       const ignoredErrors = [
         -3,   // ERR_ABORTED (user navigation)
@@ -694,13 +780,66 @@ class ViewManager {
         return;
       }
 
+      // 检查是否是代理相关错误
+      const proxyErrors = {
+        '-120': 'SOCKS 代理连接失败',
+        '-130': '代理连接失败',
+        '-125': '代理隧道连接失败',
+        '-106': '无法连接到代理服务器',
+        '-118': '代理认证失败',
+        '-21': '网络访问被拒绝（可能是代理问题）'
+      };
+      
+      const isProxyError = proxyErrors[errorCode.toString()];
+      
+      if (isProxyError) {
+        this.log('error', `[代理错误] 账户 ${accountId}: ${isProxyError} (${errorCode})`);
+        this.log('error', `  URL: ${validatedURL}`);
+        this.log('error', `  描述: ${errorDescription}`);
+        
+        // 如果是代理错误，尝试禁用代理并重试
+        if (viewState.config && viewState.config.proxy && viewState.config.proxy.enabled) {
+          this.log('warn', `[代理错误] 尝试禁用代理并重新加载...`);
+          
+          try {
+            // 清除代理配置
+            await viewState.session.setProxy({ proxyRules: '' });
+            
+            // 标记代理已禁用
+            viewState.config.proxy.enabled = false;
+            viewState.proxyDisabledDueToError = true;
+            
+            // 通知渲染进程
+            this._notifyRenderer('proxy-disabled-due-to-error', {
+              accountId,
+              errorCode,
+              errorMessage: isProxyError,
+              willRetry: true
+            });
+            
+            // 重新加载页面
+            setTimeout(() => {
+              if (!view.webContents.isDestroyed()) {
+                view.webContents.loadURL('https://web.whatsapp.com');
+              }
+            }, 1000);
+            
+            return; // 不继续处理错误，等待重新加载
+          } catch (retryError) {
+            this.log('error', `[代理错误] 禁用代理失败: ${retryError.message}`);
+          }
+        }
+      }
+
       viewState.status = 'error';
       viewState.connectionStatus = 'error';
       viewState.connectionError = {
         code: errorCode,
         description: errorDescription,
         url: validatedURL,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        isProxyError: !!isProxyError,
+        proxyErrorType: isProxyError || null
       };
       viewState.errorInfo = viewState.connectionError;
       
@@ -714,7 +853,10 @@ class ViewManager {
         error: {
           code: errorCode,
           message: errorDescription,
-          url: validatedURL
+          url: validatedURL,
+          isProxyError: !!isProxyError,
+          proxyErrorType: isProxyError || null,
+          suggestion: isProxyError ? '代理服务器可能无法访问，建议检查代理设置或使用直连' : null
         }
       });
       
@@ -724,7 +866,8 @@ class ViewManager {
         connectionStatus: 'error',
         error: {
           code: errorCode,
-          message: errorDescription
+          message: errorDescription,
+          isProxyError: !!isProxyError
         }
       });
     });
@@ -756,7 +899,7 @@ class ViewManager {
     });
 
     // Handle crashes
-    view.webContents.on('render-process-gone', (_event, details) => {
+    view.webContents.on('render-process-gone', async (_event, details) => {
       viewState.status = 'error';
       viewState.connectionStatus = 'error';
       viewState.connectionError = {
@@ -766,7 +909,33 @@ class ViewManager {
       };
       viewState.errorInfo = viewState.connectionError;
       
-      this.log('error', `View render process gone for account ${accountId}:`, details);
+      this.log('error', `[崩溃] 账户 ${accountId} 渲染进程崩溃:`, details);
+      this.log('error', `  原因: ${details.reason}`);
+      this.log('error', `  退出码: ${details.exitCode}`);
+      
+      // 检查是否可能是代理导致的崩溃
+      const hasProxy = viewState.config && viewState.config.proxy && viewState.config.proxy.enabled;
+      if (hasProxy && details.reason === 'crashed') {
+        this.log('warn', `[崩溃] 可能是代理配置导致的崩溃，尝试禁用代理...`);
+        
+        try {
+          // 清除代理配置
+          await viewState.session.setProxy({ proxyRules: '' });
+          viewState.config.proxy.enabled = false;
+          viewState.proxyDisabledDueToError = true;
+          
+          this.log('info', `[崩溃] 已禁用代理，准备重新创建视图...`);
+          
+          // 通知渲染进程
+          this._notifyRenderer('proxy-disabled-due-to-crash', {
+            accountId,
+            crashReason: details.reason,
+            willRecreate: true
+          });
+        } catch (error) {
+          this.log('error', `[崩溃] 禁用代理失败: ${error.message}`);
+        }
+      }
       
       // Notify renderer about crash
       this._notifyRenderer('view-crashed', { 
@@ -775,7 +944,8 @@ class ViewManager {
         connectionStatus: 'error',
         error: {
           reason: details.reason,
-          exitCode: details.exitCode
+          exitCode: details.exitCode,
+          possibleProxyIssue: hasProxy
         }
       });
       

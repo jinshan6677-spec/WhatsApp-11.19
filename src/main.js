@@ -18,9 +18,14 @@ const TranslationIntegration = require('./managers/TranslationIntegration');
 const NotificationManager = require('./managers/NotificationManager');
 const TrayManager = require('./managers/TrayManager');
 
+// 导入代理管理组件
+const ProxyConfigManager = require('./managers/ProxyConfigManager');
+const ProxyDetectionService = require('./services/ProxyDetectionService');
+
 // 导入 IPC 处理器
 const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandlers: unregisterSingleWindowIPCHandlers } = require('./single-window/ipcHandlers');
 const { registerIPCHandlers: registerTranslationIPCHandlers, unregisterIPCHandlers: unregisterTranslationIPCHandlers } = require('./translation/ipcHandlers');
+const { registerProxyIPCHandlers, unregisterProxyIPCHandlers } = require('./ipc/proxyIPCHandlers');
 
 // 导入迁移管理器
 const MigrationManager = require('./single-window/migration/MigrationManager');
@@ -43,6 +48,8 @@ let notificationManager = null;
 let trayManager = null;
 let migrationManager = null;
 let errorLogger = null;
+let proxyConfigManager = null;
+let proxyDetectionService = null;
 
 
 
@@ -133,7 +140,17 @@ async function initializeManagers() {
     });
     log('info', '账号配置管理器初始化完成');
 
-    // 1.1 确保所有账号都启用了翻译功能
+    // 1.1 初始化代理配置管理器
+    proxyConfigManager = new ProxyConfigManager({
+      cwd: app.getPath('userData')
+    });
+    log('info', '代理配置管理器初始化完成');
+
+    // 1.2 初始化代理检测服务
+    proxyDetectionService = new ProxyDetectionService();
+    log('info', '代理检测服务初始化完成');
+
+    // 1.3 确保所有账号都启用了翻译功能
     await ensureTranslationEnabled(accountConfigManager);
     log('info', '翻译配置检查完成');
 
@@ -216,6 +233,10 @@ async function registerAllIPCHandlers() {
     // 注册翻译 IPC 处理器
     await registerTranslationIPCHandlers();
     log('info', '翻译 IPC 处理器注册完成');
+
+    // 注册代理 IPC 处理器
+    registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService);
+    log('info', '代理 IPC 处理器注册完成');
 
     log('info', '所有 IPC 处理器注册完成');
   } catch (error) {

@@ -23,6 +23,8 @@
       this.accountId = null;
       this.panel = null;
       this.config = cloneDefaultConfig();
+      this.proxyConfigs = []; // 代理配置列表
+      this.detectionResult = null; // 检测结果
     }
 
     async init() {
@@ -33,6 +35,7 @@
       this.injectStyles();
       this.createPanel();
       this.bindEvents();
+      await this.loadProxyList(); // 加载代理列表
     }
 
     injectStyles() {
@@ -206,6 +209,139 @@
   border-color: #fecdd3;
   color: #991b1b;
 }
+
+.proxy-settings-wrapper .setting-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.proxy-settings-wrapper .setting-input-group .setting-select {
+  flex: 1;
+}
+
+.proxy-settings-wrapper .setting-input-group .setting-button {
+  margin-top: 6px;
+  padding: 8px 12px;
+  min-width: 40px;
+}
+
+.proxy-settings-wrapper .setting-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  margin-top: 6px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.proxy-settings-wrapper .setting-textarea:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+}
+
+.proxy-settings-wrapper .detection-result {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
+  font-size: 13px;
+}
+
+.proxy-settings-wrapper .detection-result.error {
+  background: #fef2f2;
+  border-color: #fecdd3;
+  color: #991b1b;
+}
+
+.proxy-settings-wrapper .detection-result .result-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.proxy-settings-wrapper .detection-result .result-item:last-child {
+  margin-bottom: 0;
+}
+
+.proxy-settings-wrapper .detection-result .result-label {
+  font-weight: 600;
+  color: #065f46;
+}
+
+.proxy-settings-wrapper .detection-result.error .result-label {
+  color: #991b1b;
+}
+
+.proxy-settings-wrapper .detection-result .result-value {
+  color: #047857;
+}
+
+.proxy-settings-wrapper .detection-result.error .result-value {
+  color: #991b1b;
+}
+
+.proxy-settings-wrapper .button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.proxy-settings-wrapper .setting-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.proxy-settings-wrapper .setting-button.loading {
+  position: relative;
+  color: transparent;
+}
+
+.proxy-settings-wrapper .setting-button.loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.proxy-settings-wrapper .password-input-wrapper {
+  position: relative;
+}
+
+.proxy-settings-wrapper .password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.proxy-settings-wrapper .password-toggle:hover {
+  color: #f59e0b;
+}
 `;
       document.head.appendChild(style);
     }
@@ -234,6 +370,17 @@
               </div>
               
               <div id="proxyFields" style="display: none;">
+                <div class="setting-item">
+                  <label class="setting-title">选择代理</label>
+                  <div class="setting-input-group">
+                    <select id="proxySelect" class="setting-select">
+                      <option value="">选择已保存的代理配置</option>
+                    </select>
+                    <button id="refreshProxyList" class="setting-button secondary" title="刷新列表">🔄</button>
+                  </div>
+                  <p class="setting-desc">从已保存的配置中选择，或手动填写下方信息</p>
+                </div>
+                
                 <div class="setting-item">
                   <label class="setting-title">代理协议</label>
                   <select id="proxyProtocol" class="setting-select">
@@ -272,7 +419,10 @@
                   
                   <div class="setting-item">
                     <label class="setting-title">密码</label>
-                    <input type="password" id="proxyPassword" class="setting-input" placeholder="代理密码">
+                    <div class="password-input-wrapper">
+                      <input type="password" id="proxyPassword" class="setting-input" placeholder="代理密码">
+                      <button type="button" id="togglePassword" class="password-toggle" title="显示/隐藏密码">👁️</button>
+                    </div>
                   </div>
                 </div>
                 
@@ -280,6 +430,23 @@
                   <label class="setting-title">绕过代理的地址 (可选)</label>
                   <input type="text" id="proxyBypass" class="setting-input" placeholder="例如: localhost,127.0.0.1">
                   <p class="setting-desc">不使用代理的地址列表，用逗号分隔</p>
+                </div>
+                
+                <div class="setting-item">
+                  <label class="setting-title">智能填写</label>
+                  <textarea id="smartFillInput" class="setting-textarea" placeholder="粘贴代理信息到此处，自动识别&#10;支持格式:&#10;- protocol://host:port&#10;- host:port:username:password&#10;- protocol://username:password@host:port&#10;- JSON 格式" rows="3"></textarea>
+                  <p class="setting-desc">粘贴代理信息后自动解析并填充上方字段</p>
+                </div>
+                
+                <div class="setting-item">
+                  <div class="button-group">
+                    <button id="testProxyBtn" class="setting-button secondary">🔍 检测代理服务</button>
+                    <button id="testNetworkBtn" class="setting-button secondary">🌐 检测当前网络</button>
+                  </div>
+                </div>
+                
+                <div id="detectionResult" class="detection-result" style="display: none;">
+                  <!-- 检测结果将动态插入这里 -->
                 </div>
               </div>
             </div>
@@ -304,8 +471,9 @@
           </div>
           
           <div class="settings-footer">
+            <button id="generateConfigBtn" class="setting-button secondary">💾 一键生成结构</button>
             <button id="resetProxyBtn" class="setting-button secondary">重置设置</button>
-            <button id="saveProxyBtn" class="setting-button primary">保存设置</button>
+            <button id="saveProxyBtn" class="setting-button primary">应用设置</button>
           </div>
         </div>
       `;
@@ -323,6 +491,42 @@
       const proxyAuthEnabled = this.panel.querySelector('#proxyAuthEnabled');
       proxyAuthEnabled?.addEventListener('change', () => {
         this.toggleProxyAuthFields();
+      });
+
+      // 代理选择
+      this.panel.querySelector('#proxySelect')?.addEventListener('change', (e) => {
+        this.selectProxy(e.target.value);
+      });
+
+      // 刷新代理列表
+      this.panel.querySelector('#refreshProxyList')?.addEventListener('click', () => {
+        this.refreshProxyList();
+      });
+
+      // 密码可见性切换
+      this.panel.querySelector('#togglePassword')?.addEventListener('click', () => {
+        this.togglePasswordVisibility();
+      });
+
+      // 智能填写
+      this.panel.querySelector('#smartFillInput')?.addEventListener('input', (e) => {
+        if (e.target.value.trim()) {
+          this.parseSmartFill(e.target.value);
+        }
+      });
+
+      // 检测按钮
+      this.panel.querySelector('#testProxyBtn')?.addEventListener('click', () => {
+        this.testProxyService();
+      });
+
+      this.panel.querySelector('#testNetworkBtn')?.addEventListener('click', () => {
+        this.testCurrentNetwork();
+      });
+
+      // 一键生成
+      this.panel.querySelector('#generateConfigBtn')?.addEventListener('click', () => {
+        this.generateProxyConfig();
       });
 
       this.panel.querySelector('#saveProxyBtn')?.addEventListener('click', () => {
@@ -474,6 +678,364 @@
       msgEl.textContent = message;
       this.panel.appendChild(msgEl);
       setTimeout(() => msgEl.remove(), 3000);
+    }
+
+    // ============================================================================
+    // 新增功能方法
+    // ============================================================================
+
+    /**
+     * 加载代理列表
+     */
+    async loadProxyList() {
+      try {
+        if (!window.proxyAPI) {
+          console.warn('[ProxySettingsPanel] proxyAPI not available');
+          return;
+        }
+
+        const response = await window.proxyAPI.getAllConfigs();
+        if (response.success) {
+          this.proxyConfigs = response.configs || [];
+          this.updateProxySelect();
+        }
+      } catch (error) {
+        console.error('[ProxySettingsPanel] loadProxyList error:', error);
+      }
+    }
+
+    /**
+     * 更新代理选择下拉框
+     */
+    updateProxySelect() {
+      const select = this.panel.querySelector('#proxySelect');
+      if (!select) return;
+
+      // 清空现有选项
+      select.innerHTML = '<option value="">选择已保存的代理配置</option>';
+
+      // 添加代理配置选项
+      this.proxyConfigs.forEach(config => {
+        const option = document.createElement('option');
+        option.value = config.id;
+        option.textContent = config.name;
+        select.appendChild(option);
+      });
+    }
+
+    /**
+     * 选择代理配置
+     */
+    async selectProxy(proxyId) {
+      if (!proxyId) return;
+
+      try {
+        const config = this.proxyConfigs.find(c => c.id === proxyId);
+        if (!config) return;
+
+        // 填充表单
+        this.panel.querySelector('#proxyProtocol').value = config.protocol;
+        this.panel.querySelector('#proxyHost').value = config.host;
+        this.panel.querySelector('#proxyPort').value = config.port;
+
+        if (config.username || config.password) {
+          this.panel.querySelector('#proxyAuthEnabled').checked = true;
+          this.panel.querySelector('#proxyUsername').value = config.username || '';
+          this.panel.querySelector('#proxyPassword').value = config.password || '';
+          this.toggleProxyAuthFields();
+        }
+
+        this.showMessage('已加载代理配置：' + config.name, 'success');
+      } catch (error) {
+        console.error('[ProxySettingsPanel] selectProxy error:', error);
+        this.showMessage('加载代理配置失败', 'error');
+      }
+    }
+
+    /**
+     * 刷新代理列表
+     */
+    async refreshProxyList() {
+      await this.loadProxyList();
+      this.showMessage('代理列表已刷新', 'success');
+    }
+
+    /**
+     * 切换密码可见性
+     */
+    togglePasswordVisibility() {
+      const passwordInput = this.panel.querySelector('#proxyPassword');
+      const toggleBtn = this.panel.querySelector('#togglePassword');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = '🙈';
+      } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = '👁️';
+      }
+    }
+
+    /**
+     * 解析智能填写
+     */
+    parseSmartFill(text) {
+      // 使用防抖，避免频繁解析
+      if (this.parseTimeout) {
+        clearTimeout(this.parseTimeout);
+      }
+
+      this.parseTimeout = setTimeout(async () => {
+        try {
+          // 这里我们在前端简单实现解析逻辑
+          const trimmed = text.trim();
+          
+          // 尝试解析 protocol://host:port
+          let match = trimmed.match(/^(socks5|http|https):\/\/([^:@]+):(\d+)$/i);
+          if (match) {
+            this.panel.querySelector('#proxyProtocol').value = match[1].toLowerCase();
+            this.panel.querySelector('#proxyHost').value = match[2];
+            this.panel.querySelector('#proxyPort').value = match[3];
+            this.panel.querySelector('#smartFillInput').value = '';
+            this.showMessage('已自动填充代理信息', 'success');
+            return;
+          }
+
+          // 尝试解析 protocol://username:password@host:port
+          match = trimmed.match(/^(socks5|http|https):\/\/([^:@]+):([^@]+)@([^:]+):(\d+)$/i);
+          if (match) {
+            this.panel.querySelector('#proxyProtocol').value = match[1].toLowerCase();
+            this.panel.querySelector('#proxyUsername').value = match[2];
+            this.panel.querySelector('#proxyPassword').value = match[3];
+            this.panel.querySelector('#proxyHost').value = match[4];
+            this.panel.querySelector('#proxyPort').value = match[5];
+            this.panel.querySelector('#proxyAuthEnabled').checked = true;
+            this.toggleProxyAuthFields();
+            this.panel.querySelector('#smartFillInput').value = '';
+            this.showMessage('已自动填充代理信息（含认证）', 'success');
+            return;
+          }
+
+          // 尝试解析 host:port:username:password
+          const parts = trimmed.split(':');
+          if (parts.length === 4) {
+            this.panel.querySelector('#proxyHost').value = parts[0];
+            this.panel.querySelector('#proxyPort').value = parts[1];
+            this.panel.querySelector('#proxyUsername').value = parts[2];
+            this.panel.querySelector('#proxyPassword').value = parts[3];
+            this.panel.querySelector('#proxyAuthEnabled').checked = true;
+            this.toggleProxyAuthFields();
+            this.panel.querySelector('#smartFillInput').value = '';
+            this.showMessage('已自动填充代理信息', 'success');
+            return;
+          }
+
+          // 尝试解析 host:port
+          if (parts.length === 2) {
+            this.panel.querySelector('#proxyHost').value = parts[0];
+            this.panel.querySelector('#proxyPort').value = parts[1];
+            this.panel.querySelector('#smartFillInput').value = '';
+            this.showMessage('已自动填充代理信息', 'success');
+            return;
+          }
+
+          // 尝试解析 JSON
+          try {
+            const json = JSON.parse(trimmed);
+            if (json.host && json.port) {
+              if (json.protocol) this.panel.querySelector('#proxyProtocol').value = json.protocol;
+              this.panel.querySelector('#proxyHost').value = json.host;
+              this.panel.querySelector('#proxyPort').value = json.port;
+              if (json.username) {
+                this.panel.querySelector('#proxyUsername').value = json.username;
+                this.panel.querySelector('#proxyAuthEnabled').checked = true;
+              }
+              if (json.password) {
+                this.panel.querySelector('#proxyPassword').value = json.password;
+                this.panel.querySelector('#proxyAuthEnabled').checked = true;
+              }
+              this.toggleProxyAuthFields();
+              this.panel.querySelector('#smartFillInput').value = '';
+              this.showMessage('已自动填充代理信息', 'success');
+              return;
+            }
+          } catch (e) {
+            // 不是 JSON 格式
+          }
+
+        } catch (error) {
+          console.error('[ProxySettingsPanel] parseSmartFill error:', error);
+        }
+      }, 500);
+    }
+
+    /**
+     * 测试代理服务
+     */
+    async testProxyService() {
+      try {
+        if (!window.proxyAPI) {
+          throw new Error('proxyAPI 未初始化');
+        }
+
+        const config = {
+          protocol: this.panel.querySelector('#proxyProtocol').value,
+          host: this.panel.querySelector('#proxyHost').value.trim(),
+          port: parseInt(this.panel.querySelector('#proxyPort').value, 10),
+          username: this.panel.querySelector('#proxyUsername').value.trim(),
+          password: this.panel.querySelector('#proxyPassword').value
+        };
+
+        // 验证必填字段
+        if (!config.host || !config.port) {
+          throw new Error('请填写代理主机和端口');
+        }
+
+        // 显示加载状态
+        const btn = this.panel.querySelector('#testProxyBtn');
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        const result = await window.proxyAPI.testService(config);
+
+        btn.classList.remove('loading');
+        btn.disabled = false;
+
+        this.displayDetectionResult(result);
+      } catch (error) {
+        console.error('[ProxySettingsPanel] testProxyService error:', error);
+        const btn = this.panel.querySelector('#testProxyBtn');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        this.showMessage('检测失败：' + error.message, 'error');
+      }
+    }
+
+    /**
+     * 测试当前网络
+     */
+    async testCurrentNetwork() {
+      try {
+        console.log('[ProxySettingsPanel] 开始测试当前网络');
+        
+        if (!window.proxyAPI) {
+          throw new Error('proxyAPI 未初始化');
+        }
+
+        // 显示加载状态
+        const btn = this.panel.querySelector('#testNetworkBtn');
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        console.log('[ProxySettingsPanel] 调用 proxyAPI.testNetwork()');
+        const result = await window.proxyAPI.testNetwork();
+        console.log('[ProxySettingsPanel] 收到检测结果:', result);
+
+        btn.classList.remove('loading');
+        btn.disabled = false;
+
+        this.displayDetectionResult(result);
+      } catch (error) {
+        console.error('[ProxySettingsPanel] testCurrentNetwork error:', error);
+        const btn = this.panel.querySelector('#testNetworkBtn');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        this.showMessage('检测失败：' + error.message, 'error');
+      }
+    }
+
+    /**
+     * 显示检测结果
+     */
+    displayDetectionResult(result) {
+      console.log('[ProxySettingsPanel] 显示检测结果:', result);
+      
+      const resultEl = this.panel.querySelector('#detectionResult');
+      if (!resultEl) {
+        console.warn('[ProxySettingsPanel] 找不到检测结果元素');
+        return;
+      }
+
+      if (result.success) {
+        console.log('[ProxySettingsPanel] 检测成功，显示结果');
+        resultEl.className = 'detection-result';
+        resultEl.innerHTML = `
+          <div class="result-item">
+            <span class="result-label">IP 地址:</span>
+            <span class="result-value">${result.ip || 'N/A'}</span>
+          </div>
+          <div class="result-item">
+            <span class="result-label">位置:</span>
+            <span class="result-value">${result.location || 'Unknown'}</span>
+          </div>
+          <div class="result-item">
+            <span class="result-label">国家:</span>
+            <span class="result-value">${result.country || 'Unknown'} (${result.countryCode || 'N/A'})</span>
+          </div>
+          <div class="result-item">
+            <span class="result-label">响应时间:</span>
+            <span class="result-value">${result.responseTime || 'N/A'} ms</span>
+          </div>
+        `;
+      } else {
+        console.log('[ProxySettingsPanel] 检测失败，显示错误');
+        resultEl.className = 'detection-result error';
+        resultEl.innerHTML = `
+          <div class="result-item">
+            <span class="result-label">错误:</span>
+            <span class="result-value">${result.error || '未知错误'}</span>
+          </div>
+        `;
+      }
+
+      resultEl.style.display = 'block';
+      this.detectionResult = result;
+    }
+
+    /**
+     * 一键生成配置
+     */
+    async generateProxyConfig() {
+      try {
+        if (!window.proxyAPI) {
+          throw new Error('proxyAPI 未初始化');
+        }
+
+        const config = {
+          protocol: this.panel.querySelector('#proxyProtocol').value,
+          host: this.panel.querySelector('#proxyHost').value.trim(),
+          port: parseInt(this.panel.querySelector('#proxyPort').value, 10),
+          username: this.panel.querySelector('#proxyUsername').value.trim(),
+          password: this.panel.querySelector('#proxyPassword').value
+        };
+
+        // 验证必填字段
+        if (!config.host || !config.port) {
+          throw new Error('请填写代理主机和端口');
+        }
+
+        // 生成配置名称
+        const nameResponse = await window.proxyAPI.generateName(config);
+        if (!nameResponse.success) {
+          throw new Error('生成配置名称失败');
+        }
+
+        config.name = nameResponse.name;
+
+        // 保存配置
+        const saveResponse = await window.proxyAPI.saveConfig(config);
+        if (!saveResponse.success) {
+          throw new Error(saveResponse.errors ? saveResponse.errors.join(', ') : '保存失败');
+        }
+
+        // 刷新列表
+        await this.loadProxyList();
+
+        this.showMessage('代理配置已保存：' + config.name, 'success');
+      } catch (error) {
+        console.error('[ProxySettingsPanel] generateProxyConfig error:', error);
+        this.showMessage('保存失败：' + error.message, 'error');
+      }
     }
   }
 

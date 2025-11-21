@@ -26,6 +26,7 @@
     "test:isolation": "electron scripts/test-session-isolation.js",
     "verify:isolation": "node scripts/verify-session-isolation.js",
     "migrate": "node scripts/migrate-to-multi-instance.js",
+    "diagnose:proxy": "electron scripts/diagnose-proxy-issue.js",
     "lint": "eslint src/**/*.js",
     "lint:fix": "eslint src/**/*.js --fix"
   },
