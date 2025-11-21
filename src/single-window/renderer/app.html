@@ -48,27 +48,37 @@
       <!-- BrowserViews will be attached here by the main process -->
     </div>
 
-    <!-- Translation settings column -->
+    <!-- Translation and Proxy Settings Panel -->
     <aside id="translate-panel" class="translate-panel" data-state="expanded">
-      <div class="translate-panel-header">
-        <div class="translate-panel-title" data-tooltip="点击切换到标准模式">
-          <span class="translate-panel-icon">🌐</span>
-          <span class="translate-panel-text">翻译设置</span>
-        </div>
-        <div class="translate-panel-actions">
-          <button class="panel-state-btn" data-target="expanded" title="展开翻译设置" aria-label="展开翻译设置">
-            <span class="icon">⚙️</span>
-          </button>
-          <button class="panel-state-btn" data-target="collapsed" title="收起翻译设置" aria-label="收起翻译设置">
-            <span class="icon">︽</span>
-          </button>
-        </div>
-      </div>
+      <!-- Left: Main Content -->
       <div class="translate-panel-body" id="translate-panel-body">
         <div id="translate-panel-placeholder" class="translate-panel-placeholder">
           选择账号后将显示对应翻译设置
         </div>
         <div id="translate-settings-host"></div>
+      </div>
+      
+      <div class="translate-panel-body" id="proxy-panel-body" style="display: none;">
+        <div id="proxy-panel-placeholder" class="translate-panel-placeholder">
+          选择账号后将显示对应代理设置
+        </div>
+        <div id="proxy-settings-host"></div>
+      </div>
+      
+      <!-- Right: Vertical Menu -->
+      <div class="translate-panel-menu">
+        <button class="panel-menu-btn active" data-panel="translate" title="翻译设置">
+          <span class="menu-icon">🌐</span>
+          <span class="menu-label">翻译设置</span>
+        </button>
+        <button class="panel-menu-btn" data-panel="proxy" title="代理设置">
+          <span class="menu-icon">🔒</span>
+          <span class="menu-label">代理设置</span>
+        </button>
+        <button class="panel-menu-btn panel-collapse-btn" data-target="collapsed" title="收起">
+          <span class="menu-icon">︽</span>
+          <span class="menu-label">收起</span>
+        </button>
       </div>
     </aside>
   </div>
@@ -79,6 +89,7 @@
   <script src="uiEnhancements.js"></script>
   <script src="accountProfileOverlay.js"></script>
   <script src="translateSettingsPanel.js"></script>
+  <script src="proxySettingsPanel.js"></script>
   <script src="translatePanelLayout.js"></script>
 </body>
 </html>

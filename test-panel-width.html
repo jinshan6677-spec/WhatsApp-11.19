@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --translate-panel-width-expanded: 420px;
+      --translate-panel-width-collapsed: 56px;
+    }
+    
+    .settings-panel {
+      width: var(--translate-panel-width-expanded);
+      height: 100vh;
+      background-color: #f8f9fa;
+      border-left: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: width 0.3s ease;
+    }
+    
+    .settings-panel[data-state="collapsed"] {
+      width: var(--translate-panel-width-collapsed);
+    }
+    
+    .settings-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .settings-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-panel" data-state="expanded" id="panel">
+    <div class="settings-buttons">
+      <button class="settings-btn active">🌐 翻译设置</button>
+      <button class="settings-btn">🔒 代理设置</button>
+    </div>
+    <div style="padding: 20px;">
+      <h3>测试内容</h3>
+      <p>如果你能看到这段文字，说明面板宽度正常。</p>
+      <button onclick="togglePanel()">切换收起/展开</button>
+    </div>
+  </div>
+  
+  <script>
+    function togglePanel() {
+      const panel = document.getElementById('panel');
+      const currentState = panel.getAttribute('data-state');
+      panel.setAttribute('data-state', currentState === 'expanded' ? 'collapsed' : 'expanded');
+    }
+    
+    // 显示当前宽度
+    window.addEventListener('load', () => {
+      const panel = document.getElementById('panel');
+      console.log('Panel width:', window.getComputedStyle(panel).width);
+      console.log('Panel state:', panel.getAttribute('data-state'));
+    });
+  </script>
+</body>
+</html>

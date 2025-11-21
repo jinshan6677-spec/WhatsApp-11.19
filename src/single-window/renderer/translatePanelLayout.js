@@ -4,25 +4,40 @@
   const panel = document.getElementById('translate-panel');
   if (!panel) return;
 
-  const stateButtons = Array.from(panel.querySelectorAll('.panel-state-btn'));
-  const header = panel.querySelector('.translate-panel-header');
-  const placeholderEl = document.getElementById('translate-panel-placeholder');
-  const settingsHost = document.getElementById('translate-settings-host');
+  // Translation settings
+  const translatePlaceholderEl = document.getElementById('translate-panel-placeholder');
+  const translateSettingsHost = document.getElementById('translate-settings-host');
+  const translatePanelBody = document.getElementById('translate-panel-body');
+  
+  // Proxy settings
+  const proxyPlaceholderEl = document.getElementById('proxy-panel-placeholder');
+  const proxySettingsHost = document.getElementById('proxy-settings-host');
+  const proxyPanelBody = document.getElementById('proxy-panel-body');
+  
+  // Menu buttons
+  const menuButtons = panel.querySelectorAll('.panel-menu-btn[data-panel]');
+  const collapseBtn = panel.querySelector('.panel-collapse-btn[data-target]');
 
   const DEFAULT_WIDTHS = {
-    expanded: 380,
+    expanded: 420,
     collapsed: 56
   };
 
   let widths = { ...DEFAULT_WIDTHS };
-  let currentState = 'expanded'; // 默认为展开状态，与HTML初始data-state保持一致
+  let currentState = 'expanded';
 
-  const settingsPanel = new TranslateSettingsPanel({
-    host: settingsHost,
-    placeholderEl,
-    onCollapse: setState,
+  const translateSettingsPanel = new TranslateSettingsPanel({
+    host: translateSettingsHost,
+    placeholderEl: translatePlaceholderEl,
+    onCollapse: () => toggleSection('translate'),
     getActiveChatInfo: fetchActiveChatInfo,
     applyConfigToView
+  });
+
+  const proxySettingsPanel = new ProxySettingsPanel({
+    host: proxySettingsHost,
+    placeholderEl: proxyPlaceholderEl,
+    onCollapse: () => toggleSection('proxy')
   });
 
   init();
@@ -37,20 +52,29 @@
       applyWidths(layout.widths);
     }
 
+    // 强制面板默认展开
+    currentState = 'expanded';
+    
+    console.log('[translatePanelLayout] Initializing with state:', currentState);
+    console.log('[translatePanelLayout] Panel width:', widths.expanded);
+    
     applyState(currentState, { notify: false });
     notifyMain();
 
-    await settingsPanel.init();
+    await translateSettingsPanel.init();
+    await proxySettingsPanel.init();
 
     const activeAccountId = await getActiveAccountId();
     if (activeAccountId) {
-      await settingsPanel.setAccount(activeAccountId);
+      await translateSettingsPanel.setAccount(activeAccountId);
+      await proxySettingsPanel.setAccount(activeAccountId);
     } else {
-      settingsPanel.setAccount(null);
+      translateSettingsPanel.setAccount(null);
+      proxySettingsPanel.setAccount(null);
     }
 
-    bindStateButtons();
-    bindHeaderToggle();
+    bindSectionToggles();
+    bindPanelCollapse();
     subscribeAccountEvents();
   }
 
@@ -61,22 +85,44 @@
     root.style.setProperty('--translate-panel-width-collapsed', `${widths.collapsed}px`);
   }
 
-  function bindStateButtons() {
-    stateButtons.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const target = btn.getAttribute('data-target');
-        setState(target);
+  function bindSectionToggles() {
+    menuButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetPanel = btn.getAttribute('data-panel');
+        switchPanel(targetPanel);
       });
     });
+    
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', () => {
+        const newState = currentState === 'expanded' ? 'collapsed' : 'expanded';
+        setState(newState);
+      });
+    }
   }
 
-  function bindHeaderToggle() {
-    if (!header) return;
-    header.addEventListener('click', () => {
-      // 点击头部在展开和收起状态间切换
-      setState(currentState === 'expanded' ? 'collapsed' : 'expanded');
+  function bindPanelCollapse() {
+    // Handled in bindSectionToggles
+  }
+
+  function switchPanel(targetPanel) {
+    // Update menu button states
+    menuButtons.forEach((btn) => {
+      if (btn.getAttribute('data-panel') === targetPanel) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
     });
+
+    // Show/hide panel bodies
+    if (targetPanel === 'translate') {
+      translatePanelBody.style.display = 'block';
+      proxyPanelBody.style.display = 'none';
+    } else if (targetPanel === 'proxy') {
+      translatePanelBody.style.display = 'none';
+      proxyPanelBody.style.display = 'block';
+    }
   }
 
   function setState(state) {
@@ -94,14 +140,18 @@
   }
 
   function updateButtonHighlights() {
-    stateButtons.forEach((btn) => {
-      const target = btn.getAttribute('data-target');
-      if (target === currentState) {
-        btn.classList.add('active');
+    // Update collapse button icon/text if needed
+    if (collapseBtn) {
+      const icon = collapseBtn.querySelector('.menu-icon');
+      const label = collapseBtn.querySelector('.menu-label');
+      if (currentState === 'collapsed') {
+        if (icon) icon.textContent = '︾';
+        if (label) label.textContent = '展开';
       } else {
-        btn.classList.remove('active');
+        if (icon) icon.textContent = '︽';
+        if (label) label.textContent = '收起';
       }
-    });
+    }
   }
 
   function notifyMain() {
@@ -146,26 +196,28 @@
 
     window.electronAPI.on('view-manager:view-switched', (data) => {
       if (data?.toAccountId) {
-        settingsPanel.setAccount(data.toAccountId);
+        translateSettingsPanel.setAccount(data.toAccountId);
+        proxySettingsPanel.setAccount(data.toAccountId);
       }
     });
 
     window.electronAPI.on('account:active-changed', (data) => {
       if (data?.accountId) {
-        settingsPanel.setAccount(data.accountId);
+        translateSettingsPanel.setAccount(data.accountId);
+        proxySettingsPanel.setAccount(data.accountId);
       }
     });
 
     window.electronAPI.on('translation-config-updated', (data) => {
       if (data?.accountId) {
-        settingsPanel.setAccount(data.accountId);
+        translateSettingsPanel.setAccount(data.accountId);
       }
     });
 
     // 监听聊天切换事件，更新当前联系人配置
     window.electronAPI.on('translation:chat-switched', () => {
       console.log('[translatePanelLayout] Received chat-switched event, updating contact info');
-      settingsPanel.loadCurrentFriendConfig();
+      translateSettingsPanel.loadCurrentFriendConfig();
     });
 
     // 备选方案：定期检查联系人变化（每3秒）
@@ -184,7 +236,7 @@
         if (currentContactId && currentContactId !== lastContactId) {
           console.log('[translatePanelLayout] Contact changed detected:', lastContactId, '->', currentContactId);
           lastContactId = currentContactId;
-          settingsPanel.loadCurrentFriendConfig();
+          translateSettingsPanel.loadCurrentFriendConfig();
         } else if (!currentContactId) {
           lastContactId = null;
         }

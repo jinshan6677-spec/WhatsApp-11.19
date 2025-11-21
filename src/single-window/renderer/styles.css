@@ -16,7 +16,7 @@ html, body {
 }
 
 :root {
-  --translate-panel-width-expanded: 380px;
+  --translate-panel-width-expanded: 420px;
   --translate-panel-width-collapsed: 56px;
 }
 
@@ -884,141 +884,7 @@ html, body {
   }
 }
 
-/* ===== Keyboard Shortcuts Help ===== */
-.shortcuts-help {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  padding: 20px;
-  max-width: 350px;
-  z-index: 9999;
-  animation: slideInFromBottom 0.3s ease-out;
-}
 
-.shortcuts-help.hidden {
-  display: none;
-}
-
-.shortcuts-help-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.shortcuts-help-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #111;
-  margin: 0;
-}
-
-.shortcuts-help-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #666;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.shortcuts-help-close:hover {
-  background-color: #f0f0f0;
-}
-
-.shortcuts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.shortcut-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.shortcut-keys {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.shortcut-key {
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-family: monospace;
-  font-weight: 600;
-  color: #333;
-  min-width: 24px;
-  text-align: center;
-}
-
-.shortcut-description {
-  font-size: 13px;
-  color: #666;
-  flex: 1;
-}
-
-@keyframes slideInFromBottom {
-  from {
-    transform: translateY(100px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* ===== Help Button ===== */
-.help-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #25d366;
-  color: white;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 9998;
-}
-
-.help-button:hover {
-  background: #20bd5a;
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.4);
-}
-
-.help-button:active {
-  transform: scale(0.95);
-}
-
-.help-button.hidden {
-  display: none;
-}
 
 /* ===== Selection Prevention ===== */
 .resize-handle,
@@ -1203,4 +1069,136 @@ button:focus-visible {
 .account-item .retry-btn,
 .account-item .loading-indicator {
   opacity: 1;
+}
+
+/* ===== Translation and Proxy Settings Panel ===== */
+.translate-panel {
+  width: var(--translate-panel-width-expanded);
+  height: 100%;
+  background-color: #fff;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+}
+
+.translate-panel[data-state="collapsed"] {
+  width: var(--translate-panel-width-collapsed);
+}
+
+/* Left: Main Content Area */
+.translate-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.translate-panel-placeholder {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Right: Vertical Menu */
+.translate-panel-menu {
+  width: 80px;
+  background: #f5f7fa;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  flex-shrink: 0;
+}
+
+.panel-menu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
+  font-size: 12px;
+}
+
+.panel-menu-btn:hover {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+}
+
+.panel-menu-btn.active {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+  position: relative;
+}
+
+.panel-menu-btn.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: #409eff;
+  border-radius: 0 2px 2px 0;
+}
+
+.menu-icon {
+  font-size: 20px;
+}
+
+.menu-label {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.panel-collapse-btn {
+  margin-top: auto;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 12px;
+}
+
+/* Collapsed State */
+.translate-panel[data-state="collapsed"] .translate-panel-body {
+  display: none;
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-menu {
+  width: 56px;
+}
+
+.translate-panel[data-state="collapsed"] .menu-label {
+  display: none;
+}
+
+.translate-panel[data-state="collapsed"] .panel-menu-btn {
+  padding: 12px 4px;
+}
+
+/* Scrollbar Styling */
+.translate-panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.translate-panel-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.translate-panel-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.translate-panel-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }

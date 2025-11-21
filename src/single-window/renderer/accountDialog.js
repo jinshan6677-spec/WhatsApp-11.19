@@ -26,20 +26,11 @@
   const accountNote = document.getElementById('account-note');
   const autoStart = document.getElementById('auto-start');
 
-  // Proxy fields
-  const proxyEnabled = document.getElementById('proxy-enabled');
-  const proxyFields = document.getElementById('proxy-fields');
-  const proxyProtocol = document.getElementById('proxy-protocol');
-  const proxyHost = document.getElementById('proxy-host');
-  const proxyPort = document.getElementById('proxy-port');
-  const proxyAuthEnabled = document.getElementById('proxy-auth-enabled');
-  const proxyAuthFields = document.getElementById('proxy-auth-fields');
-  const proxyUsername = document.getElementById('proxy-username');
-  const proxyPassword = document.getElementById('proxy-password');
-  const proxyBypass = document.getElementById('proxy-bypass');
-
   // Translation fields - removed from UI but keep references for compatibility
   // Translation is now configured only within WhatsApp Web interface
+  
+  // Proxy fields - removed from UI, now configured in settings panel
+  // Proxy is now configured only within the settings panel on the right side
 
   /**
    * Initialize the dialog
@@ -60,17 +51,11 @@
     closeBtn.addEventListener('click', handleCancel);
     cancelBtn.addEventListener('click', handleCancel);
 
-    // Proxy toggle
-    proxyEnabled.addEventListener('change', toggleProxyFields);
-    proxyAuthEnabled.addEventListener('change', toggleProxyAuthFields);
-
     // Real-time validation
     accountName.addEventListener('input', () => validateField('name'));
     if (accountPhoneNumber) {
       accountPhoneNumber.addEventListener('input', () => validatePhoneNumberField());
     }
-    proxyHost.addEventListener('input', () => validateField('proxy-host'));
-    proxyPort.addEventListener('input', () => validateField('proxy-port'));
 
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyDown);
@@ -123,53 +108,14 @@
     accountNote.value = account.note || '';
     autoStart.checked = account.autoStart || false;
 
-    // Proxy configuration
-    if (account.proxy) {
-      proxyEnabled.checked = account.proxy.enabled || false;
-      proxyProtocol.value = account.proxy.protocol || 'socks5';
-      proxyHost.value = account.proxy.host || '';
-      proxyPort.value = account.proxy.port || '';
-      proxyBypass.value = account.proxy.bypass || '';
-
-      if (account.proxy.username || account.proxy.password) {
-        proxyAuthEnabled.checked = true;
-        proxyUsername.value = account.proxy.username || '';
-        proxyPassword.value = account.proxy.password || '';
-      }
-    }
+    // Proxy configuration - removed from UI
+    // Proxy is now configured only within the settings panel on the right side
 
     // Translation configuration - removed from UI
     // Translation is now configured only within WhatsApp Web interface
-
-    // Trigger conditional field visibility
-    toggleProxyFields();
-    toggleProxyAuthFields();
   }
 
-  /**
-   * Toggle proxy fields visibility
-   */
-  function toggleProxyFields() {
-    if (proxyEnabled.checked) {
-      proxyFields.style.display = 'block';
-    } else {
-      proxyFields.style.display = 'none';
-      clearProxyValidation();
-    }
-  }
-
-  /**
-   * Toggle proxy authentication fields visibility
-   */
-  function toggleProxyAuthFields() {
-    if (proxyAuthEnabled.checked) {
-      proxyAuthFields.style.display = 'block';
-    } else {
-      proxyAuthFields.style.display = 'none';
-    }
-  }
-
-  // Translation functions removed - translation is now configured only within WhatsApp Web interface
+  // Proxy and Translation functions removed - now configured in settings panel
 
   /**
    * Validate a single field
@@ -189,24 +135,7 @@
         }
         break;
 
-      case 'proxy-host':
-        if (proxyEnabled.checked && !proxyHost.value.trim()) {
-          setFieldError('proxy-host', '启用代理时必须填写代理主机地址');
-          return false;
-        }
-        break;
-
-      case 'proxy-port':
-        if (proxyEnabled.checked) {
-          const port = parseInt(proxyPort.value, 10);
-          if (!port || port < 1 || port > 65535) {
-            setFieldError('proxy-port', '端口必须在 1 到 65535 之间');
-            return false;
-          }
-        }
-        break;
-
-      // translation-api-key validation removed
+      // proxy and translation validation removed - now in settings panel
     }
 
     return true;
@@ -256,21 +185,7 @@
       setFieldError('name', '账号名称不能超过 100 个字符');
     }
 
-    // Validate proxy configuration
-    if (proxyEnabled.checked) {
-      if (!proxyHost.value.trim()) {
-        errors.push('启用代理时必须填写代理主机地址');
-        setFieldError('proxy-host', '代理主机地址为必填项');
-      }
-
-      const port = parseInt(proxyPort.value, 10);
-      if (!port || port < 1 || port > 65535) {
-        errors.push('代理端口必须在 1 到 65535 之间');
-        setFieldError('proxy-port', '端口必须在 1 到 65535 之间');
-      }
-    }
-
-    // Translation validation removed - translation is now configured only within WhatsApp Web interface
+    // Proxy and Translation validation removed - now configured in settings panel
 
     // Additional phone number validation (optional)
     if (!validatePhoneNumberField()) {
@@ -312,13 +227,7 @@
     }
   }
 
-  /**
-   * Clear proxy validation errors
-   */
-  function clearProxyValidation() {
-    clearFieldError('proxy-host');
-    clearFieldError('proxy-port');
-  }
+
 
   /**
    * Clear translation validation errors

@@ -61,17 +61,16 @@
       style.id = 'translate-settings-styles';
       style.textContent = `
 .translate-settings-wrapper {
+  width: 100%;
   height: 100%;
 }
 
 .translate-settings-wrapper .settings-container {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.08);
   overflow: hidden;
 }
 
@@ -92,26 +91,6 @@
 
 .translate-settings-wrapper .settings-overlay {
   display: none;
-}
-
-.translate-settings-wrapper .settings-close {
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  color: #fff;
-  font-size: 20px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-
-.translate-settings-wrapper .settings-close:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
 }
 
 .translate-settings-wrapper .settings-content {
@@ -282,7 +261,6 @@
         <div class="settings-container">
           <div class="settings-header">
             <h2>🌐 翻译设置</h2>
-            <button class="settings-close">×</button>
           </div>
           
           <div class="settings-content">
@@ -653,15 +631,6 @@
     }
 
     bindEvents() {
-      const closeBtn = this.panel.querySelector('.settings-close');
-      if (closeBtn) {
-        closeBtn.onclick = () => {
-          if (typeof this.onCollapse === 'function') {
-            this.onCollapse('mini');
-          }
-        };
-      }
-
       const engineSelect = this.panel.querySelector('#translationEngine');
       engineSelect?.addEventListener('change', async (e) => {
         const prev = this.currentEngine || this.config?.global?.engine;
@@ -717,8 +686,9 @@
     setPlaceholderVisible(visible) {
       if (!this.placeholderEl) return;
       this.placeholderEl.style.display = visible ? 'block' : 'none';
-      if (this.panel) {
-        this.panel.style.display = visible ? 'none' : 'block';
+      if (this.host) {
+        // 控制设置内容host的可见性
+        this.host.style.display = visible ? 'none' : 'block';
       }
     }
 
