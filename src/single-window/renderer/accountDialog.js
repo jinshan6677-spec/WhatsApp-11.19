@@ -262,15 +262,19 @@
       phoneNumber: accountPhoneNumber ? accountPhoneNumber.value.trim() : '',
       note: accountNote.value.trim(),
       autoStart: autoStart.checked,
-      proxy: {
-        enabled: proxyEnabled.checked,
-        protocol: proxyProtocol.value,
-        host: proxyHost.value.trim(),
-        port: parseInt(proxyPort.value, 10) || 0,
-        username: proxyAuthEnabled.checked ? proxyUsername.value.trim() : '',
-        password: proxyAuthEnabled.checked ? proxyPassword.value : '',
-        bypass: proxyBypass.value.trim()
+      // Proxy configuration - keep existing proxy settings from originalData
+      // Proxy is now configured only within the settings panel on the right side
+      proxy: originalData?.proxy || {
+        enabled: false,
+        protocol: 'http',
+        host: '',
+        port: 0,
+        username: '',
+        password: '',
+        bypass: ''
       },
+      // Translation configuration - keep existing translation settings from originalData
+      // Translation is now configured only within WhatsApp Web interface
       translation: originalData?.translation || {
         enabled: true,
         engine: 'google',
@@ -361,7 +365,6 @@
       return accountName.value.trim() !== '' ||
              (accountPhoneNumber && accountPhoneNumber.value.trim() !== '') ||
              accountNote.value.trim() !== '' ||
-             proxyEnabled.checked ||
              autoStart.checked;
     }
 
