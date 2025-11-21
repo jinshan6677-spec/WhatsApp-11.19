@@ -85,11 +85,13 @@
     root.style.setProperty('--translate-panel-width-collapsed', `${widths.collapsed}px`);
   }
 
+  let currentActivePanel = 'translate'; // 记录当前激活的面板
+
   function bindSectionToggles() {
     menuButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
         const targetPanel = btn.getAttribute('data-panel');
-        switchPanel(targetPanel);
+        handlePanelClick(targetPanel);
       });
     });
     
@@ -105,7 +107,25 @@
     // Handled in bindSectionToggles
   }
 
+  function handlePanelClick(targetPanel) {
+    // 如果点击的是当前已激活的面板
+    if (currentActivePanel === targetPanel && currentState === 'expanded') {
+      // 收起面板
+      setState('collapsed');
+    } else {
+      // 如果面板是收起的，先展开
+      if (currentState === 'collapsed') {
+        setState('expanded');
+      }
+      // 切换到目标面板
+      switchPanel(targetPanel);
+    }
+  }
+
   function switchPanel(targetPanel) {
+    // 更新当前激活的面板
+    currentActivePanel = targetPanel;
+    
     // Update menu button states
     menuButtons.forEach((btn) => {
       if (btn.getAttribute('data-panel') === targetPanel) {
