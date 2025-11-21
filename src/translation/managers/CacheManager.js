@@ -13,7 +13,7 @@ class CacheManager {
   constructor(options = {}) {
     this.maxSize = options.maxSize || 1000;
     this.ttl = options.ttl || 7 * 24 * 60 * 60 * 1000; // 7 days
-    
+
     // LRU 内存缓存
     this.cache = new LRUCache({
       max: this.maxSize,
@@ -43,7 +43,7 @@ class CacheManager {
    */
   initCacheDir() {
     if (!this.cacheDir) return;
-    
+
     try {
       if (!fs.existsSync(this.cacheDir)) {
         fs.mkdirSync(this.cacheDir, { recursive: true });
@@ -64,7 +64,7 @@ class CacheManager {
    */
   generateKey(text, sourceLang, targetLang, engine, accountId = null) {
     // Include accountId in cache key for per-account isolation
-    const content = accountId 
+    const content = accountId
       ? `${accountId}:${text}:${sourceLang}:${targetLang}:${engine}`
       : `${text}:${sourceLang}:${targetLang}:${engine}`;
     return crypto.createHash('md5').update(content).digest('hex');
@@ -91,11 +91,11 @@ class CacheManager {
 
     try {
       const cacheFile = path.join(this.cacheDir, `${key}.json`);
-      
+
       if (fs.existsSync(cacheFile)) {
         const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
         const cutoffTime = Date.now() - this.ttl;
-        
+
         if (data.created_at > cutoffTime) {
           // 更新访问时间
           data.accessed_at = Date.now();
@@ -111,7 +111,7 @@ class CacheManager {
           // 放入内存缓存
           this.cache.set(key, result);
           this.stats.hits++;
-          
+
           return result;
         } else {
           // 过期，删除文件
@@ -143,7 +143,7 @@ class CacheManager {
     try {
       const cacheFile = path.join(this.cacheDir, `${key}.json`);
       const now = Date.now();
-      
+
       const data = {
         cache_key: key,
         account_id: accountId, // Store accountId for per-account cache management
@@ -177,22 +177,31 @@ class CacheManager {
         if (file.endsWith('.json')) {
           const filePath = path.join(this.cacheDir, file);
           try {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            if (data.created_at < cutoffTime) {
+            // 优化：只读取文件元数据，不读取文件内容
+            const stats = fs.statSync(filePath);
+            // 使用修改时间作为最后访问时间的近似值
+            // 注意：这假设文件被访问时会更新 mtime (在 get 方法中确实有写回操作)
+            if (stats.mtimeMs < cutoffTime) {
               fs.unlinkSync(filePath);
               cleanedCount++;
             }
           } catch (error) {
-            // 删除损坏的文件
-            fs.unlinkSync(filePath);
-            cleanedCount++;
+            // 如果获取状态失败或删除失败，尝试直接删除（可能是损坏的文件）
+            try {
+              fs.unlinkSync(filePath);
+              cleanedCount++;
+            } catch (e) {
+              // 忽略无法删除的文件
+            }
           }
         }
       }
 
-      console.log(`Cleaned up ${cleanedCount} expired cache entries`);
+      if (cleanedCount > 0) {
+        console.log(`[CacheManager] Cleaned up ${cleanedCount} expired cache entries`);
+      }
     } catch (error) {
-      console.error('Cache cleanup error:', error);
+      console.error('[CacheManager] Cache cleanup error:', error);
     }
   }
 
@@ -201,7 +210,7 @@ class CacheManager {
    */
   async clear() {
     this.cache.clear();
-    
+
     if (!this.cacheDir) return;
 
     try {
@@ -227,7 +236,7 @@ class CacheManager {
     }
 
     console.log(`[CacheManager] Clearing cache for account ${accountId}`);
-    
+
     // Clear from memory cache - need to iterate and remove matching keys
     const keysToDelete = [];
     for (const [key, value] of this.cache.entries()) {
@@ -247,12 +256,12 @@ class CacheManager {
         }
       }
     }
-    
+
     // Delete from memory cache
     for (const key of keysToDelete) {
       this.cache.delete(key);
     }
-    
+
     // Clear from file cache
     if (!this.cacheDir) {
       console.log(`[CacheManager] Cleared ${keysToDelete.length} memory cache entries for account ${accountId}`);
@@ -262,7 +271,7 @@ class CacheManager {
     try {
       const files = fs.readdirSync(this.cacheDir);
       let deletedCount = 0;
-      
+
       for (const file of files) {
         if (file.endsWith('.json')) {
           const filePath = path.join(this.cacheDir, file);
@@ -277,7 +286,7 @@ class CacheManager {
           }
         }
       }
-      
+
       console.log(`[CacheManager] Cleared ${deletedCount} file cache entries for account ${accountId}`);
     } catch (error) {
       console.error(`[CacheManager] Error clearing cache for account ${accountId}:`, error);
@@ -290,16 +299,16 @@ class CacheManager {
    */
   async clearTranslationHistory() {
     console.log('[CacheManager] Clearing translation history for privacy...');
-    
+
     // 清空内存缓存
     this.cache.clear();
-    
+
     // 清空文件缓存
     if (this.cacheDir) {
       try {
         const files = fs.readdirSync(this.cacheDir);
         let deletedCount = 0;
-        
+
         for (const file of files) {
           const filePath = path.join(this.cacheDir, file);
           try {
@@ -309,20 +318,20 @@ class CacheManager {
             console.error(`Failed to delete ${file}:`, error.message);
           }
         }
-        
+
         console.log(`[CacheManager] Deleted ${deletedCount} cache files`);
       } catch (error) {
         console.error('[CacheManager] Failed to clear translation history:', error);
       }
     }
-    
+
     // 重置统计信息
     this.stats = {
       hits: 0,
       misses: 0,
       sets: 0
     };
-    
+
     console.log('[CacheManager] Translation history cleared successfully');
   }
 
@@ -333,11 +342,11 @@ class CacheManager {
   getCacheSize() {
     let totalSize = 0;
     let fileCount = 0;
-    
+
     if (this.cacheDir) {
       try {
         const files = fs.readdirSync(this.cacheDir);
-        
+
         for (const file of files) {
           if (file.endsWith('.json')) {
             const filePath = path.join(this.cacheDir, file);
@@ -350,7 +359,7 @@ class CacheManager {
         console.error('[CacheManager] Failed to get cache size:', error);
       }
     }
-    
+
     return {
       totalBytes: totalSize,
       totalMB: (totalSize / (1024 * 1024)).toFixed(2),

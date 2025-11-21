@@ -3,7 +3,7 @@
  * 注入到 WhatsApp Web 页面中，实现翻译功能
  */
 
-(function() {
+(function () {
   'use strict';
 
   console.log('[Translation] Content script initializing...');
@@ -16,7 +16,7 @@
     initialized: false,
     accountId: 'default',
     isTranslating: false, // 防止重复翻译
-    
+
     // 优化：添加初始化标志，防止重复初始化
     _chineseBlockInitialized: false,
     _realtimeInitialized: false,
@@ -76,9 +76,9 @@
         const checkInterval = setInterval(() => {
           // 检查聊天容器是否存在
           const chatContainer = document.querySelector('[data-testid="conversation-panel-messages"]') ||
-                               document.querySelector('#main') ||
-                               document.querySelector('[role="application"]');
-          
+            document.querySelector('#main') ||
+            document.querySelector('[role="application"]');
+
           if (chatContainer) {
             clearInterval(checkInterval);
             // 额外等待一秒确保完全加载
@@ -182,12 +182,12 @@
                   this.handleNewMessage(node);
                 }
               }
-              
+
               // 检查是否包含消息节点
               if (this.isMessageNode(node)) {
                 this.handleNewMessage(node);
               }
-              
+
               // 也检查子节点中的消息
               const messages = node.querySelectorAll('.message-in, .message-out');
               if (messages.length > 0) {
@@ -219,7 +219,7 @@
     translateExistingMessages() {
       const existingMessages = document.querySelectorAll('.message-in, .message-out');
       console.log(`[Translation] Found ${existingMessages.length} existing messages`);
-      
+
       existingMessages.forEach(msg => {
         if (!msg.querySelector('.wa-translation-result')) {
           this.handleNewMessage(msg);
@@ -276,8 +276,8 @@
 
         // 提取消息文本
         const textElement = messageNode.querySelector('.selectable-text[dir="ltr"], .selectable-text[dir="rtl"]') ||
-                           messageNode.querySelector('.selectable-text') ||
-                           messageNode.querySelector('[data-testid="conversation-text"]');
+          messageNode.querySelector('.selectable-text') ||
+          messageNode.querySelector('[data-testid="conversation-text"]');
 
         if (!textElement || !textElement.textContent.trim()) {
           console.log('[Translation] No text found in message, skipping');
@@ -285,11 +285,17 @@
         }
 
         const messageText = textElement.textContent.trim();
-        
+
+        // Skip translation UI for pure Arabic numerals
+        if (/^\d+$/.test(messageText)) {
+          console.log('[Translation] Skipping UI for pure numerals:', messageText);
+          return;
+        }
+
         // 聊天窗口翻译使用全局配置的目标语言（通常是中文）
         // 不受好友独立配置影响
         const targetLang = this.config.global.targetLang || 'zh-CN';
-        
+
         // 只有当目标语言是中文时，才跳过中文消息
         if (targetLang.startsWith('zh') && this.isChinese(messageText)) {
           // 添加标记，避免重复检查
@@ -322,12 +328,12 @@
           }
           return contactId;
         }
-        
+
         // 方法2: 从聊天标题获取
         const header = document.querySelector('#main header [data-testid="conversation-info-header"]') ||
-                      document.querySelector('#main header span[dir="auto"]') ||
-                      document.querySelector('header[data-testid="chatlist-header"] + div span[dir="auto"]');
-        
+          document.querySelector('#main header span[dir="auto"]') ||
+          document.querySelector('header[data-testid="chatlist-header"] + div span[dir="auto"]');
+
         if (header) {
           const contactName = header.textContent.trim();
           if (contactName) {
@@ -339,7 +345,7 @@
             return contactName;
           }
         }
-        
+
         // 只在第一次失败时输出警告
         if (this._lastContactId !== null) {
           console.warn('[Translation] Could not determine contact ID');
@@ -359,18 +365,18 @@
       console.log('[Translation] getContactConfig called with contactId:', contactId);
       console.log('[Translation] friendIndependent enabled:', this.config.advanced.friendIndependent);
       console.log('[Translation] friendConfigs:', this.config.friendConfigs);
-      
+
       // 如果没有启用好友独立配置，返回全局配置
       if (!this.config.advanced.friendIndependent) {
         console.log('[Translation] Friend independent config is disabled, using global config');
         return this.config.global;
       }
-      
+
       // 检查是否有该联系人的独立配置
       if (contactId && this.config.friendConfigs && this.config.friendConfigs[contactId]) {
         const friendConfig = this.config.friendConfigs[contactId];
         console.log('[Translation] Found friend config for', contactId, ':', friendConfig);
-        
+
         if (friendConfig.enabled) {
           const mergedConfig = {
             ...this.config.global,
@@ -385,7 +391,7 @@
       } else {
         console.log('[Translation] No friend config found for:', contactId);
       }
-      
+
       // 返回全局配置
       console.log('[Translation] Using global config');
       return this.config.global;
@@ -406,7 +412,7 @@
         // 接收到的消息应该翻译成用户设置的目标语言（通常是中文）
         const engineName = this.config.global.engine;
         console.log(`[Translation] 🔄 聊天窗口翻译，使用引擎: ${engineName}（不使用风格）`);
-        
+
         const response = await window.translationAPI.translate({
           accountId: this.accountId,
           text: text,
@@ -444,11 +450,11 @@
       // 创建翻译结果元素（优化：减少嵌套层级）
       const translationDiv = document.createElement('div');
       translationDiv.className = 'wa-translation-result';
-      
+
       const detectedLang = result.detectedLang || 'auto';
       const targetLang = this.config.global.targetLang;
       const engineName = result.engineName || this.config.global.engine;
-      
+
       // 引擎图标映射
       const engineIcons = {
         'google': '🌐',
@@ -458,7 +464,7 @@
         'custom': '⚙️'
       };
       const engineIcon = engineIcons[engineName] || '🌐';
-      
+
       // 优化：简化 HTML 结构，从 4-5 个节点减少到 2-3 个
       translationDiv.innerHTML = `
         <div class="translation-header">
@@ -466,21 +472,21 @@
         </div>
         <div class="translation-text"></div>
       `;
-      
+
       // 使用 textContent 设置文本，避免 HTML 实体编码问题
       const textDiv = translationDiv.querySelector('.translation-text');
-      
+
       // 在浏览器端解码 HTML 实体
       const decodedText = this.decodeHTMLEntitiesInBrowser(result.translatedText);
       console.log('[ContentScript] Original text:', result.translatedText);
       console.log('[ContentScript] Decoded text:', decodedText);
-      
+
       textDiv.textContent = decodedText;
 
       // 找到消息内容容器
       const messageContent = messageNode.querySelector('.copyable-text') ||
-                            messageNode.querySelector('[data-testid="msg-text"]') ||
-                            messageNode;
+        messageNode.querySelector('[data-testid="msg-text"]') ||
+        messageNode;
 
       // 插入翻译结果
       if (messageContent.parentNode) {
@@ -507,8 +513,8 @@
       `;
 
       const messageContent = messageNode.querySelector('.copyable-text') ||
-                            messageNode.querySelector('[data-testid="msg-text"]') ||
-                            messageNode;
+        messageNode.querySelector('[data-testid="msg-text"]') ||
+        messageNode;
 
       if (messageContent.parentNode) {
         messageContent.parentNode.appendChild(errorDiv);
@@ -520,12 +526,12 @@
      */
     decodeHTMLEntitiesInBrowser(text) {
       if (!text) return text;
-      
+
       const textarea = document.createElement('textarea');
       let decoded = text;
       let prevDecoded;
       let iterations = 0;
-      
+
       // 多次解码以处理双重编码
       do {
         prevDecoded = decoded;
@@ -533,7 +539,7 @@
         decoded = textarea.value;
         iterations++;
       } while (decoded !== prevDecoded && iterations < 3);
-      
+
       return decoded;
     },
 
@@ -556,8 +562,8 @@
 
       // 检查是否有群组图标或多个参与者
       const groupIcon = header.querySelector('[data-icon="default-group"]') ||
-                       header.querySelector('[data-icon="group"]');
-      
+        header.querySelector('[data-icon="group"]');
+
       return !!groupIcon;
     },
 
@@ -566,10 +572,10 @@
      */
     observeInputBox() {
       console.log('[Translation] Setting up input box observation');
-      
+
       // 初始化输入框翻译
       this.initInputBoxTranslation();
-      
+
       // 设置持续监控，确保按钮始终存在
       this.startButtonMonitoring();
     },
@@ -583,27 +589,27 @@
       if (this._buttonMonitorInitialized) {
         return;
       }
-      
+
       // 如果已经有监控器在运行，先停止
       if (this.buttonMonitor) {
         this.buttonMonitor.disconnect();
       }
-      
+
       if (this.buttonCheckInterval) {
         clearInterval(this.buttonCheckInterval);
       }
-      
+
       console.log('[Translation] Starting button monitoring');
-      
+
       // 优化：增加检查间隔到 3 秒，减少频繁检查
       this.buttonCheckInterval = setInterval(() => {
         if (!this.config || !this.config.inputBox || !this.config.inputBox.enabled) {
           return;
         }
-        
+
         const button = document.getElementById('wa-translate-btn');
         const footer = document.querySelector('#main footer');
-        
+
         // 如果按钮不存在，或者不在正确的 footer 中
         if (!button || (footer && !footer.contains(button))) {
           // 节流日志：每 5 秒最多输出一次
@@ -612,42 +618,42 @@
             console.log('[Translation] Button missing or in wrong location, re-adding...');
             this._lastLogTime.buttonCheck = now;
           }
-          
+
           // 移除旧按钮（如果存在但位置不对）
           if (button) {
             button.remove();
           }
-          
+
           // 重新初始化
           this.initInputBoxTranslation();
         }
       }, 3000); // 从 1000ms 改为 3000ms
-      
+
       // 也使用 MutationObserver 监控 #main 的变化
       const mainContainer = document.querySelector('#main');
       if (mainContainer) {
         // 优化：添加防抖，避免频繁触发
         let debounceTimer = null;
-        
+
         this.buttonMonitor = new MutationObserver((mutations) => {
           // 清除之前的定时器
           if (debounceTimer) {
             clearTimeout(debounceTimer);
           }
-          
+
           // 500ms 防抖
           debounceTimer = setTimeout(() => {
             // 检查是否有 footer 相关的变化
             const hasFooterChange = mutations.some(m => {
-              return Array.from(m.addedNodes).some(node => 
-                node.nodeName === 'FOOTER' || 
+              return Array.from(m.addedNodes).some(node =>
+                node.nodeName === 'FOOTER' ||
                 (node.querySelector && node.querySelector('footer'))
               ) || Array.from(m.removedNodes).some(node =>
                 node.nodeName === 'FOOTER' ||
                 (node.querySelector && node.querySelector('footer'))
               );
             });
-            
+
             if (hasFooterChange) {
               // 节流日志
               const now = Date.now();
@@ -655,20 +661,20 @@
                 console.log('[Translation] Footer changed, re-adding button...');
                 this._lastLogTime.footerChange = now;
               }
-              
+
               setTimeout(() => {
                 this.initInputBoxTranslation();
               }, 200);
             }
           }, 500);
         });
-        
+
         this.buttonMonitor.observe(mainContainer, {
           childList: true,
           subtree: true
         });
       }
-      
+
       // 标记为已初始化
       this._buttonMonitorInitialized = true;
     },
@@ -683,14 +689,14 @@
       if (oldButton) {
         oldButton.remove();
       }
-      
+
       // 查找输入框 - 使用多个选择器尝试，优先查找 #main 中的
       const inputBox = document.querySelector('#main footer [contenteditable="true"]') ||
-                      document.querySelector('footer [contenteditable="true"]') ||
-                      document.querySelector('[data-testid="conversation-compose-box-input"]') ||
-                      document.querySelector('[contenteditable="true"][data-tab="10"]') ||
-                      document.querySelector('div[contenteditable="true"][role="textbox"]');
-      
+        document.querySelector('footer [contenteditable="true"]') ||
+        document.querySelector('[data-testid="conversation-compose-box-input"]') ||
+        document.querySelector('[contenteditable="true"][data-tab="10"]') ||
+        document.querySelector('div[contenteditable="true"][role="textbox"]');
+
       if (!inputBox) {
         // 优化：最多重试 5 次，避免无限重试
         if (retryCount < 5) {
@@ -716,7 +722,7 @@
 
       // 设置中文拦截（会自动清理旧的监听器）
       this.setupChineseBlock();
-      
+
       // 监听消息发送，自动关闭反向翻译窗口（会自动清理旧的监听器）
       this.setupSendMonitoring(inputBox);
     },
@@ -731,19 +737,19 @@
         this.messageSentObserver.disconnect();
         this.messageSentObserver = null;
       }
-      
+
       // 查找消息容器
       const messagesContainer = document.querySelector('[data-testid="conversation-panel-messages"]') ||
-                               document.querySelector('#main [role="application"]') ||
-                               document.querySelector('#main');
-      
+        document.querySelector('#main [role="application"]') ||
+        document.querySelector('#main');
+
       if (!messagesContainer) {
         // 优化：静默失败，不输出警告（页面可能还在加载）
         return;
       }
-      
+
       console.log('[Translation] Setting up message sent monitoring');
-      
+
       // 使用 MutationObserver 监控新消息的添加
       this.messageSentObserver = new MutationObserver((mutations) => {
         // 首先检查是否有反向翻译窗口，如果没有就不需要处理
@@ -751,7 +757,7 @@
         if (!reverseWindow) {
           return;
         }
-        
+
         // 检查是否有新的发送消息节点被添加
         const hasNewOutgoingMessage = mutations.some(mutation => {
           return Array.from(mutation.addedNodes).some(node => {
@@ -760,7 +766,7 @@
               // 排除接收的消息（白色气泡，message-in）
               const isOutgoing = node.classList && node.classList.contains('message-out');
               const hasOutgoing = node.querySelector && node.querySelector('.message-out');
-              
+
               if (isOutgoing || hasOutgoing) {
                 console.log('[Translation] Detected new OUTGOING message (green bubble)');
                 return true;
@@ -770,7 +776,7 @@
             return false;
           });
         });
-        
+
         if (hasNewOutgoingMessage) {
           console.log('[Translation] Closing reverse translation after sending message');
           // 延迟一下确保消息已完全发送
@@ -779,13 +785,13 @@
           }, 100);
         }
       });
-      
+
       // 开始监控
       this.messageSentObserver.observe(messagesContainer, {
         childList: true,
         subtree: true
       });
-      
+
       console.log('[Translation] Message sent monitoring enabled');
     },
 
@@ -803,7 +809,7 @@
           }
         }, 300);
       }
-      
+
       // 同时关闭实时翻译预览
       this.hideRealtimePreview();
     },
@@ -815,9 +821,9 @@
     addTranslateButton(inputBox, retryCount = 0) {
       // 优先查找 #main 中的 footer
       const footer = document.querySelector('#main footer') ||
-                    document.querySelector('[data-testid="conversation-compose-box"]') ||
-                    document.querySelector('footer');
-      
+        document.querySelector('[data-testid="conversation-compose-box"]') ||
+        document.querySelector('footer');
+
       if (!footer) {
         // 优化：最多重试 5 次，避免无限重试
         if (retryCount < 5) {
@@ -839,18 +845,18 @@
       button.innerHTML = '🌐';
       button.title = '翻译';
       button.type = 'button';
-      
+
       button.onclick = async () => {
         // 防止重复点击
         if (button.disabled) {
           console.log('[Translation] Button already disabled, skipping');
           return;
         }
-        
+
         button.disabled = true;
         button.innerHTML = '⏳';
         console.log('[Translation] Button clicked, starting translation');
-        
+
         try {
           await this.translateInputBox(inputBox);
         } catch (error) {
@@ -908,27 +914,27 @@
       try {
         // 获取最近的对方消息（接收的消息）
         const incomingMessages = document.querySelectorAll('.message-in');
-        
+
         if (incomingMessages.length === 0) {
           console.log('[Translation] No incoming messages found');
           return 'en'; // 默认英文
         }
-        
+
         // 从最新的消息开始检测
         for (let i = incomingMessages.length - 1; i >= Math.max(0, incomingMessages.length - 5); i--) {
           const msg = incomingMessages[i];
           const textElement = msg.querySelector('.selectable-text');
-          
+
           if (textElement && textElement.textContent.trim()) {
             const text = textElement.textContent.trim();
-            
+
             // 调用语言检测 API
             const result = await window.translationAPI.detectLanguage(text);
-            
+
             if (result.success && result.data.language) {
               const detectedLang = result.data.language;
               console.log('[Translation] Detected language from message:', detectedLang, 'Text:', text.substring(0, 50));
-              
+
               // 如果检测到的语言不是中文，就用这个语言
               if (!detectedLang.startsWith('zh')) {
                 return detectedLang;
@@ -936,10 +942,10 @@
             }
           }
         }
-        
+
         // 如果对方也是中文，默认翻译成英文
         return 'en';
-        
+
       } catch (error) {
         console.error('[Translation] Error detecting chat language:', error);
         return 'en';
@@ -951,9 +957,9 @@
      */
     addLanguageSelector(inputBox) {
       const footer = document.querySelector('#main footer') ||
-                    document.querySelector('[data-testid="conversation-compose-box"]') ||
-                    document.querySelector('footer');
-      
+        document.querySelector('[data-testid="conversation-compose-box"]') ||
+        document.querySelector('footer');
+
       if (!footer) {
         console.warn('[Translation] Footer not found for language selector');
         return;
@@ -970,7 +976,7 @@
       selector.id = 'wa-lang-selector';
       selector.className = 'wa-lang-selector';
       selector.title = '选择翻译目标语言';
-      
+
       // 添加语言选项
       const languages = [
         { code: 'auto', name: '🤖 自动检测' },
@@ -987,17 +993,17 @@
         { code: 'pt', name: '🇵🇹 Português' },
         { code: 'it', name: '🇮🇹 Italiano' }
       ];
-      
+
       languages.forEach(lang => {
         const option = document.createElement('option');
         option.value = lang.code;
         option.textContent = lang.name;
         selector.appendChild(option);
       });
-      
+
       // 默认选择自动检测
       selector.value = 'auto';
-      
+
       // 添加样式
       selector.style.cssText = `
         padding: 6px 8px;
@@ -1009,15 +1015,15 @@
         margin: 0 8px;
         transition: all 0.2s;
       `;
-      
+
       selector.onmouseenter = () => {
         selector.style.background = 'rgba(0, 0, 0, 0.05)';
       };
-      
+
       selector.onmouseleave = () => {
         selector.style.background = 'transparent';
       };
-      
+
       // 添加到翻译按钮旁边
       const translateBtn = document.getElementById('wa-translate-btn');
       if (translateBtn && translateBtn.parentNode) {
@@ -1025,7 +1031,7 @@
       } else {
         footer.appendChild(selector);
       }
-      
+
       console.log('[Translation] Language selector added');
     },
 
@@ -1035,7 +1041,7 @@
     shouldBlockChinese() {
       // 获取当前联系人 ID
       const contactId = this.getCurrentContactId();
-      
+
       // 如果启用了好友独立配置，检查该联系人的配置
       if (this.config.advanced.friendIndependent && contactId) {
         const friendConfig = this.config.friendConfigs && this.config.friendConfigs[contactId];
@@ -1044,7 +1050,7 @@
           return friendConfig.blockChinese || false;
         }
       }
-      
+
       // 使用全局配置
       return this.config.advanced.blockChinese || false;
     },
@@ -1056,7 +1062,7 @@
     setupChineseBlock() {
       // 检查是否需要启用拦截
       const shouldBlock = this.shouldBlockChinese();
-      
+
       // 如果不需要拦截，清理资源并返回
       if (!shouldBlock) {
         this.cleanupChineseBlock();
@@ -1067,28 +1073,28 @@
         }
         return;
       }
-      
+
       // 如果已经初始化过且配置没变，直接返回
       if (this._chineseBlockInitialized) {
         return;
       }
-      
+
       // 清理旧的监听器
       this.cleanupChineseBlock();
-      
+
       console.log('[Translation] Setting up Chinese blocking with multi-layer defense');
-      
+
       // 获取输入框的辅助函数
       const getInputBox = () => {
         return document.querySelector('footer [contenteditable="true"]') ||
-               document.querySelector('[data-testid="conversation-compose-box-input"]') ||
-               document.querySelector('#main footer div[contenteditable="true"]');
+          document.querySelector('[data-testid="conversation-compose-box-input"]') ||
+          document.querySelector('#main footer div[contenteditable="true"]');
       };
-      
+
       // 获取输入框文本的辅助函数
       const getInputText = (inputBox) => {
         if (!inputBox) return '';
-        
+
         // 尝试多种方式获取文本
         if (inputBox.hasAttribute('data-lexical-editor')) {
           const textNodes = inputBox.querySelectorAll('p, span[data-text="true"]');
@@ -1096,90 +1102,90 @@
             return Array.from(textNodes).map(node => node.textContent).join('\n');
           }
         }
-        
+
         return inputBox.textContent || inputBox.innerText || '';
       };
-      
+
       // 检查并拦截的核心函数
       const checkAndBlock = (e, source) => {
         const inputBox = getInputBox();
         if (!inputBox) {
           return false;
         }
-        
+
         const text = getInputText(inputBox);
-        
+
         if (this.containsChinese(text)) {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
-          
+
           // 显示提示
           this.showChineseBlockAlert();
-          
+
           console.log(`[Translation] Blocked Chinese message send via ${source}`);
           return true;
         }
-        
+
         return false;
       };
-      
+
       // 第1层：拦截 keydown 事件（Enter 键）
       this.chineseBlockHandler = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           checkAndBlock(e, 'Enter key');
         }
       };
-      
+
       // 第2层：拦截 keypress 事件（备用）
       this.chineseBlockKeypressHandler = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           checkAndBlock(e, 'Enter keypress');
         }
       };
-      
+
       // 第3层：拦截 mousedown 事件（比 click 更早）
       this.chineseBlockMouseDownHandler = (e) => {
         const target = e.target;
-        const sendButton = target.closest('[data-testid="send"]') || 
-                          target.closest('button[aria-label*="发送"]') ||
-                          target.closest('button[aria-label*="Send"]') ||
-                          target.closest('span[data-icon="send"]')?.parentElement;
-        
+        const sendButton = target.closest('[data-testid="send"]') ||
+          target.closest('button[aria-label*="发送"]') ||
+          target.closest('button[aria-label*="Send"]') ||
+          target.closest('span[data-icon="send"]')?.parentElement;
+
         if (sendButton) {
           checkAndBlock(e, 'mousedown on send button');
         }
       };
-      
+
       // 第4层：拦截 click 事件（双重保险）
       this.chineseBlockClickHandler = (e) => {
         const target = e.target;
-        const sendButton = target.closest('[data-testid="send"]') || 
-                          target.closest('button[aria-label*="发送"]') ||
-                          target.closest('button[aria-label*="Send"]') ||
-                          target.closest('span[data-icon="send"]')?.parentElement;
-        
+        const sendButton = target.closest('[data-testid="send"]') ||
+          target.closest('button[aria-label*="发送"]') ||
+          target.closest('button[aria-label*="Send"]') ||
+          target.closest('span[data-icon="send"]')?.parentElement;
+
         if (sendButton) {
           checkAndBlock(e, 'click on send button');
         }
       };
-      
+
       // 第5层：持续监控输入框，如果检测到中文则禁用发送按钮
       this.chineseBlockInputMonitor = setInterval(() => {
         if (!this.shouldBlockChinese()) return;
-        
+
         const inputBox = getInputBox();
         if (!inputBox) return;
-        
+
         const text = getInputText(inputBox);
         const hasChinese = this.containsChinese(text);
-        
+
         // 查找发送按钮
         const sendButton = document.querySelector('[data-testid="send"]') ||
-                          document.querySelector('button[aria-label*="发送"]') ||
-                          document.querySelector('button[aria-label*="Send"]') ||
-                          document.querySelector('span[data-icon="send"]')?.parentElement;
-        
+          document.querySelector('button[aria-label*="发送"]') ||
+          document.querySelector('button[aria-label*="Send"]') ||
+          document.querySelector('span[data-icon="send"]')?.parentElement;
+
         if (sendButton) {
           if (hasChinese) {
             // 禁用发送按钮
@@ -1196,19 +1202,19 @@
           }
         }
       }, 100); // 每100ms检查一次
-      
+
       // 添加所有监听器（使用 capture 阶段，优先级最高）
       document.addEventListener('keydown', this.chineseBlockHandler, true);
       document.addEventListener('keypress', this.chineseBlockKeypressHandler, true);
       document.addEventListener('mousedown', this.chineseBlockMouseDownHandler, true);
       document.addEventListener('click', this.chineseBlockClickHandler, true);
-      
+
       // 标记为已初始化
       this._chineseBlockInitialized = true;
-      
+
       console.log('[Translation] Chinese blocking enabled with 5-layer defense');
     },
-    
+
     /**
      * 清理中文拦截相关资源
      * 优化：统一的清理方法
@@ -1244,7 +1250,7 @@
       const toast = document.createElement('div');
       toast.className = 'wa-toast wa-toast-' + type;
       toast.textContent = message;
-      
+
       toast.style.cssText = `
         position: fixed;
         top: 20px;
@@ -1259,7 +1265,7 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         max-width: 300px;
       `;
-      
+
       // 根据类型设置背景色
       if (type === 'error') {
         toast.style.background = '#ef4444';
@@ -1270,9 +1276,9 @@
       } else {
         toast.style.background = '#3b82f6';
       }
-      
+
       document.body.appendChild(toast);
-      
+
       // 2秒后自动移除
       setTimeout(() => {
         if (toast.parentNode) {
@@ -1303,7 +1309,7 @@
           <button class="alert-close">×</button>
         </div>
       `;
-      
+
       alert.style.cssText = `
         position: fixed;
         top: 20px;
@@ -1317,25 +1323,25 @@
         animation: slideInRight 0.3s ease;
         max-width: 350px;
       `;
-      
+
       const content = alert.querySelector('.alert-content');
       content.style.cssText = `
         display: flex;
         align-items: flex-start;
         gap: 12px;
       `;
-      
+
       const icon = alert.querySelector('.alert-icon');
       icon.style.cssText = `
         font-size: 24px;
         flex-shrink: 0;
       `;
-      
+
       const text = alert.querySelector('.alert-text');
       text.style.cssText = `
         flex: 1;
       `;
-      
+
       const strong = alert.querySelector('strong');
       strong.style.cssText = `
         display: block;
@@ -1343,7 +1349,7 @@
         margin-bottom: 4px;
         font-size: 14px;
       `;
-      
+
       const p = alert.querySelector('p');
       p.style.cssText = `
         margin: 0;
@@ -1351,7 +1357,7 @@
         font-size: 13px;
         line-height: 1.4;
       `;
-      
+
       const closeBtn = alert.querySelector('.alert-close');
       closeBtn.style.cssText = `
         background: transparent;
@@ -1367,15 +1373,15 @@
         justify-content: center;
         flex-shrink: 0;
       `;
-      
+
       closeBtn.onclick = () => {
         if (alert.parentNode) {
           alert.parentNode.removeChild(alert);
         }
       };
-      
+
       document.body.appendChild(alert);
-      
+
       // 3秒后自动移除
       setTimeout(() => {
         if (alert.parentNode) {
@@ -1393,26 +1399,26 @@
         console.log('[Translation] Already translating, skipping');
         return;
       }
-      
+
       this.isTranslating = true;
-      
+
       // 如果没有传入 inputBox，尝试查找
       if (!inputBox) {
         inputBox = document.querySelector('footer [contenteditable="true"]') ||
-                  document.querySelector('[data-testid="conversation-compose-box-input"]') ||
-                  document.querySelector('#main footer div[contenteditable="true"]');
+          document.querySelector('[data-testid="conversation-compose-box-input"]') ||
+          document.querySelector('#main footer div[contenteditable="true"]');
       }
-      
+
       if (!inputBox) {
         this.showToast('找不到输入框', 'error');
         console.error('[Translation] Input box not found');
         this.isTranslating = false;
         return;
       }
-      
+
       // 获取文本 - 处理 Lexical 编辑器
       let text = '';
-      
+
       // 尝试多种方式获取文本
       if (inputBox.hasAttribute('data-lexical-editor')) {
         // Lexical 编辑器 - 从子元素获取文本
@@ -1425,15 +1431,15 @@
       } else {
         text = inputBox.textContent || inputBox.innerText || '';
       }
-      
+
       text = text.trim();
-      
+
       if (!text) {
         this.showToast('请输入要翻译的内容', 'warning');
         this.isTranslating = false;
         return;
       }
-      
+
       console.log('[Translation] Translating input box text:', text);
 
       try {
@@ -1446,20 +1452,20 @@
         // 获取当前联系人ID
         const contactId = this.getCurrentContactId();
         console.log('[Translation] Input box translation for contact:', contactId);
-        
+
         // 获取目标语言
         // 优先级：语言选择器 > 联系人独立配置 > 输入框配置
         const langSelector = document.getElementById('wa-lang-selector');
         let targetLang = langSelector ? langSelector.value : null;
-        
+
         // 如果语言选择器没有选择或选择了auto
         if (!targetLang || targetLang === 'auto') {
           // 如果启用了好友独立配置，且该联系人有独立配置
-          if (this.config.advanced.friendIndependent && 
-              contactId && 
-              this.config.friendConfigs && 
-              this.config.friendConfigs[contactId] &&
-              this.config.friendConfigs[contactId].enabled) {
+          if (this.config.advanced.friendIndependent &&
+            contactId &&
+            this.config.friendConfigs &&
+            this.config.friendConfigs[contactId] &&
+            this.config.friendConfigs[contactId].enabled) {
             // 使用联系人的独立配置
             targetLang = this.config.friendConfigs[contactId].targetLang || this.config.inputBox.targetLang || 'auto';
             console.log('[Translation] Using friend-specific targetLang:', targetLang);
@@ -1469,25 +1475,25 @@
             console.log('[Translation] Using inputBox targetLang:', targetLang);
           }
         }
-        
+
         // 如果设置为自动检测，则检测对方使用的语言
         if (targetLang === 'auto') {
           targetLang = await this.detectChatLanguage();
           console.log('[Translation] Auto-detected chat language:', targetLang);
         }
-        
+
         // 如果还是检测不到，默认翻译成英文
         if (!targetLang || targetLang === 'auto') {
           targetLang = 'en';
         }
-        
+
         console.log('[Translation] Final target language:', targetLang);
-        
+
         // 输入框翻译使用独立的引擎配置和风格参数
         const inputBoxEngine = this.config.inputBox.engine || this.config.global.engine;
         const inputBoxStyle = this.config.inputBox.style || '通用';
         console.log(`[Translation] 🎨 输入框翻译，使用引擎: ${inputBoxEngine}, 风格: ${inputBoxStyle}`);
-        
+
         const response = await window.translationAPI.translate({
           accountId: this.accountId,
           text: text,
@@ -1502,13 +1508,13 @@
         if (response.success) {
           // 解码 HTML 实体
           const translatedText = this.decodeHTMLEntitiesInBrowser(response.data.translatedText);
-          
+
           console.log('[Translation] Translation successful:', translatedText);
-          
+
           // 将翻译后的文本设置到输入框
           await this.setInputBoxText(inputBox, translatedText);
           console.log('[Translation] Text set to input box');
-          
+
           // 如果启用了反向翻译，显示反向翻译验证
           if (this.config.advanced.reverseTranslation) {
             await this.showInputBoxReverseTranslation(text, translatedText, targetLang);
@@ -1537,17 +1543,17 @@
         if (oldReverse) {
           oldReverse.remove();
         }
-        
+
         // 查找输入框容器
         const footer = document.querySelector('#main footer') ||
-                      document.querySelector('[data-testid="conversation-compose-box"]') ||
-                      document.querySelector('footer');
-        
+          document.querySelector('[data-testid="conversation-compose-box"]') ||
+          document.querySelector('footer');
+
         if (!footer) {
           console.warn('[Translation] Footer not found for reverse translation');
           return;
         }
-        
+
         // 创建反向翻译容器
         const reverseDiv = document.createElement('div');
         reverseDiv.className = 'wa-input-reverse-translation';
@@ -1559,7 +1565,7 @@
           </div>
           <div class="reverse-content"></div>
         `;
-        
+
         // 添加样式
         reverseDiv.style.cssText = `
           margin: 8px 12px;
@@ -1569,16 +1575,16 @@
           border-radius: 8px;
           font-size: 13px;
         `;
-        
+
         // 插入到输入框上方
         footer.insertBefore(reverseDiv, footer.firstChild);
-        
+
         // 绑定关闭按钮
         const closeBtn = reverseDiv.querySelector('.reverse-close');
         closeBtn.onclick = () => {
           reverseDiv.remove();
         };
-        
+
         // 先检测原文的语言
         let sourceLang = 'zh-CN'; // 默认中文
         try {
@@ -1590,7 +1596,7 @@
         } catch (error) {
           console.warn('[Translation] Language detection failed, using default zh-CN:', error);
         }
-        
+
         // 执行反向翻译 - 翻译回原始语言（使用输入框引擎）
         const inputBoxEngine = this.config.inputBox.engine || this.config.global.engine;
         const response = await window.translationAPI.translate({
@@ -1601,19 +1607,19 @@
           engineName: inputBoxEngine,
           options: {} // 反向翻译不使用风格
         });
-        
+
         if (response.success) {
           const reverseText = response.data.translatedText;
-          
+
           // 计算相似度
           const similarity = this.calculateSimilarity(originalText, reverseText);
           const similarityPercent = Math.round(similarity * 100);
           const needsWarning = similarityPercent < 70;
-          
+
           // 更新显示
           const header = reverseDiv.querySelector('.reverse-header');
           const content = reverseDiv.querySelector('.reverse-content');
-          
+
           header.innerHTML = `
             <span class="reverse-icon">🔄</span>
             <span class="reverse-title">反向翻译验证</span>
@@ -1622,7 +1628,7 @@
             </span>
             <button class="reverse-close" title="关闭">×</button>
           `;
-          
+
           content.innerHTML = `
             <div class="reverse-item">
               <div class="reverse-label">实时翻译</div>
@@ -1634,13 +1640,13 @@
             </div>
             ${needsWarning ? '<div class="reverse-warning">⚠️ 相似度较低，翻译可能不够准确</div>' : ''}
           `;
-          
+
           // 在浏览器端解码 HTML 实体并使用 textContent 设置
           const decodedTranslated = this.decodeHTMLEntitiesInBrowser(translatedText);
           const decodedReverse = this.decodeHTMLEntitiesInBrowser(reverseText);
           content.querySelector('[data-type="translated"]').textContent = decodedTranslated;
           content.querySelector('[data-type="reverse"]').textContent = decodedReverse;
-          
+
           // 重新绑定关闭按钮
           const newCloseBtn = reverseDiv.querySelector('.reverse-close');
           newCloseBtn.onclick = () => {
@@ -1665,50 +1671,50 @@
      */
     async setInputBoxText(inputBox, text) {
       console.log('[Translation] Setting input box text:', text);
-      
+
       // 聚焦输入框
       inputBox.focus();
-      
+
       // 等待一下确保聚焦
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // 选中所有内容
       const selection = window.getSelection();
       const range = document.createRange();
       range.selectNodeContents(inputBox);
       selection.removeAllRanges();
       selection.addRange(range);
-      
+
       console.log('[Translation] Content selected');
-      
+
       // 等待一下
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       // 模拟键盘输入来替换内容
       const dataTransfer = new DataTransfer();
       dataTransfer.setData('text/plain', text);
-      
+
       const pasteEvent = new ClipboardEvent('paste', {
         bubbles: true,
         cancelable: true,
         clipboardData: dataTransfer
       });
-      
+
       inputBox.dispatchEvent(pasteEvent);
-      
+
       console.log('[Translation] Paste event dispatched');
-      
+
       // 如果粘贴事件被阻止，使用备用方法
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // 检查是否成功
       const currentText = inputBox.textContent || inputBox.innerText || '';
       if (!currentText.includes(text)) {
         console.log('[Translation] Paste failed, using fallback method');
-        
+
         // 备用方法：逐字符输入
         inputBox.textContent = '';
-        
+
         for (let char of text) {
           const keyEvent = new KeyboardEvent('keydown', {
             key: char,
@@ -1716,9 +1722,9 @@
             cancelable: true
           });
           inputBox.dispatchEvent(keyEvent);
-          
+
           document.execCommand('insertText', false, char);
-          
+
           const inputEvent = new InputEvent('input', {
             bubbles: true,
             data: char,
@@ -1726,7 +1732,7 @@
           });
           inputBox.dispatchEvent(inputEvent);
         }
-        
+
         console.log('[Translation] Text inserted character by character');
       } else {
         console.log('[Translation] Text successfully pasted');
@@ -1740,32 +1746,32 @@
     setupRealtimeTranslation(inputBox) {
       // 优化：减少日志输出
       // console.log('[Translation] setupRealtimeTranslation called, realtime enabled:', this.config.advanced.realtime);
-      
+
       // 检查是否启用实时翻译
       if (!this.config.advanced.realtime) {
         this.cleanupRealtimeTranslation();
         console.log('[Translation] Realtime translation disabled');
         return;
       }
-      
+
       // 清理旧的监听器（每次都清理，因为 inputBox 可能是新的元素）
       this.cleanupRealtimeTranslation();
-      
+
       console.log('[Translation] Setting up realtime translation');
-      
+
       let debounceTimer = null;
       let lastText = '';
-      
+
       // 创建预览元素
       this.createRealtimePreview();
-      
+
       // 创建输入监听器
       this.realtimeInputHandler = () => {
         // 清除之前的定时器
         if (debounceTimer) {
           clearTimeout(debounceTimer);
         }
-        
+
         // 获取当前文本
         let text = '';
         if (inputBox.hasAttribute('data-lexical-editor')) {
@@ -1778,50 +1784,50 @@
         } else {
           text = inputBox.textContent || inputBox.innerText || '';
         }
-        
+
         text = text.trim();
-        
+
         // 如果文本为空，隐藏预览
         if (!text) {
           this.hideRealtimePreview();
           lastText = '';
           return;
         }
-        
+
         // 如果文本没有变化，不翻译
         if (text === lastText) {
           return;
         }
-        
+
         lastText = text;
-        
+
         // 显示加载状态
         this.showRealtimePreview('翻译中...', true);
-        
+
         // 500ms 后执行翻译
         debounceTimer = setTimeout(async () => {
           try {
             // 获取当前联系人ID
             const contactId = this.getCurrentContactId();
             console.log('[Translation] Realtime translation for contact:', contactId);
-            
+
             // 获取该联系人的配置（可能是独立配置）
             const contactConfig = this.getContactConfig(contactId);
             console.log('[Translation] Using contact config for realtime:', contactConfig);
-            
+
             // 获取目标语言
             // 优先级：语言选择器 > 联系人独立配置 > 输入框配置
             const langSelector = document.getElementById('wa-lang-selector');
             let targetLang = langSelector ? langSelector.value : null;
-            
+
             // 如果语言选择器没有选择或选择了auto
             if (!targetLang || targetLang === 'auto') {
               // 如果启用了好友独立配置，且该联系人有独立配置
-              if (this.config.advanced.friendIndependent && 
-                  contactId && 
-                  this.config.friendConfigs && 
-                  this.config.friendConfigs[contactId] &&
-                  this.config.friendConfigs[contactId].enabled) {
+              if (this.config.advanced.friendIndependent &&
+                contactId &&
+                this.config.friendConfigs &&
+                this.config.friendConfigs[contactId] &&
+                this.config.friendConfigs[contactId].enabled) {
                 // 使用联系人的独立配置
                 targetLang = this.config.friendConfigs[contactId].targetLang || this.config.inputBox.targetLang || 'auto';
                 console.log('[Translation] Using friend-specific targetLang:', targetLang);
@@ -1831,24 +1837,24 @@
                 console.log('[Translation] Using inputBox targetLang:', targetLang);
               }
             }
-            
+
             // 如果设置为自动检测，则检测对方使用的语言
             if (targetLang === 'auto') {
               targetLang = await this.detectChatLanguage();
               console.log('[Translation] Auto-detected target language:', targetLang);
             }
-            
+
             // 如果还是检测不到，默认翻译成英文
             if (!targetLang || targetLang === 'auto') {
               targetLang = 'en';
             }
-            
+
             console.log('[Translation] Realtime target language:', targetLang);
-            
+
             // 实时翻译也使用输入框的引擎和风格配置
             const inputBoxEngine = this.config.inputBox.engine || this.config.global.engine;
             const inputBoxStyle = this.config.inputBox.style || '通用';
-            
+
             const response = await window.translationAPI.translate({
               accountId: this.accountId,
               text: text,
@@ -1859,7 +1865,7 @@
                 style: inputBoxStyle // 实时翻译使用风格参数
               }
             });
-            
+
             if (response.success) {
               this.showRealtimePreview(response.data.translatedText, false);
             } else {
@@ -1871,17 +1877,17 @@
           }
         }, 500);
       };
-      
+
       // 添加监听器
       inputBox.addEventListener('input', this.realtimeInputHandler);
-      
+
       // 标记为已初始化
       this._realtimeInitialized = true;
-      
+
       // 优化：减少日志输出
       // console.log('[Translation] Realtime translation enabled, handler attached to inputBox');
     },
-    
+
     /**
      * 清理实时翻译相关资源
      * 优化：统一的清理方法
@@ -1890,13 +1896,13 @@
       // 移除旧的监听器
       if (this.realtimeInputHandler) {
         const inputBox = document.querySelector('#main footer [contenteditable="true"]') ||
-                        document.querySelector('footer [contenteditable="true"]');
+          document.querySelector('footer [contenteditable="true"]');
         if (inputBox) {
           inputBox.removeEventListener('input', this.realtimeInputHandler);
         }
         this.realtimeInputHandler = null;
       }
-      
+
       // 只在禁用实时翻译时才移除预览元素
       // 如果只是重新初始化，保留预览元素
       if (!this.config || !this.config.advanced || !this.config.advanced.realtime) {
@@ -1905,7 +1911,7 @@
           preview.remove();
         }
       }
-      
+
       // 重置初始化标志
       this._realtimeInitialized = false;
     },
@@ -1918,17 +1924,17 @@
       if (document.querySelector('.wa-realtime-preview')) {
         return;
       }
-      
+
       // 查找输入框容器
       const footer = document.querySelector('#main footer') ||
-                    document.querySelector('[data-testid="conversation-compose-box"]') ||
-                    document.querySelector('footer');
-      
+        document.querySelector('[data-testid="conversation-compose-box"]') ||
+        document.querySelector('footer');
+
       if (!footer) {
         console.warn('[Translation] Footer not found for realtime preview');
         return;
       }
-      
+
       // 创建预览元素
       const preview = document.createElement('div');
       preview.className = 'wa-realtime-preview';
@@ -1940,10 +1946,10 @@
         </div>
         <div class="translation-text"></div>
       `;
-      
+
       // 插入到输入框上方
       footer.insertBefore(preview, footer.firstChild);
-      
+
       console.log('[Translation] Realtime preview element created');
     },
 
@@ -1956,7 +1962,7 @@
         this.createRealtimePreview();
         return this.showRealtimePreview(text, isLoading, isError);
       }
-      
+
       const textElement = preview.querySelector('.translation-text');
       if (textElement) {
         if (isLoading) {
@@ -1969,7 +1975,7 @@
           textElement.textContent = decodedText;
         }
       }
-      
+
       preview.style.display = 'block';
     },
 
@@ -2004,26 +2010,26 @@
       // 检测日语假名（平假名和片假名）
       const hasHiragana = /[\u3040-\u309f]/.test(text);
       const hasKatakana = /[\u30a0-\u30ff]/.test(text);
-      
+
       // 如果包含日语假名，肯定不是纯中文
       if (hasHiragana || hasKatakana) {
         return false;
       }
-      
+
       // 检测韩文
       const hasKorean = /[\uac00-\ud7af]/.test(text);
       if (hasKorean) {
         return false;
       }
-      
+
       // 统计中文字符数量
       const chineseChars = text.match(/[\u4e00-\u9fa5]/g);
       const chineseCount = chineseChars ? chineseChars.length : 0;
-      
+
       // 如果中文字符超过50%，认为是中文消息
       const totalChars = text.replace(/\s/g, '').length;
       const chineseRatio = totalChars > 0 ? chineseCount / totalChars : 0;
-      
+
       return chineseRatio > 0.5;
     },
 
@@ -2038,22 +2044,22 @@
           .replace(/\s+/g, ' ')
           .trim();
       };
-      
+
       const s1 = normalize(text1);
       const s2 = normalize(text2);
-      
+
       // 如果完全相同
       if (s1 === s2) return 1.0;
-      
+
       // 计算 Levenshtein 距离
       const len1 = s1.length;
       const len2 = s2.length;
-      
+
       if (len1 === 0) return len2 === 0 ? 1.0 : 0.0;
       if (len2 === 0) return 0.0;
-      
+
       const matrix = [];
-      
+
       // 初始化矩阵
       for (let i = 0; i <= len1; i++) {
         matrix[i] = [i];
@@ -2061,7 +2067,7 @@
       for (let j = 0; j <= len2; j++) {
         matrix[0][j] = j;
       }
-      
+
       // 填充矩阵
       for (let i = 1; i <= len1; i++) {
         for (let j = 1; j <= len2; j++) {
@@ -2073,10 +2079,10 @@
           );
         }
       }
-      
+
       const distance = matrix[len1][len2];
       const maxLen = Math.max(len1, len2);
-      
+
       // 返回相似度（0-1）
       return 1 - (distance / maxLen);
     },
@@ -2087,17 +2093,17 @@
      */
     startPeriodicCheck() {
       console.log('[Translation] Starting periodic message check (every 3s)');
-      
+
       // 优化：从 1 秒改为 3 秒，减少 67% 的检查频率
       setInterval(() => {
         if (this.config && this.config.global && this.config.global.autoTranslate) {
           const messages = document.querySelectorAll('.message-in, .message-out');
           let newCount = 0;
-          
+
           messages.forEach(msg => {
             // 跳过已翻译或已标记为跳过的消息
-            if (!msg.querySelector('.wa-translation-result') && 
-                !msg.hasAttribute('data-translation-skipped')) {
+            if (!msg.querySelector('.wa-translation-result') &&
+              !msg.hasAttribute('data-translation-skipped')) {
               const textElement = msg.querySelector('.selectable-text');
               if (textElement && textElement.textContent.trim()) {
                 this.handleNewMessage(msg);
@@ -2105,19 +2111,19 @@
               }
             }
           });
-          
+
           if (newCount > 0) {
             console.log(`[Translation] Found ${newCount} new messages to translate`);
           }
         }
       }, 3000); // 从 1000ms 改为 3000ms
-      
+
       // 优化：每 30 秒清理一次不可见的翻译结果
       setInterval(() => {
         this.cleanupInvisibleTranslations();
       }, 30000);
     },
-    
+
     /**
      * 清理不可见的翻译结果
      * 优化：移除视口外的翻译 DOM，节省内存
@@ -2125,13 +2131,13 @@
     cleanupInvisibleTranslations() {
       const translations = document.querySelectorAll('.wa-translation-result');
       let cleanedCount = 0;
-      
+
       translations.forEach(translation => {
         const messageNode = translation.closest('.message-in, .message-out');
         if (messageNode) {
           const rect = messageNode.getBoundingClientRect();
           const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-          
+
           // 如果消息不在视口内，移除翻译结果
           if (!isVisible) {
             translation.remove();
@@ -2139,7 +2145,7 @@
           }
         }
       });
-      
+
       if (cleanedCount > 0) {
         console.log(`[Translation] Cleaned up ${cleanedCount} invisible translations`);
       }
@@ -2154,30 +2160,30 @@
       if (oldIndicator) {
         oldIndicator.remove();
       }
-      
+
       // 检查是否启用好友独立配置
       if (!this.config.advanced.friendIndependent) {
         return;
       }
-      
+
       // 获取当前联系人 ID
       const contactId = this.getCurrentContactId();
       if (!contactId) {
         return;
       }
-      
+
       // 检查该联系人是否有独立配置
       const friendConfig = this.config.friendConfigs && this.config.friendConfigs[contactId];
       if (!friendConfig || !friendConfig.enabled) {
         return;
       }
-      
+
       // 查找聊天标题区域
       const header = document.querySelector('[data-testid="conversation-info-header"]');
       if (!header) {
         return;
       }
-      
+
       // 创建标识
       const indicator = document.createElement('span');
       indicator.className = 'wa-friend-config-indicator';
@@ -2190,10 +2196,10 @@
         cursor: help;
         animation: fadeIn 0.3s ease-in;
       `;
-      
+
       // 添加到标题后面
       header.appendChild(indicator);
-      
+
       console.log('[Translation] Friend config indicator added for:', contactId);
     },
 
@@ -2203,34 +2209,34 @@
      */
     observeChatSwitch() {
       console.log('[Translation] Setting up chat switch observer');
-      
+
       // 监听 URL 变化（WhatsApp Web 使用 hash 路由）
       let lastUrl = location.href;
       let urlChangeTimer = null;
-      
+
       const urlObserver = new MutationObserver(() => {
         const currentUrl = location.href;
         if (currentUrl !== lastUrl) {
           lastUrl = currentUrl;
           console.log('[Translation] Chat switched, re-translating messages');
-          
+
           // 清除之前的定时器
           if (urlChangeTimer) {
             clearTimeout(urlChangeTimer);
           }
-          
+
           // 延迟一下，等待新聊天加载
           urlChangeTimer = setTimeout(() => {
             this.translateExistingMessages();
-            
+
             // 重置初始化标志，允许重新初始化
             this._chineseBlockInitialized = false;
             this._realtimeInitialized = false;
-            
+
             this.observeInputBox(); // 重新设置输入框
             this.setupChineseBlock(); // 重新设置中文拦截
             this.showFriendConfigIndicator(); // 显示独立配置标识
-            
+
             // 通知主窗口聊天已切换，更新翻译设置面板
             try {
               if (window.translationAPI?.notifyChatSwitched) {
@@ -2258,29 +2264,29 @@
       const mainContainer = document.querySelector('#main');
       if (mainContainer) {
         let chatChangeTimer = null;
-        
+
         const chatObserver = new MutationObserver((mutations) => {
           // 清除之前的定时器
           if (chatChangeTimer) {
             clearTimeout(chatChangeTimer);
           }
-          
+
           // 500ms 防抖
           chatChangeTimer = setTimeout(() => {
             // 检查是否有大的 DOM 变化（可能是切换聊天）
-            const hasSignificantChange = mutations.some(m => 
+            const hasSignificantChange = mutations.some(m =>
               m.addedNodes.length > 5 || m.removedNodes.length > 5
             );
-            
+
             if (hasSignificantChange) {
               console.log('[Translation] Significant DOM change detected');
               setTimeout(() => {
                 this.translateExistingMessages();
-                
+
                 // 重置初始化标志，允许重新初始化
                 this._chineseBlockInitialized = false;
                 this._realtimeInitialized = false;
-                
+
                 this.observeInputBox(); // 重新设置输入框和翻译按钮
                 this.setupChineseBlock(); // 重新设置中文拦截
                 this.showFriendConfigIndicator(); // 显示独立配置标识
@@ -2294,7 +2300,7 @@
           subtree: false // 只观察直接子节点
         });
       }
-      
+
       // 初始显示标识
       setTimeout(() => {
         this.showFriendConfigIndicator();
@@ -2972,7 +2978,7 @@
 
       // 清理中文拦截
       this.cleanupChineseBlock();
-      
+
       // 清理实时翻译
       this.cleanupRealtimeTranslation();
 
@@ -2981,7 +2987,7 @@
       if (styles) {
         styles.remove();
       }
-      
+
       // 清理翻译按钮
       const button = document.getElementById('wa-translate-btn');
       if (button) {
@@ -2995,7 +3001,7 @@
       this._buttonMonitorInitialized = false;
       this._lastContactId = null;
       this._lastLogTime = {};
-      
+
       console.log('[Translation] Cleaned up');
     }
   };
@@ -3007,18 +3013,18 @@
   window.WhatsAppTranslation = WhatsAppTranslation;
 
   // 添加全局快捷函数
-  window.translateCurrentChat = function() {
+  window.translateCurrentChat = function () {
     console.log('[Translation] Manually translating current chat...');
     WhatsAppTranslation.translateExistingMessages();
   };
 
   // 监听点击事件（点击聊天列表时）
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     // 检查是否点击了聊天列表项
     const chatItem = e.target.closest('[data-testid="cell-frame-container"]') ||
-                     e.target.closest('._ak8l') ||
-                     e.target.closest('[role="listitem"]');
-    
+      e.target.closest('._ak8l') ||
+      e.target.closest('[role="listitem"]');
+
     if (chatItem) {
       console.log('[Translation] Chat item clicked, will translate after delay');
       // 延迟翻译，等待聊天加载
@@ -3031,7 +3037,7 @@
   console.log('[Translation] Global functions exposed: window.translateCurrentChat()');
 
   // ==================== 设置面板 ====================
-  
+
   /**
    * 翻译设置面板类
    */
@@ -3056,7 +3062,7 @@
       this.panel = document.createElement('div');
       this.panel.id = 'wa-translation-settings';
       this.panel.className = 'wa-translation-settings';
-      
+
       this.panel.innerHTML = `
         <div class="settings-overlay"></div>
         <div class="settings-container">
@@ -3430,10 +3436,10 @@
 
       // 添加到页面
       document.body.appendChild(this.panel);
-      
+
       // 绑定事件
       this.bindEvents();
-      
+
       return this.panel;
     }
 
@@ -3454,18 +3460,18 @@
       engineSelect.addEventListener('change', async (e) => {
         const previousEngine = this.currentEngine || this.config?.global?.engine;
         const newEngine = e.target.value;
-        
+
         // 在切换前，保存当前引擎的配置（如果有输入）
         if (previousEngine && previousEngine !== 'google') {
           await this.saveCurrentEngineConfig(previousEngine);
         }
-        
+
         // 更新当前引擎
         this.currentEngine = newEngine;
-        
+
         // 加载新引擎的配置
         await this.loadEngineConfig();
-        
+
         // 更新界面显示
         this.updateAPIConfigVisibility();
         this.updateTranslationStyleVisibility();
@@ -3502,19 +3508,19 @@
       clearCacheBtn.addEventListener('click', () => {
         this.clearCache();
       });
-      
+
       // 好友独立配置开关
       const friendIndependentCheckbox = this.panel.querySelector('#friendIndependent');
       friendIndependentCheckbox.addEventListener('change', () => {
         this.updateFriendConfigVisibility();
       });
-      
+
       // 当前好友配置开关
       const currentFriendCheckbox = this.panel.querySelector('#currentFriendEnabled');
       currentFriendCheckbox.addEventListener('change', () => {
         this.updateFriendConfigOptions();
       });
-      
+
       // 管理所有联系人配置按钮
       const manageFriendsBtn = this.panel.querySelector('#manageFriendsBtn');
       manageFriendsBtn.addEventListener('click', () => {
@@ -3532,16 +3538,16 @@
 
       // 设置 accountId
       this.accountId = window.WhatsAppTranslation.accountId;
-      
+
       // translationAPI 由 preload 脚本提供
 
       // 加载当前配置
       await this.loadSettings();
-      
+
       // 显示面板
       this.panel.style.display = 'flex';
       this.isVisible = true;
-      
+
       // 添加动画
       setTimeout(() => {
         this.panel.classList.add('show');
@@ -3553,9 +3559,9 @@
      */
     hide() {
       if (!this.panel || !this.isVisible) return;
-      
+
       this.panel.classList.remove('show');
-      
+
       setTimeout(() => {
         this.panel.style.display = 'none';
         this.isVisible = false;
@@ -3572,7 +3578,7 @@
         if (response.success && (response.config || response.data)) {
           this.config = response.config || response.data;
           this.updateUI();
-          
+
           // 加载引擎配置
           await this.loadEngineConfig();
         }
@@ -3590,22 +3596,22 @@
         if (!['custom', 'gpt4', 'gemini', 'deepseek'].includes(engineName)) {
           return;
         }
-        
+
         const apiKey = this.panel.querySelector('#apiKey')?.value;
-        
+
         // 如果没有输入 API 密钥，不保存
         if (!apiKey || !apiKey.trim()) {
           return;
         }
-        
+
         const apiEndpoint = this.panel.querySelector('#apiEndpoint')?.value;
         const apiModel = this.panel.querySelector('#apiModel')?.value;
-        
+
         const engineConfig = {
           enabled: true,
           apiKey: apiKey.trim()
         };
-        
+
         // 根据引擎类型设置默认值
         if (engineName === 'custom') {
           engineConfig.endpoint = apiEndpoint?.trim() || '';
@@ -3621,7 +3627,7 @@
           engineConfig.endpoint = 'https://api.deepseek.com/v1/chat/completions';
           engineConfig.model = apiModel?.trim() || 'deepseek-chat';
         }
-        
+
         // 保存配置
         await window.translationAPI.saveEngineConfig(engineName, engineConfig);
         console.log(`[Settings] Auto-saved config for ${engineName} before switching`);
@@ -3636,22 +3642,22 @@
     async loadEngineConfig() {
       try {
         const selectedEngine = this.config.global.engine;
-        
+
         // 只为 AI 引擎加载配置
         if (!['custom', 'gpt4', 'gemini', 'deepseek'].includes(selectedEngine)) {
           return;
         }
-        
+
         const engineConfigResponse = await window.translationAPI.getEngineConfig(selectedEngine);
-        
+
         if (engineConfigResponse.success && engineConfigResponse.data) {
           const engineConfig = engineConfigResponse.data;
-          
+
           // 填充输入框
           if (engineConfig.apiKey) {
             this.panel.querySelector('#apiKey').value = engineConfig.apiKey;
           }
-          
+
           if (selectedEngine === 'custom') {
             if (engineConfig.endpoint) {
               this.panel.querySelector('#apiEndpoint').value = engineConfig.endpoint;
@@ -3660,7 +3666,7 @@
               this.panel.querySelector('#apiModel').value = engineConfig.model;
             }
           }
-          
+
           console.log('[Settings] Loaded engine config for:', selectedEngine);
         }
       } catch (error) {
@@ -3679,7 +3685,7 @@
       this.panel.querySelector('#groupTranslation').checked = this.config.global.groupTranslation;
       this.panel.querySelector('#translationEngine').value = this.config.global.engine;
       this.panel.querySelector('#targetLanguage').value = this.config.global.targetLang;
-      
+
       // 初始化当前引擎
       this.currentEngine = this.config.global.engine;
 
@@ -3698,7 +3704,7 @@
       // 更新好友配置显示
       this.updateFriendConfigVisibility();
       this.loadCurrentFriendConfig();
-      
+
       // 更新翻译风格显示（仅 AI 引擎可用）
       this.updateTranslationStyleVisibility();
 
@@ -3713,7 +3719,7 @@
       // 翻译风格只用于输入框翻译，所以应该检查输入框引擎
       const inputBoxEngine = this.panel.querySelector('#inputBoxEngine').value;
       const styleItem = this.panel.querySelector('#translationStyle').closest('.setting-item');
-      
+
       // 只有输入框使用 AI 引擎时才显示翻译风格选项
       if (inputBoxEngine === 'google') {
         styleItem.style.display = 'none';
@@ -3734,10 +3740,10 @@
 
       // 只要聊天窗口或输入框有一个使用 AI 引擎，就显示 API 配置
       const needsAPI = chatEngine !== 'google' || inputBoxEngine !== 'google';
-      
+
       if (needsAPI) {
         apiSection.style.display = 'block';
-        
+
         // 如果任一引擎使用 custom，显示自定义端点和模型配置
         if (chatEngine === 'custom' || inputBoxEngine === 'custom') {
           customEndpoint.style.display = 'block';
@@ -3757,10 +3763,10 @@
     async testAPI() {
       const testBtn = this.panel.querySelector('#testApiBtn');
       const originalText = testBtn.textContent;
-      
+
       testBtn.textContent = '测试中...';
       testBtn.disabled = true;
-      
+
       try {
         const result = await window.translationAPI.translate({
           accountId: this.accountId || window.WhatsAppTranslation.accountId,
@@ -3769,7 +3775,7 @@
           targetLang: 'zh-CN',
           engineName: this.panel.querySelector('#translationEngine').value
         });
-        
+
         if (result.success) {
           this.showMessage('API 测试成功！翻译结果：' + result.data.translatedText, 'success');
         } else {
@@ -3792,12 +3798,12 @@
         console.log('[Settings] window.translationAPI:', window.translationAPI);
         console.log('[Settings] this.accountId:', this.accountId);
         console.log('[Settings] window.WhatsAppTranslation.accountId:', window.WhatsAppTranslation?.accountId);
-        
+
         // 检查 translationAPI 是否可用
         if (!window.translationAPI) {
           throw new Error('translationAPI 未初始化，请刷新页面后重试');
         }
-        
+
         // 确保配置已初始化
         if (!this.config) {
           this.config = {
@@ -3807,10 +3813,10 @@
             friendConfigs: {}
           };
         }
-        
+
         // 保存当前联系人配置
         this.saveCurrentFriendConfig();
-        
+
         // 收集表单数据
         const newConfig = {
           global: {
@@ -3838,40 +3844,40 @@
         };
 
         console.log('[Settings] New config:', newConfig);
-        
+
         // 获取 accountId
         const accountId = this.accountId || window.WhatsAppTranslation.accountId;
         if (!accountId) {
           throw new Error('无法获取账号 ID');
         }
-        
+
         console.log('[Settings] Saving config for account:', accountId);
-        
+
         // 保存引擎配置（如果有 API 配置）
         const selectedEngine = newConfig.global.engine;
         const apiKey = this.panel.querySelector('#apiKey')?.value;
         const apiEndpoint = this.panel.querySelector('#apiEndpoint')?.value;
         const apiModel = this.panel.querySelector('#apiModel')?.value;
-        
+
         console.log('[Settings] Engine config inputs:', {
           selectedEngine,
           apiKey: apiKey ? `${apiKey.substring(0, 10)}...` : '(empty)',
           apiEndpoint,
           apiModel
         });
-        
+
         console.log('[Settings] Checking if should save engine config...');
         console.log('[Settings] apiKey exists:', !!apiKey);
         console.log('[Settings] selectedEngine:', selectedEngine);
         console.log('[Settings] Is AI engine:', ['custom', 'gpt4', 'gemini', 'deepseek'].includes(selectedEngine));
-        
+
         if (apiKey && (selectedEngine === 'custom' || selectedEngine === 'gpt4' || selectedEngine === 'gemini' || selectedEngine === 'deepseek')) {
           console.log('[Settings] Saving engine config for:', selectedEngine);
           const engineConfig = {
             enabled: true,
             apiKey: apiKey
           };
-          
+
           if (selectedEngine === 'custom') {
             engineConfig.endpoint = apiEndpoint || '';
             engineConfig.model = apiModel || 'gpt-4';
@@ -3886,34 +3892,34 @@
             engineConfig.endpoint = 'https://api.deepseek.com/v1/chat/completions';
             engineConfig.model = apiModel || 'deepseek-chat';
           }
-          
+
           // 保存引擎配置
           await window.translationAPI.saveEngineConfig(selectedEngine, engineConfig);
         }
-        
+
         // 保存账号配置
         const response = await window.translationAPI.saveConfig(accountId, newConfig);
-        
+
         console.log('[Settings] Save response:', response);
-        
+
         if (response.success) {
           // 更新本地配置
           this.config = newConfig;
-          
+
           // 同步更新 WhatsAppTranslation 的配置
           if (window.WhatsAppTranslation) {
             window.WhatsAppTranslation.config = newConfig;
-            
+
             // 重新初始化输入框功能
             window.WhatsAppTranslation.observeInputBox();
-            
+
             // 重新设置中文拦截（配置可能已更改）
             window.WhatsAppTranslation.setupChineseBlock();
           }
-          
+
           // 显示成功消息
           this.showMessage('设置已保存并生效！', 'success');
-          
+
           // 关闭设置面板
           setTimeout(() => {
             this.hide();
@@ -3956,7 +3962,7 @@
           },
           friendConfigs: {}
         };
-        
+
         this.updateUI();
         this.showMessage('设置已重置为默认值', 'info');
       }
@@ -3990,7 +3996,7 @@
         if (response.success) {
           const stats = response.data;
           const statsContent = this.panel.querySelector('#statsContent');
-          
+
           statsContent.innerHTML = `
             <div class="stat-item">
               <span class="stat-label">总翻译次数：</span>
@@ -4021,7 +4027,7 @@
     updateFriendConfigVisibility() {
       const friendIndependent = this.panel.querySelector('#friendIndependent').checked;
       const friendConfigSection = this.panel.querySelector('#friendConfigSection');
-      
+
       if (friendIndependent) {
         friendConfigSection.style.display = 'block';
       } else {
@@ -4035,7 +4041,7 @@
     updateFriendConfigOptions() {
       const enabled = this.panel.querySelector('#currentFriendEnabled').checked;
       const options = this.panel.querySelector('#friendConfigOptions');
-      
+
       if (enabled) {
         options.style.display = 'block';
       } else {
@@ -4048,22 +4054,22 @@
      */
     loadCurrentFriendConfig() {
       const contactId = window.WhatsAppTranslation.getCurrentContactId();
-      
+
       if (!contactId) {
         this.panel.querySelector('#currentContactName').textContent = '当前联系人：未打开聊天窗口';
         this.panel.querySelector('#currentFriendEnabled').disabled = true;
         return;
       }
-      
+
       // 显示联系人名称
       const header = document.querySelector('[data-testid="conversation-info-header"]');
       const contactName = header ? header.textContent.trim() : contactId;
       this.panel.querySelector('#currentContactName').textContent = `当前联系人：${contactName}`;
       this.panel.querySelector('#currentFriendEnabled').disabled = false;
-      
+
       // 加载该联系人的配置
       const friendConfig = this.config.friendConfigs && this.config.friendConfigs[contactId];
-      
+
       if (friendConfig && friendConfig.enabled) {
         this.panel.querySelector('#currentFriendEnabled').checked = true;
         this.panel.querySelector('#friendTargetLang').value = friendConfig.targetLang || 'en';
@@ -4082,11 +4088,11 @@
      */
     saveCurrentFriendConfig() {
       const contactId = window.WhatsAppTranslation.getCurrentContactId();
-      
+
       if (!contactId) {
         return;
       }
-      
+
       // 确保 config 已初始化
       if (!this.config) {
         this.config = {
@@ -4096,13 +4102,13 @@
           friendConfigs: {}
         };
       }
-      
+
       if (!this.config.friendConfigs) {
         this.config.friendConfigs = {};
       }
-      
+
       const enabled = this.panel.querySelector('#currentFriendEnabled').checked;
-      
+
       if (enabled) {
         this.config.friendConfigs[contactId] = {
           enabled: true,
@@ -4121,9 +4127,9 @@
     showFriendConfigManager() {
       const friendConfigs = this.config.friendConfigs || {};
       const configCount = Object.keys(friendConfigs).length;
-      
+
       let message = `已配置 ${configCount} 个联系人的独立翻译设置\n\n`;
-      
+
       if (configCount > 0) {
         message += '配置列表：\n';
         for (const [contactId, config] of Object.entries(friendConfigs)) {
@@ -4135,7 +4141,7 @@
       } else {
         message += '暂无配置的联系人\n\n要为联系人设置独立配置，请打开该聊天窗口，在设置中勾选"为当前联系人启用独立配置"';
       }
-      
+
       alert(message);
     }
 
@@ -4147,10 +4153,10 @@
       const messageEl = document.createElement('div');
       messageEl.className = `settings-message ${type}`;
       messageEl.textContent = message;
-      
+
       // 添加到页面
       document.body.appendChild(messageEl);
-      
+
       // 3秒后移除
       setTimeout(() => {
         if (messageEl.parentNode) {
@@ -4160,10 +4166,10 @@
     }
   }
 
-    // 设置面板已迁移到桌面端第三栏，保留空实现以兼容旧引用
+  // 设置面板已迁移到桌面端第三栏，保留空实现以兼容旧引用
   window.TranslationSettings = {
     show: () => console.info('[Translation] 翻译设置已迁移到主窗口第三栏'),
-    hide: () => {}
+    hide: () => { }
   };
 
 })();

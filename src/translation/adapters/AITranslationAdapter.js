@@ -10,7 +10,7 @@ const { URL } = require('url');
 class AITranslationAdapter extends TranslationAdapter {
   constructor(config = {}) {
     super(config);
-    
+
     this.apiKey = config.apiKey || '';
     this.apiEndpoint = config.endpoint || 'https://api.openai.com/v1/chat/completions';
     this.model = config.model || 'gpt-4';
@@ -45,7 +45,7 @@ class AITranslationAdapter extends TranslationAdapter {
       const style = options.style || '通用';
       console.log(`[AITranslation] 最终使用风格: ${style}`);
       const prompt = this.buildPrompt(text, source, target, style);
-      
+
       // 调试：显示提示词预览（仅在非通用风格时显示）
       if (style !== '通用') {
         console.log(`[AITranslation] 提示词预览: ${prompt.substring(0, 200)}...`);
@@ -126,7 +126,7 @@ class AITranslationAdapter extends TranslationAdapter {
     const styleInstruction = styleConfig.instruction.replace('{targetLang}', targetLangName);
 
     let prompt = styleInstruction;
-    
+
     if (styleConfig.emphasis) {
       prompt += '\n\n' + styleConfig.emphasis;
     }
@@ -137,9 +137,13 @@ class AITranslationAdapter extends TranslationAdapter {
 ${text}
 
 翻译要求：
-1. 只输出翻译结果，不要包含任何解释、说明或额外内容
-2. 严格遵守上述风格要求，风格特征必须明显体现
-3. 保持原文的完整意思`;
+1. 只输出翻译结果，不要包含任何解释、说明或额外内容。
+2. 严格遵守上述风格要求，风格特征必须明显体现。
+3. 保持原文的完整意思。
+4. 【关键】保留原文中的 Markdown 格式（如 **粗体**、*斜体*、\`代码\`、[链接](...) 等）不被破坏。
+5. 【关键】保留原文中的 Emoji 表情符号和特殊符号。
+6. 【关键】如果原文包含非源语言的内容（如代码片段、专有名词），请保留原样或按惯例翻译。
+7. 【关键】如果原文是混合语言，请只翻译主要内容，保留专有名词或无法翻译的部分。`;
 
     return prompt;
   }
@@ -175,7 +179,7 @@ ${text}
    */
   async callAIAPI(prompt, style = '通用') {
     const url = new URL(this.apiEndpoint);
-    
+
     // 根据风格调整 temperature：需要创造性的风格使用更高的值
     const temperatureMap = {
       '通用': 0.5,
@@ -190,9 +194,9 @@ ${text}
       '中立': 0.3,
       '专业': 0.4
     };
-    
+
     const temperature = temperatureMap[style] || 0.5;
-    
+
     const requestBody = JSON.stringify({
       model: this.model,
       messages: [
@@ -237,14 +241,14 @@ ${text}
             }
 
             const parsed = JSON.parse(data);
-            
+
             if (parsed.error) {
               reject(new Error(`API Error: ${parsed.error.message}`));
               return;
             }
 
             let translatedText = parsed.choices?.[0]?.message?.content;
-            
+
             if (!translatedText) {
               reject(new Error('No translation result in response'));
               return;
@@ -282,16 +286,16 @@ ${text}
    */
   decodeHTMLEntities(text) {
     if (!text) return text;
-    
+
     // 使用浏览器的 DOMParser 或 textarea 方法解码
     // 但在 Node.js 环境中，我们需要手动解码
     let decoded = text;
-    
+
     // 多次解码以处理双重编码的情况（如 &amp;#x27; -> &#x27; -> '）
     let prevDecoded;
     let iterations = 0;
     const maxIterations = 3; // 防止无限循环
-    
+
     do {
       prevDecoded = decoded;
       decoded = decoded
@@ -304,10 +308,10 @@ ${text}
         .replace(/&#x2F;/g, '/')
         .replace(/&#47;/g, '/')
         .replace(/&apos;/g, "'");
-      
+
       iterations++;
     } while (decoded !== prevDecoded && iterations < maxIterations);
-    
+
     return decoded;
   }
 

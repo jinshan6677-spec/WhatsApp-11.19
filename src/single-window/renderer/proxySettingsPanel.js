@@ -1,4 +1,4 @@
-(function() {
+(function () {
   'use strict';
 
   const DEFAULT_PROXY_CONFIG = {
@@ -342,6 +342,54 @@
 .proxy-settings-wrapper .password-toggle:hover {
   color: #f59e0b;
 }
+.proxy-settings-wrapper .switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.proxy-settings-wrapper .switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.proxy-settings-wrapper .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e5e7eb;
+  transition: .3s;
+  border-radius: 22px;
+  border: 1px solid #d1d5db;
+}
+
+.proxy-settings-wrapper .slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.proxy-settings-wrapper input:checked + .slider {
+  background-color: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.proxy-settings-wrapper input:checked + .slider:before {
+  transform: translateX(18px);
+}
 `;
       document.head.appendChild(style);
     }
@@ -363,7 +411,10 @@
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="proxyEnabled" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="proxyEnabled">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">启用代理</span>
                 </label>
                 <p class="setting-desc">为此账号启用网络代理</p>
@@ -405,7 +456,10 @@
                 
                 <div class="setting-item">
                   <label class="setting-label">
-                    <input type="checkbox" id="proxyAuthEnabled" class="setting-checkbox">
+                    <label class="switch">
+                      <input type="checkbox" id="proxyAuthEnabled">
+                      <span class="slider"></span>
+                    </label>
                     <span class="setting-title">需要身份验证</span>
                   </label>
                   <p class="setting-desc">代理服务器需要用户名和密码</p>
@@ -594,18 +648,18 @@
 
     updateUI() {
       if (!this.config || !this.panel) return;
-      
+
       this.panel.querySelector('#proxyEnabled').checked = !!this.config.enabled;
       this.panel.querySelector('#proxyProtocol').value = this.config.protocol || 'socks5';
       this.panel.querySelector('#proxyHost').value = this.config.host || '';
       this.panel.querySelector('#proxyPort').value = this.config.port || '';
       this.panel.querySelector('#proxyBypass').value = this.config.bypass || '';
-      
+
       const hasAuth = this.config.username || this.config.password;
       this.panel.querySelector('#proxyAuthEnabled').checked = hasAuth;
       this.panel.querySelector('#proxyUsername').value = this.config.username || '';
       this.panel.querySelector('#proxyPassword').value = this.config.password || '';
-      
+
       this.toggleProxyFields();
       this.toggleProxyAuthFields();
     }
@@ -617,7 +671,7 @@
         }
 
         const newConfig = this.collectConfigFromUI();
-        
+
         // 验证配置
         if (newConfig.enabled) {
           if (!newConfig.host) {
@@ -636,7 +690,7 @@
 
         // 更新代理配置
         account.proxy = newConfig;
-        
+
         const response = await window.electronAPI.invoke('update-account', this.accountId, account);
         if (response.success) {
           this.config = newConfig;
@@ -653,7 +707,7 @@
     collectConfigFromUI() {
       const enabled = this.panel.querySelector('#proxyEnabled').checked;
       const authEnabled = this.panel.querySelector('#proxyAuthEnabled').checked;
-      
+
       return {
         enabled: enabled,
         protocol: this.panel.querySelector('#proxyProtocol').value,
@@ -766,7 +820,7 @@
     togglePasswordVisibility() {
       const passwordInput = this.panel.querySelector('#proxyPassword');
       const toggleBtn = this.panel.querySelector('#togglePassword');
-      
+
       if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         toggleBtn.textContent = '🙈';
@@ -789,7 +843,7 @@
         try {
           // 这里我们在前端简单实现解析逻辑
           const trimmed = text.trim();
-          
+
           // 尝试解析 protocol://host:port
           let match = trimmed.match(/^(socks5|http|https):\/\/([^:@]+):(\d+)$/i);
           if (match) {
@@ -917,7 +971,7 @@
     async testCurrentNetwork() {
       try {
         console.log('[ProxySettingsPanel] 开始测试当前网络');
-        
+
         if (!window.proxyAPI) {
           throw new Error('proxyAPI 未初始化');
         }
@@ -949,7 +1003,7 @@
      */
     displayDetectionResult(result) {
       console.log('[ProxySettingsPanel] 显示检测结果:', result);
-      
+
       const resultEl = this.panel.querySelector('#detectionResult');
       if (!resultEl) {
         console.warn('[ProxySettingsPanel] 找不到检测结果元素');

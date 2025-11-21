@@ -1,4 +1,4 @@
-(function() {
+(function () {
   'use strict';
 
   const DEFAULT_CONFIG = {
@@ -249,6 +249,73 @@
   border-color: #fecdd3;
   color: #991b1b;
 }
+
+/* Switch Styles */
+.translate-settings-wrapper .switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.translate-settings-wrapper .switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.translate-settings-wrapper .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e5e7eb;
+  transition: .3s;
+  border-radius: 22px;
+  border: 1px solid #d1d5db;
+}
+
+.translate-settings-wrapper .slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.translate-settings-wrapper input:checked + .slider {
+  background-color: #25d366;
+  border-color: #25d366;
+}
+
+.translate-settings-wrapper input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+.translate-settings-wrapper .save-status {
+  font-size: 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.translate-settings-wrapper .save-status.visible {
+  opacity: 1;
+}
 `;
       document.head.appendChild(style);
     }
@@ -261,6 +328,9 @@
         <div class="settings-container">
           <div class="settings-header">
             <h2>🌐 翻译设置</h2>
+            <div id="saveStatus" class="save-status">
+              <span>✓</span> 已保存
+            </div>
           </div>
           
           <div class="settings-content">
@@ -284,18 +354,22 @@
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="autoTranslate" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="autoTranslate">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">自动翻译消息</span>
                 </label>
-                <p class="setting-desc">接收到新消息时自动显示翻译</p>
               </div>
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="groupTranslation" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="groupTranslation">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">群组消息翻译</span>
                 </label>
-                <p class="setting-desc">在群组聊天中也显示翻译</p>
               </div>
               
               <div class="setting-item">
@@ -362,7 +436,7 @@
                   <option value="af">🇿🇦 南非荷兰语</option>
                   <option value="am">🇪🇹 阿姆哈拉语</option>
                 </select>
-                <p class="setting-desc">消息翻译的目标语言</p>
+                </select>
               </div>
             </div>
             
@@ -372,10 +446,12 @@
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="inputBoxEnabled" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="inputBoxEnabled">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">启用输入框翻译按钮</span>
                 </label>
-                <p class="setting-desc">在输入框旁显示翻译按钮</p>
               </div>
               
               <div class="setting-item">
@@ -443,7 +519,7 @@
                   <option value="af">🇿🇦 南非荷兰语</option>
                   <option value="am">🇪🇹 阿姆哈拉语</option>
                 </select>
-                <p class="setting-desc">点击翻译按钮时将输入框内容翻译成的目标语言</p>
+                </select>
               </div>
               
               <div class="setting-item">
@@ -471,34 +547,42 @@
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="blockChinese" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="blockChinese">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">禁发中文</span>
                 </label>
-                <p class="setting-desc">拦截包含中文的消息发送</p>
               </div>
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="friendIndependent" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="friendIndependent">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">好友独立配置</span>
                 </label>
-                <p class="setting-desc">为不同联系人设置独立的翻译配置</p>
               </div>
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="realtimeTranslation" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="realtimeTranslation">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">实时翻译预览</span>
                 </label>
-                <p class="setting-desc">输入时实时显示翻译预览</p>
               </div>
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="reverseTranslation" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="reverseTranslation">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">反向翻译验证</span>
                 </label>
-                <p class="setting-desc">显示反向翻译以验证准确性</p>
               </div>
             </div>
             
@@ -508,7 +592,10 @@
               
               <div class="setting-item">
                 <label class="setting-label">
-                  <input type="checkbox" id="currentFriendEnabled" class="setting-checkbox">
+                  <label class="switch">
+                    <input type="checkbox" id="currentFriendEnabled">
+                    <span class="slider"></span>
+                  </label>
                   <span class="setting-title">为当前联系人启用独立配置</span>
                 </label>
                 <p class="setting-desc" id="currentContactName">当前联系人：未知</p>
@@ -567,15 +654,17 @@
                     <option value="af">🇿🇦 南非荷兰语</option>
                     <option value="am">🇪🇹 阿姆哈拉语</option>
                   </select>
-                  <p class="setting-desc">该联系人消息的翻译目标语言</p>
+                  </select>
                 </div>
                 
                 <div class="setting-item">
                   <label class="setting-label">
-                    <input type="checkbox" id="friendBlockChinese" class="setting-checkbox">
+                    <label class="switch">
+                      <input type="checkbox" id="friendBlockChinese">
+                      <span class="slider"></span>
+                    </label>
                     <span class="setting-title">对该联系人禁发中文</span>
                   </label>
-                  <p class="setting-desc">向该联系人发送消息时拦截中文</p>
                 </div>
               </div>
               
@@ -597,13 +686,11 @@
               <div class="setting-item" id="customEndpointItem" style="display: none;">
                 <label class="setting-title">API 端点</label>
                 <input type="text" id="apiEndpoint" class="setting-input" placeholder="https://api.example.com/v1/chat/completions">
-                <p class="setting-desc">自定义 API 的端点地址</p>
               </div>
               
               <div class="setting-item" id="customModelItem" style="display: none;">
                 <label class="setting-title">模型名称</label>
                 <input type="text" id="apiModel" class="setting-input" placeholder="gpt-4">
-                <p class="setting-desc">使用的模型名称</p>
               </div>
               
               <button id="testApiBtn" class="setting-button">测试连接</button>
@@ -621,7 +708,6 @@
           
           <div class="settings-footer">
             <button id="resetBtn" class="setting-button secondary">重置设置</button>
-            <button id="saveBtn" class="setting-button primary">保存设置</button>
           </div>
         </div>
       `;
@@ -631,6 +717,44 @@
     }
 
     bindEvents() {
+      // 自动保存监听器
+      const autoSaveInputs = [
+        '#autoTranslate', '#groupTranslation', '#translationEngine', '#targetLanguage',
+        '#inputBoxEnabled', '#inputBoxEngine', '#inputBoxTargetLang', '#translationStyle',
+        '#blockChinese', '#friendIndependent', '#realtimeTranslation', '#reverseTranslation',
+        '#apiKey', '#apiEndpoint', '#apiModel'
+      ];
+
+      autoSaveInputs.forEach(selector => {
+        const el = this.panel.querySelector(selector);
+        if (el) {
+          const eventType = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
+          el.addEventListener(eventType, () => {
+            // 对于输入框，使用防抖
+            if (eventType === 'input') {
+              if (this.saveTimeout) clearTimeout(this.saveTimeout);
+              this.saveTimeout = setTimeout(() => this.autoSave(), 1000);
+            } else {
+              this.autoSave();
+            }
+          });
+        }
+      });
+
+      // 好友配置的自动保存
+      const friendInputs = ['#currentFriendEnabled', '#friendTargetLang', '#friendBlockChinese'];
+      friendInputs.forEach(selector => {
+        const el = this.panel.querySelector(selector);
+        if (el) {
+          el.addEventListener('change', () => {
+            if (selector === '#currentFriendEnabled') {
+              this.updateFriendConfigOptions();
+            }
+            this.saveCurrentFriendConfig();
+          });
+        }
+      });
+
       const engineSelect = this.panel.querySelector('#translationEngine');
       engineSelect?.addEventListener('change', async (e) => {
         const prev = this.currentEngine || this.config?.global?.engine;
@@ -659,10 +783,6 @@
         this.testAPI();
       });
 
-      this.panel.querySelector('#saveBtn')?.addEventListener('click', () => {
-        this.saveSettings();
-      });
-
       this.panel.querySelector('#resetBtn')?.addEventListener('click', () => {
         this.resetSettings();
       });
@@ -679,13 +799,13 @@
         }
       });
 
-      this.panel.querySelector('#currentFriendEnabled')?.addEventListener('change', () => {
-        this.updateFriendConfigOptions();
-      });
-
       this.panel.querySelector('#manageFriendsBtn')?.addEventListener('click', () => {
         this.showFriendConfigManager();
       });
+    }
+
+    async autoSave() {
+      await this.saveSettings(true);
     }
 
     setPlaceholderVisible(visible) {
@@ -774,7 +894,7 @@
         customEndpoint.style.display = needsCustom ? 'block' : 'none';
         customModel.style.display = needsCustom ? 'block' : 'none';
       }
-      
+
       // 智能加载引擎配置：优先加载非 google 的引擎配置
       // 如果两个引擎都不是 google，优先加载聊天窗口引擎的配置
       if (needsAPI) {
@@ -788,17 +908,17 @@
     async loadEngineConfig(engineName = null) {
       try {
         if (!window.translationAPI) return;
-        
+
         // 如果没有指定引擎名称，使用聊天窗口翻译引擎
         const selectedEngine = engineName || this.panel.querySelector('#translationEngine').value;
-        
+
         if (!['custom', 'gpt4', 'gemini', 'deepseek'].includes(selectedEngine)) {
           return;
         }
-        
+
         console.log(`[TranslateSettingsPanel] Loading engine config for: ${selectedEngine}`);
         const engineConfigResponse = await window.translationAPI.getEngineConfig(selectedEngine);
-        
+
         if (engineConfigResponse.success && engineConfigResponse.data) {
           const engineConfig = engineConfigResponse.data;
           console.log(`[TranslateSettingsPanel] Loaded config for ${selectedEngine}:`, {
@@ -806,7 +926,7 @@
             endpoint: engineConfig.endpoint,
             model: engineConfig.model
           });
-          
+
           if (engineConfig.apiKey) {
             this.panel.querySelector('#apiKey').value = engineConfig.apiKey;
           }
@@ -834,11 +954,11 @@
         if (!['custom', 'gpt4', 'gemini', 'deepseek'].includes(engineName)) {
           return;
         }
-        
+
         const apiKey = this.panel.querySelector('#apiKey')?.value;
         const apiEndpoint = this.panel.querySelector('#apiEndpoint')?.value;
         const apiModel = this.panel.querySelector('#apiModel')?.value;
-        
+
         // 如果没有输入 API Key，尝试获取已保存的配置
         if (!apiKey) {
           console.log(`[TranslateSettingsPanel] No API key in input for ${engineName}, checking existing config`);
@@ -852,8 +972,8 @@
             return;
           }
         }
-        
-        const engineConfig = { 
+
+        const engineConfig = {
           apiKey,
           enabled: true  // 关键：必须设置 enabled: true 才能注册引擎
         };
@@ -871,7 +991,7 @@
           engineConfig.endpoint = 'https://api.deepseek.com/v1/chat/completions';
           engineConfig.model = apiModel || 'deepseek-chat';
         }
-        
+
         console.log(`[TranslateSettingsPanel] Saving engine config for ${engineName}:`, {
           hasApiKey: !!engineConfig.apiKey,
           enabled: engineConfig.enabled,
@@ -884,26 +1004,61 @@
       }
     }
 
-    async saveSettings() {
+    async saveSettings(isAutoSave = false) {
       try {
         if (!this.accountId) {
           throw new Error('请先选择账号');
         }
-        const newConfig = await this.collectConfigFromUI();
-        
-        // 保存聊天窗口翻译引擎配置
-        await this.saveCurrentEngineConfig(newConfig.global.engine);
-        
-        // 保存输入框翻译引擎配置（如果与聊天窗口引擎不同）
-        if (newConfig.inputBox.engine !== newConfig.global.engine) {
-          await this.saveCurrentEngineConfig(newConfig.inputBox.engine);
+
+        // 收集当前配置
+        const newConfig = {
+          global: {
+            autoTranslate: this.panel.querySelector('#autoTranslate').checked,
+            engine: this.panel.querySelector('#translationEngine').value,
+            targetLang: this.panel.querySelector('#targetLanguage').value,
+            groupTranslation: this.panel.querySelector('#groupTranslation').checked
+          },
+          inputBox: {
+            enabled: this.panel.querySelector('#inputBoxEnabled').checked,
+            engine: this.panel.querySelector('#inputBoxEngine').value,
+            style: this.panel.querySelector('#translationStyle').value,
+            targetLang: this.panel.querySelector('#inputBoxTargetLang').value
+          },
+          advanced: {
+            friendIndependent: this.panel.querySelector('#friendIndependent').checked,
+            blockChinese: this.panel.querySelector('#blockChinese').checked,
+            realtime: this.panel.querySelector('#realtimeTranslation').checked,
+            reverseTranslation: this.panel.querySelector('#reverseTranslation').checked,
+            voiceTranslation: false,
+            imageTranslation: false
+          },
+          friendConfigs: this.config.friendConfigs || {}
+        };
+
+        // 保存当前引擎的 API 配置
+        const currentEngine = newConfig.global.engine;
+        if (['custom', 'gpt4', 'gemini', 'deepseek'].includes(currentEngine)) {
+          await this.saveCurrentEngineConfig(currentEngine);
         }
-        
+
+        // 同时也保存输入框引擎的 API 配置（如果不同）
+        const inputBoxEngine = newConfig.inputBox.engine;
+        if (['custom', 'gpt4', 'gemini', 'deepseek'].includes(inputBoxEngine) && inputBoxEngine !== currentEngine) {
+          await this.saveCurrentEngineConfig(inputBoxEngine);
+        }
+
         const response = await window.translationAPI.saveConfig(this.accountId, newConfig);
         if (response.success) {
           this.config = newConfig;
-          await this.applyConfigToView(this.accountId, newConfig);
-          this.showMessage('设置已保存并应用', 'success');
+          if (this.applyConfigToView) {
+            await this.applyConfigToView(this.accountId, newConfig);
+          }
+
+          if (isAutoSave) {
+            this.showSaveStatus();
+          } else {
+            this.showMessage('设置已保存', 'success');
+          }
         } else {
           this.showMessage('保存失败：' + (response.error || '未知错误'), 'error');
         }
@@ -913,78 +1068,38 @@
       }
     }
 
-    async collectConfigFromUI() {
-      await this.saveCurrentFriendConfig();
-      return {
-        global: {
-          autoTranslate: this.panel.querySelector('#autoTranslate').checked,
-          engine: this.panel.querySelector('#translationEngine').value,
-          sourceLang: 'auto',
-          targetLang: this.panel.querySelector('#targetLanguage').value,
-          groupTranslation: this.panel.querySelector('#groupTranslation').checked
-        },
-        inputBox: {
-          enabled: this.panel.querySelector('#inputBoxEnabled').checked,
-          engine: this.panel.querySelector('#inputBoxEngine').value,
-          targetLang: this.panel.querySelector('#inputBoxTargetLang').value,
-          style: this.panel.querySelector('#translationStyle').value
-        },
-        advanced: {
-          friendIndependent: this.panel.querySelector('#friendIndependent').checked,
-          blockChinese: this.panel.querySelector('#blockChinese').checked,
-          realtime: this.panel.querySelector('#realtimeTranslation').checked,
-          reverseTranslation: this.panel.querySelector('#reverseTranslation').checked,
-          voiceTranslation: false,
-          imageTranslation: false
-        },
-        friendConfigs: this.config.friendConfigs || {}
-      };
-    }
-
-    async saveCurrentFriendConfig() {
-      const friendIndependent = this.panel.querySelector('#friendIndependent').checked;
-      if (!friendIndependent) return;
-      const info = await this.getActiveChatInfo();
-      const contactId = info?.contactId;
-      if (!contactId) return;
-
-      if (!this.config.friendConfigs) {
-        this.config.friendConfigs = {};
-      }
-
-      const enabled = this.panel.querySelector('#currentFriendEnabled').checked;
-      if (enabled) {
-        this.config.friendConfigs[contactId] = {
-          enabled: true,
-          targetLang: this.panel.querySelector('#friendTargetLang').value,
-          blockChinese: this.panel.querySelector('#friendBlockChinese').checked
-        };
-      } else {
-        delete this.config.friendConfigs[contactId];
+    showSaveStatus() {
+      const statusEl = this.panel.querySelector('#saveStatus');
+      if (statusEl) {
+        statusEl.classList.add('visible');
+        if (this.statusTimeout) clearTimeout(this.statusTimeout);
+        this.statusTimeout = setTimeout(() => {
+          statusEl.classList.remove('visible');
+        }, 2000);
       }
     }
 
     async loadCurrentFriendConfig() {
       console.log('[TranslateSettingsPanel] Loading current friend config');
-      
+
       // 检查面板和必要元素是否存在
       if (!this.panel) {
         console.log('[TranslateSettingsPanel] Panel not initialized');
         return;
       }
-      
+
       const info = await this.getActiveChatInfo();
       console.log('[TranslateSettingsPanel] Active chat info:', info);
       const contactId = info?.contactId;
       const contactName = info?.contactName || contactId;
       const currentContactEl = this.panel.querySelector('#currentContactName');
       const currentFriendEnabled = this.panel.querySelector('#currentFriendEnabled');
-      
+
       if (!currentContactEl) {
         console.log('[TranslateSettingsPanel] Contact name element not found');
         return;
       }
-      
+
       if (!contactId) {
         console.log('[TranslateSettingsPanel] No contact ID found');
         currentContactEl.textContent = '当前联系人：未打开聊天窗口';
