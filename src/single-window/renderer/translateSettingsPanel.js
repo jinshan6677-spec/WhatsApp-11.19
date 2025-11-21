@@ -640,13 +640,18 @@
         }
         this.currentEngine = next;
         await this.loadEngineConfig();
-        this.updateAPIConfigVisibility();
+        await this.updateAPIConfigVisibility();
         this.updateTranslationStyleVisibility();
       });
 
       const inputBoxEngineSelect = this.panel.querySelector('#inputBoxEngine');
-      inputBoxEngineSelect?.addEventListener('change', () => {
-        this.updateAPIConfigVisibility();
+      inputBoxEngineSelect?.addEventListener('change', async (e) => {
+        const inputBoxEngine = e.target.value;
+        // 如果输入框引擎需要 API 配置，加载其配置
+        if (['custom', 'gpt4', 'gemini', 'deepseek'].includes(inputBoxEngine)) {
+          await this.loadEngineConfig(inputBoxEngine);
+        }
+        await this.updateAPIConfigVisibility();
         this.updateTranslationStyleVisibility();
       });
 
@@ -714,8 +719,7 @@
         } else {
           this.config = cloneDefaultConfig();
         }
-        this.updateUI();
-        await this.loadEngineConfig();
+        await this.updateUI(); // updateUI 内部会调用 updateAPIConfigVisibility，它会加载引擎配置
         await this.loadCurrentFriendConfig();
         this.loadStats();
       } catch (error) {
@@ -724,7 +728,7 @@
       }
     }
 
-    updateUI() {
+    async updateUI() {
       if (!this.config || !this.panel) return;
       this.panel.querySelector('#autoTranslate').checked = !!this.config.global.autoTranslate;
       this.panel.querySelector('#groupTranslation').checked = !!this.config.global.groupTranslation;
@@ -744,7 +748,7 @@
 
       this.updateFriendConfigVisibility();
       this.updateTranslationStyleVisibility();
-      this.updateAPIConfigVisibility();
+      await this.updateAPIConfigVisibility();
     }
 
     updateTranslationStyleVisibility() {
@@ -754,7 +758,7 @@
       styleItem.style.display = inputBoxEngine === 'google' ? 'none' : 'block';
     }
 
-    updateAPIConfigVisibility() {
+    async updateAPIConfigVisibility() {
       const chatEngine = this.panel.querySelector('#translationEngine').value;
       const inputBoxEngine = this.panel.querySelector('#inputBoxEngine').value;
       const apiSection = this.panel.querySelector('#apiConfigSection');
@@ -770,18 +774,39 @@
         customEndpoint.style.display = needsCustom ? 'block' : 'none';
         customModel.style.display = needsCustom ? 'block' : 'none';
       }
+      
+      // 智能加载引擎配置：优先加载非 google 的引擎配置
+      // 如果两个引擎都不是 google，优先加载聊天窗口引擎的配置
+      if (needsAPI) {
+        const engineToLoad = chatEngine !== 'google' ? chatEngine : inputBoxEngine;
+        if (['custom', 'gpt4', 'gemini', 'deepseek'].includes(engineToLoad)) {
+          await this.loadEngineConfig(engineToLoad);
+        }
+      }
     }
 
-    async loadEngineConfig() {
+    async loadEngineConfig(engineName = null) {
       try {
         if (!window.translationAPI) return;
-        const selectedEngine = this.panel.querySelector('#translationEngine').value;
+        
+        // 如果没有指定引擎名称，使用聊天窗口翻译引擎
+        const selectedEngine = engineName || this.panel.querySelector('#translationEngine').value;
+        
         if (!['custom', 'gpt4', 'gemini', 'deepseek'].includes(selectedEngine)) {
           return;
         }
+        
+        console.log(`[TranslateSettingsPanel] Loading engine config for: ${selectedEngine}`);
         const engineConfigResponse = await window.translationAPI.getEngineConfig(selectedEngine);
+        
         if (engineConfigResponse.success && engineConfigResponse.data) {
           const engineConfig = engineConfigResponse.data;
+          console.log(`[TranslateSettingsPanel] Loaded config for ${selectedEngine}:`, {
+            hasApiKey: !!engineConfig.apiKey,
+            endpoint: engineConfig.endpoint,
+            model: engineConfig.model
+          });
+          
           if (engineConfig.apiKey) {
             this.panel.querySelector('#apiKey').value = engineConfig.apiKey;
           }
@@ -795,6 +820,8 @@
           } else if (engineConfig.model) {
             this.panel.querySelector('#apiModel').value = engineConfig.model;
           }
+        } else {
+          console.log(`[TranslateSettingsPanel] No config found for ${selectedEngine}`);
         }
       } catch (error) {
         console.error('[TranslateSettingsPanel] loadEngineConfig error:', error);
@@ -807,11 +834,29 @@
         if (!['custom', 'gpt4', 'gemini', 'deepseek'].includes(engineName)) {
           return;
         }
+        
         const apiKey = this.panel.querySelector('#apiKey')?.value;
-        if (!apiKey) return;
         const apiEndpoint = this.panel.querySelector('#apiEndpoint')?.value;
         const apiModel = this.panel.querySelector('#apiModel')?.value;
-        const engineConfig = { apiKey };
+        
+        // 如果没有输入 API Key，尝试获取已保存的配置
+        if (!apiKey) {
+          console.log(`[TranslateSettingsPanel] No API key in input for ${engineName}, checking existing config`);
+          const existingConfigResponse = await window.translationAPI.getEngineConfig(engineName);
+          if (existingConfigResponse.success && existingConfigResponse.data?.apiKey) {
+            console.log(`[TranslateSettingsPanel] Using existing API key for ${engineName}`);
+            // 已有配置，不需要重新保存
+            return;
+          } else {
+            console.log(`[TranslateSettingsPanel] No API key found for ${engineName}, skipping save`);
+            return;
+          }
+        }
+        
+        const engineConfig = { 
+          apiKey,
+          enabled: true  // 关键：必须设置 enabled: true 才能注册引擎
+        };
         if (engineName === 'custom') {
           engineConfig.endpoint = apiEndpoint || '';
           engineConfig.model = apiModel || 'gpt-4';
@@ -826,6 +871,13 @@
           engineConfig.endpoint = 'https://api.deepseek.com/v1/chat/completions';
           engineConfig.model = apiModel || 'deepseek-chat';
         }
+        
+        console.log(`[TranslateSettingsPanel] Saving engine config for ${engineName}:`, {
+          hasApiKey: !!engineConfig.apiKey,
+          enabled: engineConfig.enabled,
+          endpoint: engineConfig.endpoint,
+          model: engineConfig.model
+        });
         await window.translationAPI.saveEngineConfig(engineName, engineConfig);
       } catch (error) {
         console.error('[TranslateSettingsPanel] saveCurrentEngineConfig error:', error);
@@ -838,7 +890,15 @@
           throw new Error('请先选择账号');
         }
         const newConfig = await this.collectConfigFromUI();
+        
+        // 保存聊天窗口翻译引擎配置
         await this.saveCurrentEngineConfig(newConfig.global.engine);
+        
+        // 保存输入框翻译引擎配置（如果与聊天窗口引擎不同）
+        if (newConfig.inputBox.engine !== newConfig.global.engine) {
+          await this.saveCurrentEngineConfig(newConfig.inputBox.engine);
+        }
+        
         const response = await window.translationAPI.saveConfig(this.accountId, newConfig);
         if (response.success) {
           this.config = newConfig;
@@ -1059,10 +1119,10 @@
       }
     }
 
-    resetSettings() {
+    async resetSettings() {
       if (confirm('确定要重置所有设置吗？这将清除所有自定义配置。')) {
         this.config = cloneDefaultConfig();
-        this.updateUI();
+        await this.updateUI();
         this.loadCurrentFriendConfig();
       }
     }
