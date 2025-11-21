@@ -916,6 +916,147 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
   });
 
   /**
+   * Handle translation panel layout changes
+   * Handler: translation-panel-resized
+   */
+  ipcMain.on('translation-panel-resized', (event, payload = {}) => {
+    try {
+      const { state, width, widths } = payload;
+      const layout = mainWindow.setTranslationPanelLayout({ state, width, widths });
+
+      // Resize views with updated layout
+      viewManager.resizeViews(mainWindow.getSidebarWidth(), { immediate: true });
+
+      console.log(
+        `[IPC] Translation panel updated: state=${layout.state}, width=${layout.width}`
+      );
+    } catch (error) {
+      console.error('[IPC] Failed to handle translation panel resize:', error);
+    }
+  });
+
+  /**
+   * Get translation panel layout/state
+   * Handler: get-translation-panel-layout
+   */
+  ipcMain.handle('get-translation-panel-layout', () => {
+    try {
+      return {
+        success: true,
+        layout: mainWindow.getTranslationPanelLayout()
+      };
+    } catch (error) {
+      console.error('[IPC] Failed to get translation panel layout:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Get active chat information from the current BrowserView
+   * Handler: translation:get-active-chat
+   */
+  ipcMain.handle('translation:get-active-chat', async () => {
+    try {
+      const activeView = viewManager.getActiveView();
+      if (!activeView || !activeView.webContents || activeView.webContents.isDestroyed()) {
+        return {
+          success: false,
+          error: 'Active view not available'
+        };
+      }
+
+      const result = await activeView.webContents.executeJavaScript(`
+        (function() {
+          try {
+            const contactId = window.WhatsAppTranslation?.getCurrentContactId?.() || null;
+            let contactName = contactId;
+            try {
+              const header = document.querySelector('[data-testid="conversation-info-header"]') ||
+                             document.querySelector('#main header span[dir="auto"]');
+              if (header && header.textContent) {
+                contactName = header.textContent.trim();
+              }
+            } catch (innerError) {
+              console.warn('[Translation] Failed to read conversation header:', innerError);
+            }
+            return { contactId, contactName };
+          } catch (error) {
+            return { contactId: null, contactName: null, error: error?.message || String(error) };
+          }
+        })();
+      `);
+
+      if (result && result.error) {
+        return {
+          success: false,
+          error: result.error,
+          data: result
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          contactId: result?.contactId || null,
+          contactName: result?.contactName || null
+        }
+      };
+    } catch (error) {
+      console.error('[IPC] Failed to get active chat info:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Apply translation configuration to the active BrowserView
+   * Handler: translation:apply-config
+   */
+  ipcMain.handle('translation:apply-config', async (_event, accountId, config) => {
+    try {
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      if (!config) {
+        throw new Error('Translation config is required');
+      }
+
+      const result = await viewManager.updateTranslationConfig(accountId, config);
+      return result;
+    } catch (error) {
+      console.error('[IPC] Failed to apply translation config:', error);
+      return {
+        success: false,
+        error: error.message,
+        accountId
+      };
+    }
+  });
+
+  /**
+   * Handle chat switch notification from BrowserView
+   * Forwards the event to the main window to update translation settings panel
+   * Handler: translation:chat-switched
+   */
+  ipcMain.on('translation:chat-switched', () => {
+    try {
+      const window = mainWindow.getWindow();
+      if (window && !window.isDestroyed()) {
+        window.webContents.send('translation:chat-switched');
+        console.log('[IPC] Chat switch notification forwarded to main window');
+      }
+    } catch (error) {
+      console.error('[IPC] Failed to forward chat switch notification:', error);
+    }
+  });
+
+  /**
    * Handle window resize event from renderer
    * Handler: window-resize-complete
    */
@@ -946,11 +1087,12 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
 
       const windowBounds = window.getContentBounds();
       const sidebarWidth = mainWindow.getSidebarWidth();
+      const translationPanel = mainWindow.getTranslationPanelLayout();
 
       const viewBounds = {
         x: sidebarWidth,
         y: 0,
-        width: windowBounds.width - sidebarWidth,
+        width: windowBounds.width - sidebarWidth - translationPanel.width,
         height: windowBounds.height
       };
 
@@ -958,6 +1100,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
         success: true,
         windowBounds,
         sidebarWidth,
+        translationPanel,
         viewBounds
       };
     } catch (error) {
@@ -1770,9 +1913,14 @@ function unregisterIPCHandlers() {
   ipcMain.removeHandler('close-account');
   ipcMain.removeHandler('get-account-status');
   ipcMain.removeHandler('get-all-account-statuses');
+  ipcMain.removeHandler('get-translation-panel-layout');
+  ipcMain.removeHandler('translation:get-active-chat');
+  ipcMain.removeHandler('translation:apply-config');
   ipcMain.removeAllListeners('account:create');
   ipcMain.removeAllListeners('account:edit');
   ipcMain.removeAllListeners('sidebar-resized');
+  ipcMain.removeAllListeners('translation-panel-resized');
+  ipcMain.removeAllListeners('translation:chat-switched');
   ipcMain.removeAllListeners('window-resize-complete');
   
   console.log('[IPC] Single-window handlers unregistered');

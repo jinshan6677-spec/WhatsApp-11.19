@@ -413,6 +413,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * Get saved translation panel layout
+   * @returns {Promise<Object>} Translation panel layout
+   */
+  getTranslationPanelLayout: () => {
+    return ipcRenderer.invoke('get-translation-panel-layout');
+  },
+
+  /**
    * Get saved active account ID
    * @returns {Promise<Object>} Active account ID
    */
@@ -429,10 +437,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * Notify main process about translation panel layout change
+   * @param {Object} payload - Layout payload
+   */
+  notifyTranslationPanelResized: (payload) => {
+    ipcRenderer.send('translation-panel-resized', payload);
+  },
+
+  /**
    * Notify main process about window resize completion
    */
   notifyWindowResizeComplete: () => {
     ipcRenderer.send('window-resize-complete');
+  },
+
+  // ============================================================================
+  // Translation Helpers
+  // ============================================================================
+
+  /**
+   * Get active chat info from the current WhatsApp view
+   * @returns {Promise<Object>} Active chat info
+   */
+  getActiveChatInfo: () => {
+    return ipcRenderer.invoke('translation:get-active-chat');
+  },
+
+  /**
+   * Apply translation configuration to the active view
+   * @param {string} accountId - Account ID
+   * @param {Object} config - Translation configuration
+   * @returns {Promise<Object>} Result with success status
+   */
+  applyTranslationConfig: (accountId, config) => {
+    return ipcRenderer.invoke('translation:apply-config', accountId, config);
   },
 
   // ============================================================================
@@ -468,6 +506,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'account:load-url',
       'get-view-bounds',
       'get-sidebar-width',
+      'get-translation-panel-layout',
       'get-active-account-id',
       'restore-active-account',
       'account:force-logout',
@@ -491,6 +530,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'close-account',
       'get-account-status',
       'get-all-account-statuses',
+      'translation:get-active-chat',
+      'translation:apply-config',
       'recovery:recover-session',
       'recovery:reset-account',
       'recovery:reconnect',
@@ -522,6 +563,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'account:create',
       'account:edit',
       'sidebar-resized',
+      'translation-panel-resized',
       'window-resize-complete',
       'ui-ready'
     ];
@@ -559,6 +601,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'window-resized',
       'account-switched',
       'account-status-changed',
+      'translation-config-updated',
+      'translation:chat-switched',
       'view-manager:view-loading',
       'view-manager:view-ready',
       'view-manager:view-error',
@@ -606,6 +650,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'window-resized',
       'account-switched',
       'account-status-changed',
+      'translation-config-updated',
+      'translation:chat-switched',
       'view-manager:view-loading',
       'view-manager:view-ready',
       'view-manager:view-error',
@@ -649,6 +695,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'window-resized',
       'account-switched',
       'account-status-changed',
+      'translation-config-updated',
       'view-manager:view-loading',
       'view-manager:view-ready',
       'view-manager:view-error',
@@ -709,6 +756,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('error-cleared', listener);
     return () => ipcRenderer.removeListener('error-cleared', listener);
   }
+});
+
+// Expose translation API to renderer (mirrors content script interface)
+contextBridge.exposeInMainWorld('translationAPI', {
+  translate: (request) => ipcRenderer.invoke('translation:translate', request),
+  detectLanguage: (text) => ipcRenderer.invoke('translation:detectLanguage', text),
+  getConfig: (accountId) => ipcRenderer.invoke('translation:getConfig', accountId),
+  saveConfig: (accountId, config) => ipcRenderer.invoke('translation:saveConfig', accountId, config),
+  getStats: () => ipcRenderer.invoke('translation:getStats'),
+  clearCache: (accountId = null) => ipcRenderer.invoke('translation:clearCache', accountId),
+  saveEngineConfig: (engineName, config) => ipcRenderer.invoke('translation:saveEngineConfig', engineName, config),
+  getEngineConfig: (engineName) => ipcRenderer.invoke('translation:getEngineConfig', engineName)
 });
 
 // Log that preload script has loaded

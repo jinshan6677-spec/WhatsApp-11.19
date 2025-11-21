@@ -9,6 +9,12 @@ const { BrowserWindow, screen } = require('electron');
 const Store = require('electron-store');
 const path = require('path');
 
+const DEFAULT_TRANSLATION_PANEL_WIDTHS = {
+  full: 380,
+  mini: 140,
+  icon: 56
+};
+
 /**
  * MainWindow class
  */
@@ -50,7 +56,11 @@ class MainWindow {
           height: this.options.height
         },
         isMaximized: false,
-        sidebarWidth: 280
+        sidebarWidth: 280,
+        translationPanel: {
+          state: 'full',
+          widths: { ...DEFAULT_TRANSLATION_PANEL_WIDTHS }
+        }
       }
     });
   }
@@ -347,6 +357,79 @@ class MainWindow {
    */
   setSidebarWidth(width) {
     this.stateStore.set('sidebarWidth', width);
+  }
+
+  /**
+   * Get saved translation panel layout
+   * @returns {{state: string, widths: Object, width: number}}
+   */
+  getTranslationPanelLayout() {
+    const translationPanel = this.stateStore.get('translationPanel', {
+      state: 'full',
+      widths: { ...DEFAULT_TRANSLATION_PANEL_WIDTHS }
+    });
+
+    const widths = {
+      ...DEFAULT_TRANSLATION_PANEL_WIDTHS,
+      ...(translationPanel.widths || {})
+    };
+    const state = translationPanel.state || 'full';
+    const width = Math.max(0, widths[state] || 0);
+
+    return { state, widths, width };
+  }
+
+  /**
+   * Get current translation panel width for a state
+   * @param {string} [state] - Layout state
+   * @returns {number} width in pixels
+   */
+  getTranslationPanelWidth(state = null) {
+    const layout = this.getTranslationPanelLayout();
+    const targetState = state || layout.state || 'full';
+    const width = layout.widths[targetState];
+    return Math.max(0, width || 0);
+  }
+
+  /**
+   * Save translation panel layout
+   * @param {Object} layout - Layout info
+   * @param {string} [layout.state] - Panel state
+   * @param {Object} [layout.widths] - Width map per state
+   * @param {number} [layout.width] - Current state's width override
+   * @returns {{state: string, widths: Object, width: number}}
+   */
+  setTranslationPanelLayout({ state, widths, width } = {}) {
+    const current = this.stateStore.get('translationPanel', {
+      state: 'full',
+      widths: { ...DEFAULT_TRANSLATION_PANEL_WIDTHS }
+    });
+
+    const nextWidths = {
+      ...DEFAULT_TRANSLATION_PANEL_WIDTHS,
+      ...(current.widths || {})
+    };
+
+    if (width && state) {
+      nextWidths[state] = width;
+    }
+
+    if (widths && typeof widths === 'object') {
+      Object.assign(nextWidths, widths);
+    }
+
+    const nextState = state || current.state || 'full';
+
+    this.stateStore.set('translationPanel', {
+      state: nextState,
+      widths: nextWidths
+    });
+
+    return {
+      state: nextState,
+      widths: nextWidths,
+      width: Math.max(0, nextWidths[nextState] || 0)
+    };
   }
 
   /**

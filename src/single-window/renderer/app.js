@@ -250,16 +250,28 @@
       showNotification('切换账号失败', 'error');
     });
 
-    // Handle window resize events from main process
-    window.electronAPI.on('window-resized', (data) => {
-      console.log('Window resized:', data.bounds);
-      // The main process will handle view bounds recalculation
-      // This is just for logging/debugging
-    });
-  }
-
-  /**
-   * Show visual feedback during account switching
+    // Handle window resize events from main process
+    window.electronAPI.on('window-resized', (data) => {
+      console.log('Window resized:', data.bounds);
+      // The main process will handle view bounds recalculation
+      // This is just for logging/debugging
+    });
+
+    // Handle translation panel state changes
+    window.electronAPI.on('translation-panel:state-changed', (data) => {
+      console.log('Translation panel state changed:', data);
+      // Update the translate settings panel if it exists
+      if (window.TranslateSettingsPanel && typeof window.translateSettingsPanel !== 'undefined') {
+        window.translateSettingsPanel.updateForPanelState(data.state);
+      } else if (window.translatePanelLayout && typeof window.translatePanelLayout !== 'undefined') {
+        // If we have a reference to the translate settings panel through the layout system
+        // We'll handle this in the translatePanelLayout.js file
+      }
+    });
+  }
+
+  /**
+   * Show visual feedback during account switching
    */
   function showSwitchingFeedback(accountId) {
     // Add a subtle loading overlay to the view container

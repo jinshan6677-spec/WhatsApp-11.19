@@ -77,6 +77,14 @@ contextBridge.exposeInMainWorld('translationAPI', {
    */
   getEngineConfig: (engineName) => {
     return ipcRenderer.invoke('translation:getEngineConfig', engineName);
+  },
+
+  /**
+   * 通知聊天切换
+   * 用于更新翻译设置面板中的当前联系人信息
+   */
+  notifyChatSwitched: () => {
+    ipcRenderer.send('translation:chat-switched');
   }
 });
 

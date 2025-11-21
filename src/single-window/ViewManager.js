@@ -1648,12 +1648,14 @@ class ViewManager {
 
     const windowBounds = window.getContentBounds();
     const sidebar = sidebarWidth || this.mainWindow.getSidebarWidth();
+    const translationWidth = this.mainWindow.getTranslationPanelWidth();
 
     // Check if we can use cached bounds
     if (!forceRecalculate && this.boundsCache.cachedBounds) {
       const cacheAge = Date.now() - (this.boundsCache.cacheTimestamp || 0);
       const isCacheValid = 
         this.boundsCache.lastSidebarWidth === sidebar &&
+        this.boundsCache.lastTranslationPanelWidth === translationWidth &&
         this.boundsCache.lastWindowBounds &&
         this.boundsCache.lastWindowBounds.width === windowBounds.width &&
         this.boundsCache.lastWindowBounds.height === windowBounds.height &&
@@ -1669,13 +1671,14 @@ class ViewManager {
     const bounds = {
       x: sidebar,
       y: 0,
-      width: windowBounds.width - sidebar,
+      width: Math.max(0, windowBounds.width - sidebar - translationWidth),
       height: windowBounds.height
     };
 
     // Update cache
     this.boundsCache = {
       lastSidebarWidth: sidebar,
+      lastTranslationPanelWidth: translationWidth,
       lastWindowBounds: { ...windowBounds },
       cachedBounds: { ...bounds },
       cacheTimestamp: Date.now()

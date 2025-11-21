@@ -2230,6 +2230,20 @@
             this.observeInputBox(); // 重新设置输入框
             this.setupChineseBlock(); // 重新设置中文拦截
             this.showFriendConfigIndicator(); // 显示独立配置标识
+            
+            // 通知主窗口聊天已切换，更新翻译设置面板
+            try {
+              if (window.translationAPI?.notifyChatSwitched) {
+                console.log('[Translation] Notifying main window about chat switch');
+                window.translationAPI.notifyChatSwitched();
+                console.log('[Translation] Chat switch notification sent successfully');
+              } else {
+                console.warn('[Translation] translationAPI.notifyChatSwitched not available');
+                console.warn('[Translation] Available APIs:', Object.keys(window.translationAPI || {}));
+              }
+            } catch (error) {
+              console.error('[Translation] Error sending chat switch notification:', error);
+            }
           }, 500);
         }
       });
@@ -4146,103 +4160,10 @@
     }
   }
 
-  // 创建设置面板实例
-  const settingsPanel = new TranslationSettingsPanel();
-  
-  // 暴露到全局
-  window.TranslationSettings = settingsPanel;
-  
-  // 添加设置按钮到 WhatsApp 界面
-  function addSettingsButton() {
-    // 检查按钮是否已存在
-    if (document.getElementById('wa-translation-settings-btn')) {
-      console.log('[Translation] Settings button already exists');
-      return;
-    }
-
-    // 查找左侧边栏的 header（包含 WhatsApp logo 的区域）
-    const sidebarHeader = document.querySelector('header');
-    
-    if (!sidebarHeader) {
-      console.warn('[Translation] Sidebar header not found, retrying...');
-      setTimeout(addSettingsButton, 1000);
-      return;
-    }
-
-    // 创建设置按钮
-    const settingsBtn = document.createElement('button');
-    settingsBtn.id = 'wa-translation-settings-btn';
-    settingsBtn.className = 'wa-settings-btn-header';
-    settingsBtn.innerHTML = '⚙️';
-    settingsBtn.title = '翻译设置';
-    settingsBtn.type = 'button';
-    settingsBtn.setAttribute('aria-label', '翻译设置');
-    
-    settingsBtn.onclick = () => {
-      console.log('[Translation] Settings button clicked');
-      settingsPanel.show();
-    };
-
-    // 添加按钮样式 - 与 WhatsApp UI 风格一致
-    settingsBtn.style.cssText = `
-      padding: 8px;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 18px;
-      border-radius: 50%;
-      transition: background 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      margin: 0 4px;
-    `;
-
-    settingsBtn.onmouseenter = () => {
-      settingsBtn.style.background = 'rgba(0, 0, 0, 0.05)';
-    };
-
-    settingsBtn.onmouseleave = () => {
-      settingsBtn.style.background = 'transparent';
-    };
-
-    // 查找 header 中第一个 div（通常包含 logo）
-    const headerDivs = sidebarHeader.querySelectorAll(':scope > div');
-    const firstDiv = headerDivs[0];
-    
-    if (firstDiv) {
-      // 插入到第一个 div 的开头（logo 的左边）
-      firstDiv.insertBefore(settingsBtn, firstDiv.firstChild);
-      console.log('[Translation] Settings button added before logo');
-    } else {
-      // 备选：直接添加到 header 开头
-      sidebarHeader.insertBefore(settingsBtn, sidebarHeader.firstChild);
-      console.log('[Translation] Settings button added to header start');
-    }
-  }
-
-  // 立即添加设置按钮
-  addSettingsButton();
-  
-  // 也在延迟后再次尝试（以防页面还没加载完）
-  setTimeout(addSettingsButton, 2000);
-  
-  // 监听 header 变化，确保按钮始终存在
-  const headerObserver = new MutationObserver(() => {
-    if (!document.getElementById('wa-translation-settings-btn')) {
-      console.log('[Translation] Settings button disappeared, re-adding...');
-      addSettingsButton();
-    }
-  });
-  
-  // 观察整个 body，检测 header 的变化
-  setTimeout(() => {
-    headerObserver.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }, 3000);
+    // 设置面板已迁移到桌面端第三栏，保留空实现以兼容旧引用
+  window.TranslationSettings = {
+    show: () => console.info('[Translation] 翻译设置已迁移到主窗口第三栏'),
+    hide: () => {}
+  };
 
 })();
