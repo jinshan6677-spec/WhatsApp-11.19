@@ -338,20 +338,6 @@
             <div class="settings-section">
               <h3>📝 基础设置</h3>
               
-              <div class="setting-item" style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: start; gap: 8px;">
-                  <span style="font-size: 20px;">💡</span>
-                  <div>
-                    <strong style="color: #1976d2;">成本优化建议</strong>
-                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #424242; line-height: 1.5;">
-                      • <strong>聊天窗口翻译</strong>（接收消息）：推荐使用谷歌翻译（免费），用于理解对方在说什么<br>
-                      • <strong>输入框翻译</strong>（发送消息）：可选 AI 翻译 + 风格，用于以合适的语气回复对方<br>
-                      • 这样配置可降低 <strong>70-90%</strong> 的翻译成本！
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
               <div class="setting-item">
                 <label class="setting-label">
                   <label class="switch">
@@ -381,7 +367,6 @@
                   <option value="deepseek">DeepSeek</option>
                   <option value="custom">自定义 API</option>
                 </select>
-                <p class="setting-desc">💡 用于翻译对方发来的消息，推荐使用谷歌翻译（免费）节省成本</p>
               </div>
               
               <div class="setting-item">
@@ -463,7 +448,6 @@
                   <option value="deepseek">DeepSeek（支持风格）</option>
                   <option value="custom">自定义 API（支持风格）</option>
                 </select>
-                <p class="setting-desc">💡 用于翻译你要发送的消息，AI 引擎支持风格定制（如正式、口语化等）</p>
               </div>
               
               <div class="setting-item">
@@ -537,7 +521,6 @@
                   <option value="中立">中立 - 客观陈述、不带情绪</option>
                   <option value="专业">专业 - 技术讨论、专业领域</option>
                 </select>
-                <p class="setting-desc">⚠️ 风格仅在输入框翻译时生效，且需要使用 AI 引擎（GPT-4、Gemini、DeepSeek）</p>
               </div>
             </div>
             
@@ -680,7 +663,6 @@
               <div class="setting-item">
                 <label class="setting-title">API 密钥</label>
                 <input type="password" id="apiKey" class="setting-input" placeholder="输入 API 密钥">
-                <p class="setting-desc">翻译服务的 API 密钥（仅本地存储）</p>
               </div>
               
               <div class="setting-item" id="customEndpointItem" style="display: none;">
