@@ -21,16 +21,16 @@ class SessionManager {
    */
   constructor(options = {}) {
     this.userDataPath = options.userDataPath;
-    
+
     // 登录状态缓存 Map: accountId -> boolean
     this.loginStatusCache = new Map();
-    
+
     // Session 实例缓存 Map: accountId -> Session
     this.sessionCache = new Map();
-    
+
     // 代理配置缓存 Map: accountId -> proxyConfig
     this.proxyCache = new Map();
-    
+
     // 日志函数
     this.log = this._createLogger();
   }
@@ -44,7 +44,7 @@ class SessionManager {
     return (level, message, ...args) => {
       const timestamp = new Date().toISOString();
       const logMessage = `[${timestamp}] [SessionManager] [${level.toUpperCase()}] ${message}`;
-      
+
       if (level === 'error') {
         console.error(logMessage, ...args);
       } else if (level === 'warn') {
@@ -73,28 +73,28 @@ class SessionManager {
   async createSession(accountId, config = {}) {
     try {
       this.log('info', `Creating session for account ${accountId}`);
-      
+
       // 验证 accountId
       if (!accountId || typeof accountId !== 'string') {
         throw new Error('Invalid accountId: must be a non-empty string');
       }
-      
+
       // 创建隔离的 session partition
       const partition = `persist:account_${accountId}`;
       const accountSession = session.fromPartition(partition);
-      
+
       // 缓存 session 实例
       this.sessionCache.set(accountId, accountSession);
-      
+
       let proxyWarning = null;
-      
+
       // 配置代理（如果提供）
       if (config.proxy && config.proxy.enabled) {
         const proxyResult = await this.configureProxy(accountId, config.proxy);
         if (!proxyResult.success) {
           proxyWarning = `Proxy configuration failed: ${proxyResult.error}`;
           this.log('warn', `Failed to configure proxy for account ${accountId}: ${proxyResult.error}`);
-          
+
           // 如果应用了回退策略，记录警告
           if (proxyResult.fallbackApplied) {
             proxyWarning += ' (using direct connection as fallback)';
@@ -103,21 +103,21 @@ class SessionManager {
           proxyWarning = proxyResult.error;
         }
       }
-      
+
       // 配置 session 持久化选项
       await this.configureSessionPersistence(accountId);
-      
+
       this.log('info', `Session created successfully for account ${accountId}`);
-      
+
       const result = {
         success: true,
         session: accountSession
       };
-      
+
       if (proxyWarning) {
         result.proxyWarning = proxyWarning;
       }
-      
+
       return result;
     } catch (error) {
       this.log('error', `Failed to create session for account ${accountId}:`, error);
@@ -138,7 +138,7 @@ class SessionManager {
     if (this.sessionCache.has(accountId)) {
       return this.sessionCache.get(accountId);
     }
-    
+
     // 如果缓存中没有，尝试从 partition 获取
     try {
       const partition = `persist:account_${accountId}`;
@@ -167,24 +167,33 @@ class SessionManager {
   async configureProxy(accountId, proxyConfig) {
     try {
       this.log('info', `Configuring proxy for account ${accountId}`);
-      
+
       // 验证代理配置
       const validation = this._validateProxyConfig(proxyConfig);
       if (!validation.valid) {
         throw new Error(`Invalid proxy configuration: ${validation.error}`);
       }
-      
+
       const accountSession = this.getSession(accountId);
       if (!accountSession) {
         throw new Error(`Session not found for account ${accountId}`);
       }
-      
+
       // 构建代理 URL
       const { protocol, host, port, username, password, bypass, validateConnectivity } = proxyConfig;
-      
+
       // 构建代理规则字符串
-      let proxyRules = `${protocol}://${host}:${port}`;
-      
+      // 对于 SOCKS5，使用 socks5:// 协议头，Chromium 会默认使用远程 DNS
+      // 如果需要强制远程 DNS，可以考虑使用 socks5h:// (取决于 Electron/Chromium 版本支持)
+      // 但最重要的是禁用非代理 UDP
+      let scheme = protocol.toLowerCase();
+      if (scheme === 'socks5') {
+        // 确保使用 socks5://
+        scheme = 'socks5';
+      }
+
+      let proxyRules = `${scheme}://${host}:${port}`;
+
       // 可选：验证代理连接性
       if (validateConnectivity) {
         this.log('info', `Validating proxy connectivity for account ${accountId}`);
@@ -195,29 +204,38 @@ class SessionManager {
           return await this._applyProxyFallback(accountId, accountSession, 'Proxy connectivity validation failed');
         }
       }
-      
+
       // 如果有认证信息，需要通过 webRequest 拦截器处理
       if (username && password) {
         this._setupProxyAuth(accountSession, username, password);
       }
-      
+
+      // 设置 WebRTC IP 处理策略，防止真实 IP 泄露
+      // disable_non_proxied_udp: 强制 WebRTC 流量走代理，如果代理不支持 UDP，WebRTC 可能会失败，但保护了 IP
+      try {
+        accountSession.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+        this.log('info', `WebRTC IP handling policy set to 'disable_non_proxied_udp' for account ${accountId}`);
+      } catch (error) {
+        this.log('error', `Failed to set WebRTC IP handling policy for account ${accountId}:`, error);
+      }
+
       // 设置代理
       const proxySettings = {
         proxyRules,
         proxyBypassRules: bypass || '<local>'
       };
-      
+
       await accountSession.setProxy(proxySettings);
-      
+
       // 缓存代理配置
       this.proxyCache.set(accountId, proxyConfig);
-      
+
       this.log('info', `Proxy configured successfully for account ${accountId}: ${proxyRules}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to configure proxy for account ${accountId}:`, error);
-      
+
       // 尝试应用回退策略
       try {
         const accountSession = this.getSession(accountId);
@@ -227,7 +245,7 @@ class SessionManager {
       } catch (fallbackError) {
         this.log('error', `Fallback also failed for account ${accountId}:`, fallbackError);
       }
-      
+
       return {
         success: false,
         error: error.message
@@ -245,32 +263,32 @@ class SessionManager {
     if (!proxyConfig) {
       return { valid: false, error: 'Proxy config is required' };
     }
-    
+
     const { protocol, host, port, username, password } = proxyConfig;
-    
+
     // 验证协议
     const validProtocols = ['http', 'https', 'socks5', 'socks4'];
     if (!protocol || !validProtocols.includes(protocol.toLowerCase())) {
       return { valid: false, error: `Invalid protocol: ${protocol}. Must be one of: ${validProtocols.join(', ')}` };
     }
-    
+
     // 验证主机
     if (!host || typeof host !== 'string' || host.trim() === '') {
       return { valid: false, error: 'Invalid host: must be a non-empty string' };
     }
-    
+
     // 验证主机格式（基本检查）
     const hostPattern = /^[a-zA-Z0-9.-]+$/;
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!hostPattern.test(host) && !ipPattern.test(host)) {
       return { valid: false, error: 'Invalid host format: must be a valid hostname or IP address' };
     }
-    
+
     // 验证端口
     if (!port || typeof port !== 'number' || port < 1 || port > 65535) {
       return { valid: false, error: 'Invalid port: must be a number between 1 and 65535' };
     }
-    
+
     // 验证认证信息（如果提供）
     if (username !== undefined || password !== undefined) {
       if (username && typeof username !== 'string') {
@@ -284,7 +302,7 @@ class SessionManager {
         return { valid: false, error: 'Both username and password must be provided for authentication' };
       }
     }
-    
+
     return { valid: true };
   }
 
@@ -298,7 +316,7 @@ class SessionManager {
   _setupProxyAuth(accountSession, username, password) {
     // 移除之前的监听器（如果存在）
     accountSession.webRequest.onBeforeSendHeaders(null);
-    
+
     // 设置代理认证拦截器
     accountSession.webRequest.onBeforeSendHeaders((details, callback) => {
       // 为代理请求添加认证头
@@ -307,14 +325,14 @@ class SessionManager {
         callback({ requestHeaders: details.requestHeaders });
         return;
       }
-      
+
       // 添加 Basic 认证
       const auth = Buffer.from(`${username}:${password}`).toString('base64');
       details.requestHeaders['Proxy-Authorization'] = `Basic ${auth}`;
-      
+
       callback({ requestHeaders: details.requestHeaders });
     });
-    
+
     this.log('info', 'Proxy authentication configured');
   }
 
@@ -334,30 +352,30 @@ class SessionManager {
         proxyRules,
         proxyBypassRules: '<local>'
       };
-      
+
       await accountSession.setProxy(tempProxySettings);
-      
+
       // 如果有认证信息，临时设置
       if (username && password) {
         this._setupProxyAuth(accountSession, username, password);
       }
-      
+
       // 尝试通过代理发起一个简单的请求来验证连接性
       // 使用一个轻量级的测试 URL
       const testUrl = 'https://www.google.com/generate_204';
-      
+
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
           this.log('warn', 'Proxy connectivity validation timed out');
           resolve(false);
         }, 10000); // 10 秒超时
-        
+
         const request = require('electron').net.request({
           url: testUrl,
           session: accountSession,
           method: 'HEAD'
         });
-        
+
         request.on('response', (response) => {
           clearTimeout(timeout);
           // 任何响应都表示代理可以连接
@@ -365,13 +383,13 @@ class SessionManager {
           this.log('info', `Proxy connectivity validation result: ${isValid} (status: ${response.statusCode})`);
           resolve(isValid);
         });
-        
+
         request.on('error', (error) => {
           clearTimeout(timeout);
           this.log('warn', `Proxy connectivity validation failed:`, error.message);
           resolve(false);
         });
-        
+
         request.end();
       });
     } catch (error) {
@@ -391,18 +409,18 @@ class SessionManager {
   async _applyProxyFallback(accountId, accountSession, reason) {
     try {
       this.log('warn', `Applying proxy fallback for account ${accountId}: ${reason}`);
-      
+
       // 清除代理设置，使用直连
       await accountSession.setProxy({ proxyRules: 'direct://' });
-      
+
       // 清除代理认证拦截器
       accountSession.webRequest.onBeforeSendHeaders(null);
-      
+
       // 清除代理缓存
       this.proxyCache.delete(accountId);
-      
+
       this.log('info', `Proxy fallback applied for account ${accountId}, using direct connection`);
-      
+
       return {
         success: true,
         fallbackApplied: true,
@@ -427,7 +445,7 @@ class SessionManager {
   async testProxyConfig(proxyConfig) {
     try {
       this.log('info', 'Testing proxy configuration');
-      
+
       // 验证代理配置格式
       const validation = this._validateProxyConfig(proxyConfig);
       if (!validation.valid) {
@@ -436,22 +454,22 @@ class SessionManager {
           error: validation.error
         };
       }
-      
+
       // 创建临时 session 用于测试
       const testPartition = `temp:proxy-test-${Date.now()}`;
       const testSession = session.fromPartition(testPartition);
-      
+
       const { protocol, host, port, username, password } = proxyConfig;
       const proxyRules = `${protocol}://${host}:${port}`;
-      
+
       // 测试连接性
       const startTime = Date.now();
       const isValid = await this._validateProxyConnectivity(testSession, proxyRules, username, password);
       const latency = Date.now() - startTime;
-      
+
       // 清理临时 session
       await testSession.clearStorageData();
-      
+
       if (isValid) {
         this.log('info', `Proxy test successful, latency: ${latency}ms`);
         return {
@@ -490,23 +508,23 @@ class SessionManager {
   async clearProxy(accountId) {
     try {
       this.log('info', `Clearing proxy for account ${accountId}`);
-      
+
       const accountSession = this.getSession(accountId);
       if (!accountSession) {
         throw new Error(`Session not found for account ${accountId}`);
       }
-      
+
       // 清除代理设置
       await accountSession.setProxy({ proxyRules: 'direct://' });
-      
+
       // 清除代理认证拦截器
       accountSession.webRequest.onBeforeSendHeaders(null);
-      
+
       // 清除缓存
       this.proxyCache.delete(accountId);
-      
+
       this.log('info', `Proxy cleared for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to clear proxy for account ${accountId}:`, error);
@@ -543,20 +561,20 @@ class SessionManager {
   async hasSessionData(accountId) {
     try {
       const userDataDir = this.getUserDataDir(accountId);
-      
+
       // 检查用户数据目录是否存在
       try {
         await fs.access(userDataDir);
       } catch {
         return false;
       }
-      
+
       // 检查关键的会话文件是否存在
       // WhatsApp Web 使用 IndexedDB 存储会话数据
       const indexedDBPath = path.join(userDataDir, 'IndexedDB');
       const localStoragePath = path.join(userDataDir, 'Local Storage');
       const cookiesPath = path.join(userDataDir, 'Cookies');
-      
+
       try {
         await fs.access(indexedDBPath);
         this.log('info', `Session data found for account ${accountId}`);
@@ -591,14 +609,14 @@ class SessionManager {
   async verifySessionIsolation(accountId) {
     try {
       this.log('info', `Verifying session isolation for account ${accountId}`);
-      
+
       const accountSession = this.getSession(accountId);
       if (!accountSession) {
         throw new Error(`Session not found for account ${accountId}`);
       }
-      
+
       const userDataDir = this.getUserDataDir(accountId);
-      
+
       // 检查各种存储的隔离性
       const details = {
         partition: `persist:account_${accountId}`,
@@ -608,7 +626,7 @@ class SessionManager {
         hasOwnIndexedDB: false,
         hasOwnCache: false
       };
-      
+
       // 检查 Cookies
       try {
         const cookiesPath = path.join(userDataDir, 'Cookies');
@@ -617,7 +635,7 @@ class SessionManager {
       } catch {
         // Cookies 文件可能还未创建
       }
-      
+
       // 检查 LocalStorage
       try {
         const localStoragePath = path.join(userDataDir, 'Local Storage');
@@ -626,7 +644,7 @@ class SessionManager {
       } catch {
         // LocalStorage 可能还未创建
       }
-      
+
       // 检查 IndexedDB
       try {
         const indexedDBPath = path.join(userDataDir, 'IndexedDB');
@@ -635,7 +653,7 @@ class SessionManager {
       } catch {
         // IndexedDB 可能还未创建
       }
-      
+
       // 检查 Cache
       try {
         const cachePath = path.join(userDataDir, 'Cache');
@@ -644,12 +662,12 @@ class SessionManager {
       } catch {
         // Cache 可能还未创建
       }
-      
+
       // Session 使用独立的 partition，即使文件还未创建也是隔离的
       const isolated = true;
-      
+
       this.log('info', `Session isolation verified for account ${accountId}:`, details);
-      
+
       return {
         isolated,
         details
@@ -727,9 +745,9 @@ class SessionManager {
 
       // 更新缓存
       this.loginStatusCache.set(accountId, isLoggedIn);
-      
+
       this.log('info', `Login status for account ${accountId}: ${isLoggedIn ? 'logged in' : 'not logged in'}`);
-      
+
       return isLoggedIn;
     } catch (error) {
       this.log('error', `Error detecting login status for account ${accountId}:`, error);
@@ -784,27 +802,27 @@ class SessionManager {
   async configureSessionPersistence(accountId, options = {}) {
     try {
       const accountSession = this.getSession(accountId);
-      
+
       if (!accountSession) {
         throw new Error(`Session not found for account ${accountId}`);
       }
-      
+
       // Electron 的 session.fromPartition('persist:xxx') 已经自动启用持久化
       // 这里可以配置额外的选项
-      
+
       // 设置缓存大小限制（可选）
       if (options.cacheSize) {
         await accountSession.clearCache();
         // Note: Electron doesn't provide a direct API to set cache size limit
         // The cache will be managed automatically by Chromium
       }
-      
+
       // 确保用户数据目录存在
       const userDataDir = this.getUserDataDir(accountId);
       await fs.mkdir(userDataDir, { recursive: true });
-      
+
       this.log('info', `Session persistence configured for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to configure session persistence for account ${accountId}:`, error);
@@ -823,19 +841,19 @@ class SessionManager {
   async getSessionDataStats(accountId) {
     try {
       const userDataDir = this.getUserDataDir(accountId);
-      
+
       // 检查目录是否存在
       try {
         await fs.access(userDataDir);
       } catch {
         return { size: 0, files: 0 };
       }
-      
+
       // 递归计算目录大小和文件数
       const stats = await this._calculateDirectorySize(userDataDir);
-      
+
       this.log('info', `Session data stats for account ${accountId}: ${stats.size} bytes, ${stats.files} files`);
-      
+
       return stats;
     } catch (error) {
       this.log('error', `Failed to get session data stats for account ${accountId}:`, error);
@@ -856,13 +874,13 @@ class SessionManager {
   async _calculateDirectorySize(dirPath) {
     let totalSize = 0;
     let totalFiles = 0;
-    
+
     try {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
-        
+
         if (entry.isDirectory()) {
           const subStats = await this._calculateDirectorySize(fullPath);
           totalSize += subStats.size;
@@ -877,7 +895,7 @@ class SessionManager {
       // 忽略权限错误等
       this.log('warn', `Error calculating directory size for ${dirPath}:`, error.message);
     }
-    
+
     return { size: totalSize, files: totalFiles };
   }
 
@@ -889,13 +907,13 @@ class SessionManager {
   async clearSessionData(accountId) {
     try {
       this.log('info', `Clearing session data for account ${accountId}`);
-      
+
       const accountSession = this.getSession(accountId);
-      
+
       if (!accountSession) {
         throw new Error(`Session not found for account ${accountId}`);
       }
-      
+
       // 清除所有缓存和存储数据
       await accountSession.clearStorageData({
         storages: [
@@ -910,15 +928,15 @@ class SessionManager {
           'cachestorage'
         ]
       });
-      
+
       // 清除缓存
       await accountSession.clearCache();
-      
+
       // 清除所有缓存
       this.clearAccountCache(accountId);
-      
+
       this.log('info', `Session data cleared for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to clear session data for account ${accountId}:`, error);
@@ -937,17 +955,17 @@ class SessionManager {
   async deleteUserDataDir(accountId) {
     try {
       const userDataDir = this.getUserDataDir(accountId);
-      
+
       this.log('info', `Deleting user data directory for account ${accountId}: ${userDataDir}`);
-      
+
       // 删除目录
       await fs.rm(userDataDir, { recursive: true, force: true });
-      
+
       // 清除所有缓存
       this.clearAccountCache(accountId);
-      
+
       this.log('info', `User data directory deleted for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to delete user data directory for account ${accountId}:`, error);
@@ -969,14 +987,14 @@ class SessionManager {
       const userDataDir = this.getUserDataDir(accountId);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupDir = path.join(backupPath, `backup-${accountId}-${timestamp}`);
-      
+
       this.log('info', `Backing up session data for account ${accountId} to ${backupDir}`);
-      
+
       // 复制目录
       await this._copyDirectory(userDataDir, backupDir);
-      
+
       this.log('info', `Session data backed up for account ${accountId}`);
-      
+
       return {
         success: true,
         backupPath: backupDir
@@ -999,20 +1017,20 @@ class SessionManager {
   async restoreSessionData(accountId, backupPath) {
     try {
       const userDataDir = this.getUserDataDir(accountId);
-      
+
       this.log('info', `Restoring session data for account ${accountId} from ${backupPath}`);
-      
+
       // 删除现有数据
       await fs.rm(userDataDir, { recursive: true, force: true });
-      
+
       // 复制备份数据
       await this._copyDirectory(backupPath, userDataDir);
-      
+
       // 清除所有缓存，需要重新检测
       this.clearAccountCache(accountId);
-      
+
       this.log('info', `Session data restored for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to restore session data for account ${accountId}:`, error);
@@ -1031,13 +1049,13 @@ class SessionManager {
    */
   async _copyDirectory(src, dest) {
     await fs.mkdir(dest, { recursive: true });
-    
+
     const entries = await fs.readdir(src, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
-      
+
       if (entry.isDirectory()) {
         await this._copyDirectory(srcPath, destPath);
       } else {
@@ -1055,10 +1073,10 @@ class SessionManager {
   async restoreLoginState(accountId, viewOrWindow) {
     try {
       this.log('info', `Restoring login state for account ${accountId}`);
-      
+
       // 检查是否有会话数据
       const hasSession = await this.hasSessionData(accountId);
-      
+
       if (!hasSession) {
         this.log('info', `No session data found for account ${accountId}, user needs to login`);
         return {
@@ -1066,20 +1084,20 @@ class SessionManager {
           isLoggedIn: false
         };
       }
-      
+
       // 等待页面加载完成后检测登录状态
       // 给 WhatsApp Web 一些时间来恢复会话
       await this._waitForPageLoad(viewOrWindow, 15000); // 15 秒超时
-      
+
       // 检测登录状态
       const isLoggedIn = await this.detectLoginStatus(accountId, viewOrWindow);
-      
+
       if (isLoggedIn) {
         this.log('info', `Login state restored for account ${accountId}`);
       } else {
         this.log('info', `Session data exists but not logged in for account ${accountId}, may need re-authentication`);
       }
-      
+
       return {
         success: true,
         isLoggedIn
@@ -1158,13 +1176,13 @@ class SessionManager {
   async handleSessionExpiration(accountId, options = {}) {
     try {
       this.log('info', `Handling session expiration for account ${accountId}`);
-      
+
       const accountSession = this.getSession(accountId);
-      
+
       if (!accountSession) {
         throw new Error(`Session not found for account ${accountId}`);
       }
-      
+
       // 清除会话数据
       await accountSession.clearStorageData({
         storages: [
@@ -1175,17 +1193,17 @@ class SessionManager {
           'cachestorage'
         ]
       });
-      
+
       // 可选：清除缓存
       if (options.clearCache) {
         await accountSession.clearCache();
       }
-      
+
       // 清除登录状态缓存
       this.clearLoginStatusCache(accountId);
-      
+
       this.log('info', `Session expiration handled for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to handle session expiration for account ${accountId}:`, error);
@@ -1205,14 +1223,14 @@ class SessionManager {
   async forceLogout(accountId, viewOrWindow = null) {
     try {
       this.log('info', `Forcing logout for account ${accountId}`);
-      
+
       // 清除所有会话数据
       const clearResult = await this.clearSessionData(accountId);
-      
+
       if (!clearResult.success) {
         throw new Error(clearResult.error || 'Failed to clear session data');
       }
-      
+
       // 如果提供了 view/window，重新加载页面以显示登录界面
       if (viewOrWindow && viewOrWindow.webContents) {
         try {
@@ -1223,9 +1241,9 @@ class SessionManager {
           // 不将此作为致命错误
         }
       }
-      
+
       this.log('info', `Forced logout completed for account ${accountId}`);
-      
+
       return { success: true };
     } catch (error) {
       this.log('error', `Failed to force logout for account ${accountId}:`, error);
@@ -1245,20 +1263,20 @@ class SessionManager {
   async checkSessionExpiration(accountId, viewOrWindow) {
     try {
       this.log('info', `Checking session expiration for account ${accountId}`);
-      
+
       // 检查是否有会话数据
       const hasSession = await this.hasSessionData(accountId);
-      
+
       if (!hasSession) {
         return {
           expired: true,
           needsReauth: true
         };
       }
-      
+
       // 检测当前登录状态
       const isLoggedIn = await this.detectLoginStatus(accountId, viewOrWindow);
-      
+
       if (!isLoggedIn) {
         // 有会话数据但未登录，可能是会话过期
         this.log('warn', `Session may be expired for account ${accountId}`);
@@ -1267,7 +1285,7 @@ class SessionManager {
           needsReauth: true
         };
       }
-      
+
       // 会话有效
       return {
         expired: false,
@@ -1292,21 +1310,21 @@ class SessionManager {
    */
   monitorSessionHealth(accountId, viewOrWindow, onStatusChange) {
     this.log('info', `Starting session health monitoring for account ${accountId}`);
-    
+
     let isMonitoring = true;
     let lastStatus = null;
-    
+
     const checkHealth = async () => {
       if (!isMonitoring) return;
-      
+
       try {
         const isLoggedIn = await this.detectLoginStatus(accountId, viewOrWindow);
         const currentStatus = isLoggedIn ? 'logged-in' : 'logged-out';
-        
+
         // 只在状态变化时触发回调
         if (currentStatus !== lastStatus) {
           lastStatus = currentStatus;
-          
+
           if (onStatusChange && typeof onStatusChange === 'function') {
             onStatusChange({
               accountId,
@@ -1319,16 +1337,16 @@ class SessionManager {
       } catch (error) {
         this.log('error', `Session health check failed for account ${accountId}:`, error);
       }
-      
+
       // 每 30 秒检查一次
       if (isMonitoring) {
         setTimeout(checkHealth, 30000);
       }
     };
-    
+
     // 开始监控
     checkHealth();
-    
+
     // 返回监控器对象
     return {
       stop: () => {
@@ -1346,7 +1364,7 @@ class SessionManager {
   async getSessionPersistenceStatus(accountId) {
     try {
       const userDataDir = this.getUserDataDir(accountId);
-      
+
       // 检查目录是否存在
       try {
         await fs.access(userDataDir);
@@ -1356,10 +1374,10 @@ class SessionManager {
           dataSize: 0
         };
       }
-      
+
       // 获取数据统计
       const stats = await this.getSessionDataStats(accountId);
-      
+
       // 获取最后修改时间
       let lastModified;
       try {
@@ -1368,7 +1386,7 @@ class SessionManager {
       } catch {
         // 忽略错误
       }
-      
+
       return {
         persisted: stats.size > 0,
         dataSize: stats.size,
