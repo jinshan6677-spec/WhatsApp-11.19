@@ -9,7 +9,12 @@
  */
 
 const { ipcMain } = require('electron');
-const { wrapIPCHandler } = require('../utils/ErrorHandler');
+const errorHandler = getErrorHandler();
+
+// 使用errorHandler的wrapIPCHandler方法
+const wrapIPCHandler = (handler, options) => {
+  return errorHandler.wrapIPCHandler(handler, options);
+};
 const { ErrorCategory } = require('../utils/ErrorLogger');
 
 /**

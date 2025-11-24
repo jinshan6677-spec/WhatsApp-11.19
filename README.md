@@ -6,10 +6,24 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=for-the-badge)
+![Refactored](https://img.shields.io/badge/Refactored-v1.1.0-ff6b6b?style=for-the-badge&logo=refactoring&logoColor=white)
 
 基于 Electron 的 WhatsApp 桌面应用程序，支持实时翻译功能。
 
-[功能特性](#核心特性) • [快速开始](#快速开始) • [文档](#文档) • [测试](#测试)
+[功能特性](#核心特性) • [快速开始](#快速开始) • [架构重构](#-重构后的项目结构-v110) • [文档](#文档) • [测试](#测试)
+
+<div align="left">
+
+## 🔄 重构版亮点 (v1.1.0)
+
+✨ **代码结构全面重构** - 更清晰、更易维护的架构  
+⚡ **性能显著提升** - 边界计算优化、内存管理增强  
+🔧 **开发体验改善** - 统一导出、依赖注入、模块别名  
+📦 **向后兼容** - 现有功能完全兼容，渐进式迁移  
+
+**详情**: 查看 [重构总结报告](REFACTORING_SUMMARY.md)
+
+</div>
 
 </div>
 
@@ -90,6 +104,24 @@ npm start
 ```bash
 npm run dev
 ```
+
+### 🚀 重构后开发 (v1.1.0+)
+
+**使用新的应用入口（推荐）:**
+```bash
+node src/main-refactored.js
+```
+
+**优势:**
+- ⚡ 更快的启动速度
+- 🛡️ 更好的错误处理
+- 📊 统一的性能监控
+- 🔗 清晰的依赖管理
+
+**渐进式迁移:**
+- 现有代码完全兼容
+- 可以逐步迁移到新架构
+- 参考 `REFACTORING_SUMMARY.md` 了解详情
 
 ### 使用说明
 
@@ -207,36 +239,77 @@ npm run build
 
 ## 项目结构
 
+### 🏗️ 重构后的项目结构 (v1.1.0+)
+
 ```
 whatsapp-desktop-container/
 ├── src/
-│   ├── main.js              # Electron 主进程入口
+│   ├── main.js              # Electron 主进程入口 (向后兼容)
+│   ├── main-refactored.js   # 重构后的主入口 (新)
 │   ├── preload.js           # 预加载脚本
 │   ├── config.js            # 应用配置
-│   ├── managers/            # 核心管理器
-│   │   ├── AccountConfigManager.js    # 账号配置管理
-│   │   ├── InstanceManager.js         # 实例生命周期管理
-│   │   ├── MainApplicationWindow.js   # 主窗口管理
-│   │   └── TrayManager.js             # 系统托盘管理
-│   ├── models/              # 数据模型
-│   │   ├── AccountConfig.js           # 账号配置模型
-│   │   └── InstanceStatus.js          # 实例状态模型
-│   ├── translation/         # 翻译模块
-│   │   ├── managers/        # 翻译管理器
-│   │   ├── adapters/        # 翻译引擎适配器
-│   │   └── contentScript.js # 内容脚本注入
-│   └── container/           # UI 容器组件
-├── profiles/                # 账号数据目录（自动生成）
+│   ├── app/                 # 📦 应用核心 (重构新增)
+│   │   ├── bootstrap.js     # 🚀 应用启动引导器 (新)
+│   │   ├── DependencyContainer.js # 🔗 依赖注入容器 (新)
+│   │   └── constants/       # 📊 应用常量集中管理 (新)
+│   ├── core/                # ⚙️ 核心模块 (重构新增)
+│   │   ├── managers/        # 业务管理器 (统一导出)
+│   │   │   └── index.js     # 统一导出接口 (新)
+│   │   ├── models/          # 数据模型 (统一导出)
+│   │   │   └── index.js     # 统一导出接口 (新)
+│   │   └── services/        # 基础服务 (统一导出)
+│   │       └── index.js     # 统一导出接口 (新)
+│   ├── ui/                  # 🎨 用户界面 (重构新增)
+│   │   └── main-window/     # 主窗口组件 (重构拆分)
+│   │       ├── ViewManager.js      # 重构后视图管理器
+│   │       ├── ViewBoundsManager.js # 边界管理器 (新)
+│   │       ├── ViewMemoryManager.js # 内存管理器 (新)
+│   │       └── index.js     # 统一导出接口 (新)
+│   ├── shared/              # 🛠️ 共享模块 (重构新增)
+│   │   ├── utils/           # 工具类 (统一导出 + 错误处理合并)
+│   │   ├── validators/      # 验证器
+│   │   ├── decorators/      # 装饰器
+│   │   └── constants/       # 共享常量
+│   ├── features/            # 🔧 功能模块 (重构新增)
+│   │   ├── translation/     # 翻译功能
+│   │   ├── proxy/          # 代理功能
+│   │   └── account/        # 账户功能
+│   └── translation/         # 🌐 翻译模块 (保留增强)
+│       ├── managers/        # 翻译管理器
+│       ├── adapters/        # 翻译引擎适配器
+│       └── contentScript.js # 内容脚本注入
+├── profiles/                # 📁 账号数据目录（自动生成）
 │   ├── account-{uuid}/      # 每个账号的独立存储
 │   │   ├── Session Storage/
 │   │   ├── Local Storage/
 │   │   ├── IndexedDB/
 │   │   └── Cache/
-├── resources/               # 应用资源（图标等）
-├── docs/                    # 文档目录
-├── scripts/                 # 工具脚本
+├── resources/               # 🎨 应用资源（图标等）
+├── docs/                    # 📖 文档目录
+│   └── REFACTORING_SUMMARY.md # 🔄 重构总结报告 (新)
+├── scripts/                 # 🔧 工具脚本
 ├── package.json
 └── README.md
+```
+
+### 🎯 重构核心改进点
+
+#### 架构层面
+- **🧩 模块化设计**: 清晰的层次结构，职责明确
+- **🔗 依赖注入**: 统一依赖管理，避免循环依赖
+- **📦 统一导出**: 简化导入路径，提升开发体验
+
+#### 代码质量
+- **🗂️ 文件拆分**: ViewManager(4096行) → 3个专门组件
+- **🔄 错误处理**: 合并重复的ErrorHandler，建立统一标准
+- **📊 常量管理**: 集中管理应用常量，避免散布
+
+#### 性能优化
+- **⚡ 边界计算**: 智能缓存 + 防抖处理
+- **🧠 内存管理**: 专用内存监控 + 自动清理
+- **🔄 视图池**: BrowserView重用机制
+
+**⚠️ 向后兼容**: 现有API完全兼容，可渐进式迁移
 ```
 
 ## 配置
@@ -273,7 +346,16 @@ whatsapp-desktop-container/
 
 ## 版本信息
 
-当前使用 **Electron 39.1.1**（最新稳定版）
+### 当前版本
+- **应用版本**: v1.1.0+ (重构版)
+- **Electron**: 39.1.1 (最新稳定版)
+- **Node.js**: 20.x (推荐)
+
+### 🔄 重构版本特性
+- **v1.1.0**: 完整代码结构重构
+  - 🏗️ 全新模块化架构
+  - ⚡ 性能优化
+  - 🔧 开发体验改善
 
 ```bash
 # 检查版本信息
@@ -302,6 +384,14 @@ npm run version
 - **[API 文档](docs/API.md)** - 完整的 API 接口文档
 - **[扩展开发指南](docs/EXTENSION_GUIDE.md)** - 创建翻译引擎插件
 - **[构建和发布指南](docs/BUILD_GUIDE.md)** - 打包和发布流程
+
+### 重构文档 (v1.1.0+)
+
+- **[🔄 重构总结报告](REFACTORING_SUMMARY.md)** - 完整的重构过程和技术细节
+  - 📊 架构改进对比
+  - ⚡ 性能优化详情
+  - 🛠️ 迁移指南
+  - 🔧 开发工具配置
 
 ### 测试文档
 
@@ -519,16 +609,54 @@ MIT
 
 ## 📂 项目结构
 
+### 重构后的架构 (v1.1.0+)
+
 ```
 whatsapp-desktop-translation/
 ├── src/
-│   ├── main.js              # Electron 主进程
+│   ├── main.js              # Electron 主进程入口 (原版)
+│   ├── main-refactored.js   # 重构后的主入口 (新)
 │   ├── preload.js           # 预加载脚本
 │   ├── config.js            # 配置文件
-│   └── translation/         # 翻译模块
-│       ├── managers/        # 管理器（TranslationManager, ConfigManager, CacheManager）
+│   ├── app/                 # 应用核心 (重构新增)
+│   │   ├── bootstrap.js     # 应用启动引导器 (新)
+│   │   ├── DependencyContainer.js # 依赖注入容器 (新)
+│   │   └── constants/       # 应用常量集中管理 (新)
+│   ├── core/                # 核心模块 (重构新增)
+│   │   ├── managers/        # 业务管理器 (统一导出)
+│   │   │   ├── index.js     # 统一导出接口 (新)
+│   │   │   ├── AccountConfigManager.js
+│   │   │   ├── InstanceManager.js
+│   │   │   └── ...
+│   │   ├── models/          # 数据模型 (统一导出)
+│   │   │   ├── index.js     # 统一导出接口 (新)
+│   │   │   ├── AccountConfig.js
+│   │   │   └── ...
+│   │   └── services/        # 基础服务 (统一导出)
+│   │       ├── index.js     # 统一导出接口 (新)
+│   │       └── ...
+│   ├── ui/                  # 用户界面 (重构新增)
+│   │   └── main-window/     # 主窗口组件 (拆分重构)
+│   │       ├── ViewManager.js          # 重构后视图管理器
+│   │       ├── ViewBoundsManager.js    # 边界管理器 (新)
+│   │       ├── ViewMemoryManager.js    # 内存管理器 (新)
+│   │       └── index.js    # 统一导出接口 (新)
+│   ├── shared/              # 共享模块 (重构新增)
+│   │   ├── utils/           # 工具类 (统一导出)
+│   │   │   ├── index.js     # 统一导出接口 (新)
+│   │   │   ├── ErrorHandler.js         # 统一错误处理器
+│   │   │   └── ...
+│   │   ├── validators/      # 验证器
+│   │   ├── decorators/      # 装饰器
+│   │   └── constants/       # 共享常量
+│   ├── features/            # 功能模块 (重构新增)
+│   │   ├── translation/     # 翻译功能
+│   │   ├── proxy/          # 代理功能
+│   │   └── account/        # 账户功能
+│   └── translation/         # 翻译模块 (保留原有)
+│       ├── managers/        # 翻译管理器
 │       ├── adapters/        # 翻译引擎适配器
-│       ├── utils/           # 工具类（安全、性能、隐私）
+│       ├── utils/           # 工具类
 │       ├── ipcHandlers.js   # IPC 通信处理器
 │       └── contentScript.js # 内容脚本
 ├── scripts/                 # 测试和工具脚本
@@ -539,16 +667,20 @@ whatsapp-desktop-translation/
 │   ├── FAQ.md               # 常见问题
 │   ├── DEVELOPER_GUIDE.md   # 开发者指南
 │   ├── API.md               # API 文档
-│   ├── EXTENSION_GUIDE.md   # 扩展开发指南
-│   ├── BUILD_GUIDE.md       # 构建和发布指南
-│   ├── RELEASE_CHECKLIST.md # 发布检查清单
-│   ├── TESTING_GUIDE.md     # 测试指南
-│   ├── SECURITY_BEST_PRACTICES.md
-│   ├── CONSOLE_ERRORS_EXPLAINED.md
-│   └── UPGRADE_NOTES.md
+│   ├── REFACTORING_SUMMARY.md # 重构总结报告 (新)
+│   └── ...
 ├── CHANGELOG.md             # 更新日志
 ├── LICENSE                  # 许可证
 └── package.json
+```
+
+### 重构核心改进
+
+- **🔧 模块化架构**: 清晰的层次结构，易于维护和扩展
+- **🎯 职责分离**: 每个模块职责单一，边界清晰
+- **🔗 依赖注入**: 统一依赖管理，避免循环依赖
+- **📦 统一导出**: 简化导入路径，提升开发体验
+- **⚡ 性能优化**: 边界计算、内存管理专门化
 ```
 
 ## 🤝 贡献

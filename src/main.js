@@ -36,7 +36,7 @@ const { getErrorLogger, ErrorCategory } = require('./utils/ErrorLogger');
 
 // 导入自动清理工具
 const OrphanedDataCleaner = require('./utils/OrphanedDataCleaner');
-const { setupGlobalErrorHandlers } = require('./utils/ErrorHandler');
+const { getErrorHandler } = require('./shared/utils/ErrorHandler');
 
 // 全局管理器实例
 let mainWindow = null;
@@ -131,7 +131,8 @@ async function initializeManagers() {
     log('info', '错误日志记录器初始化完成');
 
     // 设置全局错误处理器
-    setupGlobalErrorHandlers();
+    const errorHandler = getErrorHandler();
+    errorHandler.setupGlobalErrorHandlers();
     log('info', '全局错误处理器已设置');
 
     // 1. 初始化账号配置管理器

@@ -5,7 +5,7 @@
  * and automatic reconnection for network issues.
  */
 
-const { retryWithBackoff } = require('./ErrorHandler');
+const { retryWithBackoff } = require('../shared/utils/ErrorHandler');
 const { getErrorLogger, ErrorCategory } = require('./ErrorLogger');
 
 /**

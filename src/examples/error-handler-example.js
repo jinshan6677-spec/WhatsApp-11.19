@@ -7,7 +7,7 @@
 const { app } = require('electron');
 const path = require('path');
 const InstanceManager = require('../managers/InstanceManager');
-const ErrorHandler = require('../managers/ErrorHandler');
+const { UnifiedErrorHandler } = require('../shared/utils/ErrorHandler');
 const AccountConfig = require('../models/AccountConfig');
 
 /**
@@ -23,7 +23,8 @@ async function exampleWithErrorHandler() {
   });
   
   // 2. 创建错误处理器
-  const errorHandler = new ErrorHandler(instanceManager, {
+  const errorHandler = new UnifiedErrorHandler({
+    instanceManager,
     maxCrashCount: 3,           // 最大崩溃次数
     crashResetTime: 300000,     // 5 分钟内的崩溃计数
     restartDelay: 5000,         // 重启延迟 5 秒
@@ -148,7 +149,8 @@ async function exampleErrorTypes() {
   console.log('\n=== 不同错误类型处理示例 ===\n');
   
   const instanceManager = new InstanceManager();
-  const errorHandler = new ErrorHandler(instanceManager, {
+  const errorHandler = new UnifiedErrorHandler({
+    instanceManager,
     logPath: path.join(app.getPath('userData'), 'logs', 'errors.log')
   });
   
@@ -211,7 +213,8 @@ async function exampleCrashCountAndRestart() {
   console.log('\n=== 崩溃计数和自动重启示例 ===\n');
   
   const instanceManager = new InstanceManager();
-  const errorHandler = new ErrorHandler(instanceManager, {
+  const errorHandler = new UnifiedErrorHandler({
+    instanceManager,
     maxCrashCount: 3,
     crashResetTime: 60000, // 1 分钟
     restartDelay: 2000     // 2 秒
