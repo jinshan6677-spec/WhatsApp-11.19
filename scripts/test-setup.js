@@ -115,7 +115,7 @@ if (fs.existsSync(packageJsonPath)) {
 // 4. 检查源代码文件
 log('\n4. 检查源代码文件...', 'blue');
 const requiredFiles = [
-  'src/main.js',
+  'src/main-refactored.js',
   'src/config.js'
 ];
 

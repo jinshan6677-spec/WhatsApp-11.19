@@ -27,7 +27,7 @@ try {
   // 3. 验证 main.js 集成
   console.log('\n3. 验证 main.js 集成...');
   const fs = require('fs');
-  const mainJsPath = '../src/main.js';
+  const mainJsPath = '../src/main-refactored.js';
   const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
   
   if (mainJsContent.includes('OrphanedDataCleaner')) {

@@ -136,7 +136,7 @@ function verifyRequirements() {
     checkCodeContains('src/single-window/MainWindow.js', 'setBounds') ||
     checkCodeContains('src/single-window/MainWindow.js', 'saveBounds');
   requirements['Requirement 1: Single Main Window Architecture'][4].verified = 
-    checkCodeContains('src/main.js', 'app.quit') ||
+    checkCodeContains('src/main-refactored.js', 'app.quit') ||
     checkCodeContains('src/single-window/MainWindow.js', 'close');
   
   // Requirement 2: Account Management Interface

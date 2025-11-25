@@ -1,67 +1,180 @@
 /**
- * 视图内存管理器
+ * ViewMemoryManager - 内存管理器
  * 
- * 专门负责BrowserView的内存管理和监控
- * 处理内存使用监控、自动清理、内存限制等功能
+ * 负责监控和管理BrowserView的内存使用
  */
 
-const { PERFORMANCE_CONFIG } = require('../../app/constants');
-
-/**
- * 视图内存管理器类
- */
 class ViewMemoryManager {
-  /**
-   * 创建内存管理器
-   * @param {Object} options - 配置选项
-   * @param {number} options.memoryWarningThreshold - 内存警告阈值(MB)
-   * @param {number} options.maxMemoryPerView - 每视图最大内存(MB)
-   * @param {boolean} options.autoMemoryCleanup - 是否启用自动内存清理
-   * @param {number} options.monitorInterval - 监控间隔(ms)
-   */
   constructor(options = {}) {
     this.options = {
-      memoryWarningThreshold: options.memoryWarningThreshold || PERFORMANCE_CONFIG.MEMORY.WARNING_THRESHOLD / (1024 * 1024),
-      maxMemoryPerView: options.maxMemoryPerView || PERFORMANCE_CONFIG.MEMORY.MAX_SIZE / (1024 * 1024),
+      memoryWarningThreshold: options.memoryWarningThreshold || 300,
+      maxMemoryPerView: options.maxMemoryPerView || 500,
       autoMemoryCleanup: options.autoMemoryCleanup !== false,
-      monitorInterval: options.monitorInterval || PERFORMANCE_CONFIG.MEMORY.GC_INTERVAL,
+      memoryCheckInterval: options.memoryCheckInterval || 30000,
       ...options
     };
 
-    // 内存使用缓存
-    this.memoryUsageCache = new Map();
-    
     // 视图访问时间跟踪
     this.viewAccessTimes = new Map();
     
+    // 内存使用缓存
+    this.memoryUsageCache = new Map();
+    
+    // 视图池
+    this.viewPool = [];
+    
     // 内存监控定时器
     this.memoryMonitorInterval = null;
-    
-    // 日志记录器
-    this.logger = this._createLogger();
 
-    // 启动内存监控
-    if (this.options.autoMemoryCleanup) {
-      this.startMemoryMonitoring();
+    // 日志函数
+    this.log = this._createLogger();
+  }
+
+  _createLogger() {
+    return (level, message, ...args) => {
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] [ViewMemoryManager] [${level.toUpperCase()}] ${message}`;
+      
+      if (level === 'error') {
+        console.error(logMessage, ...args);
+      } else if (level === 'warn') {
+        console.warn(logMessage, ...args);
+      } else {
+        console.log(logMessage, ...args);
+      }
+    };
+  }
+
+  /**
+   * 记录视图访问
+   * @param {string} accountId - 账号ID
+   */
+  recordViewAccess(accountId) {
+    this.viewAccessTimes.set(accountId, Date.now());
+  }
+
+  /**
+   * 获取视图访问时间
+   * @param {string} accountId - 账号ID
+   * @returns {number|null}
+   */
+  getLastAccessTime(accountId) {
+    return this.viewAccessTimes.get(accountId) || null;
+  }
+
+  /**
+   * 检查视图是否过期
+   * @param {string} accountId - 账号ID
+   * @param {number} maxInactiveTime - 最大不活跃时间（毫秒）
+   * @returns {boolean}
+   */
+  isViewExpired(accountId, maxInactiveTime) {
+    const lastAccess = this.getLastAccessTime(accountId);
+    if (!lastAccess) return true;
+    
+    return (Date.now() - lastAccess) > maxInactiveTime;
+  }
+
+  /**
+   * 更新内存使用缓存
+   * @param {string} accountId - 账号ID
+   * @param {number} memoryUsage - 内存使用（MB）
+   */
+  updateMemoryUsage(accountId, memoryUsage) {
+    this.memoryUsageCache.set(accountId, {
+      memoryUsage,
+      timestamp: Date.now()
+    });
+  }
+
+  /**
+   * 获取内存使用
+   * @param {string} accountId - 账号ID
+   * @returns {Object|null}
+   */
+  getMemoryUsage(accountId) {
+    return this.memoryUsageCache.get(accountId) || null;
+  }
+
+  /**
+   * 检查内存是否超过警告阈值
+   * @param {string} accountId - 账号ID
+   * @returns {boolean}
+   */
+  isMemoryWarning(accountId) {
+    const usage = this.getMemoryUsage(accountId);
+    if (!usage) return false;
+    
+    return usage.memoryUsage > this.options.memoryWarningThreshold;
+  }
+
+  /**
+   * 检查内存是否超过最大限制
+   * @param {string} accountId - 账号ID
+   * @returns {boolean}
+   */
+  isMemoryExceeded(accountId) {
+    const usage = this.getMemoryUsage(accountId);
+    if (!usage) return false;
+    
+    return usage.memoryUsage > this.options.maxMemoryPerView;
+  }
+
+  /**
+   * 添加视图到池
+   * @param {BrowserView} view - 视图
+   * @param {Object} session - 会话
+   */
+  addToViewPool(view, session) {
+    this.viewPool.push({ view, session, addedAt: Date.now() });
+    this.log('debug', `View added to pool. Pool size: ${this.viewPool.length}`);
+  }
+
+  /**
+   * 从池中获取视图
+   * @returns {Object|null}
+   */
+  getFromViewPool() {
+    if (this.viewPool.length === 0) return null;
+    
+    const item = this.viewPool.shift();
+    this.log('debug', `View retrieved from pool. Remaining: ${this.viewPool.length}`);
+    return item;
+  }
+
+  /**
+   * 清空视图池
+   */
+  clearViewPool() {
+    for (const item of this.viewPool) {
+      if (item.view && !item.view.webContents.isDestroyed()) {
+        item.view.webContents.destroy();
+      }
     }
+    this.viewPool = [];
+    this.log('info', 'View pool cleared');
   }
 
   /**
    * 开始内存监控
+   * @param {Map} views - 视图映射
    */
-  startMemoryMonitoring() {
+  startMemoryMonitoring(views) {
+    if (!this.options.autoMemoryCleanup) {
+      this.log('info', 'Memory monitoring disabled');
+      return;
+    }
+
     if (this.memoryMonitorInterval) {
-      this.logger.warn('Memory monitoring is already running');
+      this.log('warn', 'Memory monitoring already started');
       return;
     }
 
     this.memoryMonitorInterval = setInterval(() => {
-      this.performMemoryCheck();
-    }, this.options.monitorInterval);
+      this.checkMemoryUsage(views);
+    }, this.options.memoryCheckInterval);
 
-    this.logger.info('Memory monitoring started', {
-      interval: this.options.monitorInterval
-    });
+    this.log('info', `Memory monitoring started (interval: ${this.options.memoryCheckInterval}ms)`);
   }
 
   /**
@@ -71,301 +184,98 @@ class ViewMemoryManager {
     if (this.memoryMonitorInterval) {
       clearInterval(this.memoryMonitorInterval);
       this.memoryMonitorInterval = null;
-      this.logger.info('Memory monitoring stopped');
+      this.log('info', 'Memory monitoring stopped');
     }
   }
 
   /**
-   * 执行内存检查
+   * 检查内存使用
+   * @param {Map} views - 视图映射
    */
-  async performMemoryCheck() {
+  checkMemoryUsage(views) {
     try {
-      const totalMemoryUsage = this.getTotalMemoryUsage();
-      
-      if (totalMemoryUsage > this.options.memoryWarningThreshold) {
-        this.logger.warn('High memory usage detected', {
-          totalMemoryUsage: `${totalMemoryUsage}MB`,
-          threshold: `${this.options.memoryWarningThreshold}MB`
-        });
-        
-        // 触发内存清理
-        await this.performMemoryCleanup();
-      }
-
-    } catch (error) {
-      this.logger.error('Failed to perform memory check', {
-        error: error.message
-      });
-    }
-  }
-
-  /**
-   * 记录视图内存使用
-   * @param {string} accountId - 账号ID
-   * @param {Object} viewState - 视图状态
-   * @param {number} memoryUsage - 内存使用量(MB)
-   */
-  recordMemoryUsage(accountId, viewState, memoryUsage) {
-    if (!accountId || !viewState) {
-      return;
-    }
-
-    this.memoryUsageCache.set(accountId, {
-      memoryUsage,
-      timestamp: Date.now(),
-      viewState
-    });
-
-    // 更新访问时间
-    this.updateViewAccessTime(accountId);
-  }
-
-  /**
-   * 更新视图访问时间
-   * @param {string} accountId - 账号ID
-   */
-  updateViewAccessTime(accountId) {
-    this.viewAccessTimes.set(accountId, Date.now());
-  }
-
-  /**
-   * 获取视图内存使用情况
-   * @param {string} accountId - 账号ID
-   * @returns {Object|null} 内存使用信息
-   */
-  getViewMemoryUsage(accountId) {
-    return this.memoryUsageCache.get(accountId) || null;
-  }
-
-  /**
-   * 获取总内存使用量
-   * @returns {number} 总内存使用量(MB)
-   */
-  getTotalMemoryUsage() {
-    let total = 0;
-    for (const usageInfo of this.memoryUsageCache.values()) {
-      total += usageInfo.memoryUsage || 0;
-    }
-    return total;
-  }
-
-  /**
-   * 获取视图内存使用统计
-   * @returns {Object} 内存统计信息
-   */
-  getMemoryStatistics() {
-    const viewStats = [];
-    let totalMemory = 0;
-    
-    for (const [accountId, usageInfo] of this.memoryUsageCache.entries()) {
-      const memoryUsage = usageInfo.memoryUsage || 0;
-      const accessTime = this.viewAccessTimes.get(accountId) || usageInfo.timestamp;
-      
-      viewStats.push({
-        accountId,
-        memoryUsage,
-        lastAccess: accessTime,
-        age: Date.now() - accessTime,
-        isActive: this._isViewActive(accountId)
-      });
-      
-      totalMemory += memoryUsage;
-    }
-
-    // 按内存使用量排序
-    viewStats.sort((a, b) => b.memoryUsage - a.memoryUsage);
-
-    return {
-      totalMemory,
-      viewCount: this.memoryUsageCache.size,
-      views: viewStats,
-      averageMemory: viewStats.length > 0 ? totalMemory / viewStats.length : 0,
-      memoryThreshold: this.options.memoryWarningThreshold,
-      maxMemoryPerView: this.options.maxMemoryPerView
-    };
-  }
-
-  /**
-   * 执行内存清理
-   */
-  async performMemoryCleanup() {
-    this.logger.info('Starting memory cleanup');
-    
-    let cleanedCount = 0;
-    let freedMemory = 0;
-    
-    // 清理过期的内存缓存条目
-    const expirationTime = Date.now() - (10 * 60 * 1000); // 10分钟
-    for (const [accountId, usageInfo] of this.memoryUsageCache.entries()) {
-      if (usageInfo.timestamp < expirationTime && !this._isViewActive(accountId)) {
-        this.memoryUsageCache.delete(accountId);
-        this.viewAccessTimes.delete(accountId);
-        cleanedCount++;
-        freedMemory += usageInfo.memoryUsage || 0;
-      }
-    }
-
-    // 垃圾回收提示（如果视图支持）
-    if (global.gc) {
-      global.gc();
-    }
-
-    this.logger.info('Memory cleanup completed', {
-      cleanedCount,
-      freedMemory: `${freedMemory}MB`
-    });
-
-    return {
-      cleanedCount,
-      freedMemory
-    };
-  }
-
-  /**
-   * 清理指定视图的内存信息
-   * @param {string} accountId - 账号ID
-   */
-  cleanupViewMemory(accountId) {
-    if (this.memoryUsageCache.has(accountId)) {
-      const usageInfo = this.memoryUsageCache.get(accountId);
-      this.memoryUsageCache.delete(accountId);
-      this.viewAccessTimes.delete(accountId);
-      
-      this.logger.debug('Cleaned up memory info for view', {
-        accountId,
-        freedMemory: usageInfo.memoryUsage
-      });
-    }
-  }
-
-  /**
-   * 检查视图是否处于活动状态
-   * @param {string} accountId - 账号ID
-   * @returns {boolean} 是否活动
-   */
-  _isViewActive(accountId) {
-    const accessTime = this.viewAccessTimes.get(accountId);
-    if (!accessTime) return false;
-    
-    // 5分钟内访问过的视图认为处于活动状态
-    return (Date.now() - accessTime) < (5 * 60 * 1000);
-  }
-
-  /**
-   * 获取内存警告的视图列表
-   * @returns {Array} 超过内存阈值的视图
-   */
-  getMemoryWarningViews() {
-    const warningViews = [];
-    
-    for (const [accountId, usageInfo] of this.memoryUsageCache.entries()) {
-      const memoryUsage = usageInfo.memoryUsage || 0;
-      
-      if (memoryUsage > this.options.memoryWarningThreshold) {
-        warningViews.push({
-          accountId,
-          memoryUsage,
-          threshold: this.options.memoryWarningThreshold,
-          excess: memoryUsage - this.options.memoryWarningThreshold
-        });
-      }
-    }
-
-    return warningViews.sort((a, b) => b.excess - a.excess);
-  }
-
-  /**
-   * 强制垃圾回收（如果支持）
-   */
-  forceGarbageCollection() {
-    if (global.gc) {
-      global.gc();
-      this.logger.info('Forced garbage collection performed');
-    } else {
-      this.logger.warn('Garbage collection not available (run with --expose-gc)');
-    }
-  }
-
-  /**
-   * 获取内存使用报告
-   * @returns {Object} 详细内存报告
-   */
-  getMemoryReport() {
-    const stats = this.getMemoryStatistics();
-    const warningViews = this.getMemoryWarningViews();
-    
-    return {
-      summary: {
-        totalMemory: `${stats.totalMemory}MB`,
-        viewCount: stats.viewCount,
-        averageMemory: `${stats.averageMemory.toFixed(2)}MB`,
-        isMonitoring: !!this.memoryMonitorInterval
-      },
-      thresholds: {
-        warning: `${this.options.memoryWarningThreshold}MB`,
-        maxPerView: `${this.options.maxMemoryPerView}MB`
-      },
-      warningViews,
-      recommendations: this._getMemoryRecommendations(stats, warningViews)
-    };
-  }
-
-  /**
-   * 获取内存优化建议
-   * @param {Object} stats - 内存统计
-   * @param {Array} warningViews - 警告视图
-   * @returns {Array} 建议列表
-   */
-  _getMemoryRecommendations(stats, warningViews) {
-    const recommendations = [];
-    
-    if (stats.totalMemory > this.options.memoryWarningThreshold * stats.viewCount) {
-      recommendations.push('Consider reducing the number of concurrent views');
-    }
-    
-    if (warningViews.length > 0) {
-      recommendations.push('Close or reload views with high memory usage');
-      recommendations.push('Enable aggressive memory cleanup mode');
-    }
-    
-    if (stats.averageMemory > this.options.memoryWarningThreshold / 2) {
-      recommendations.push('Monitor memory usage trends');
-    }
-    
-    return recommendations;
-  }
-
-  /**
-   * 创建日志记录器
-   * @returns {Object} 日志记录器
-   */
-  _createLogger() {
-    return {
-      debug: (message, data) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug(`[ViewMemoryManager] ${message}`, data || '');
+      for (const [accountId, viewState] of views) {
+        if (!viewState.view || viewState.view.webContents.isDestroyed()) {
+          continue;
         }
-      },
-      info: (message, data) => {
-        console.info(`[ViewMemoryManager] ${message}`, data || '');
-      },
-      warn: (message, data) => {
-        console.warn(`[ViewMemoryManager] ${message}`, data || '');
-      },
-      error: (message, data) => {
-        console.error(`[ViewMemoryManager] ${message}`, data || '');
+
+        const process = viewState.view.webContents.getOSProcessId();
+        if (!process) continue;
+
+        // 模拟内存检查（实际实现需要平台特定的代码）
+        const memoryUsage = this._estimateMemoryUsage(viewState);
+        
+        this.updateMemoryUsage(accountId, memoryUsage);
+
+        if (this.isMemoryWarning(accountId)) {
+          this.log('warn', `Memory warning for ${accountId}: ${memoryUsage}MB`);
+        }
+
+        if (this.isMemoryExceeded(accountId)) {
+          this.log('error', `Memory exceeded for ${accountId}: ${memoryUsage}MB`);
+          // 触发垃圾回收或清理
+          this._triggerCleanup(viewState);
+        }
       }
-    };
+    } catch (error) {
+      this.log('error', 'Failed to check memory usage:', error);
+    }
   }
 
   /**
-   * 销毁内存管理器
+   * 估算内存使用
+   * @private
    */
-  destroy() {
+  _estimateMemoryUsage(viewState) {
+    // 简化的内存估算
+    const baseMemory = 100;
+    const pageComplexity = viewState.loadCount || 1;
+    return baseMemory + (pageComplexity * 50);
+  }
+
+  /**
+   * 触发清理
+   * @private
+   */
+  _triggerCleanup(viewState) {
+    try {
+      if (viewState.view && !viewState.view.webContents.isDestroyed()) {
+        viewState.view.webContents.executeJavaScript('if (window.gc) window.gc(); true;').catch(() => {});
+      }
+    } catch (error) {
+      this.log('error', 'Failed to trigger cleanup:', error);
+    }
+  }
+
+  /**
+   * 获取内存统计
+   */
+  getMemoryStats() {
+    const stats = {
+      totalViews: this.viewAccessTimes.size,
+      memoryUsage: [],
+      viewPoolSize: this.viewPool.length
+    };
+
+    for (const [accountId, data] of this.memoryUsageCache) {
+      stats.memoryUsage.push({
+        accountId,
+        ...data
+      });
+    }
+
+    return stats;
+  }
+
+  /**
+   * 清理资源
+   */
+  cleanup() {
     this.stopMemoryMonitoring();
+    this.clearViewPool();
     this.memoryUsageCache.clear();
     this.viewAccessTimes.clear();
-    this.logger.info('ViewMemoryManager destroyed');
+    this.log('info', 'ViewMemoryManager cleaned up');
   }
 }
 

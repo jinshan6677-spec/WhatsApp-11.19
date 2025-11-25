@@ -1095,7 +1095,7 @@ TranslationIntegration 完全兼容现有的翻译系统：
 ### 初始化
 
 ```javascript
-const ErrorHandler = require('./managers/ErrorHandler');
+const { UnifiedErrorHandler } = require('../shared/utils/ErrorHandler');
 const InstanceManager = require('./managers/InstanceManager');
 const path = require('path');
 
@@ -1103,11 +1103,12 @@ const path = require('path');
 const instanceManager = new InstanceManager();
 
 // 创建错误处理器
-const errorHandler = new ErrorHandler(instanceManager, {
+const errorHandler = new UnifiedErrorHandler({
+  type: 'manager',
+  instanceManager: instanceManager,
   maxCrashCount: 3,           // 最大崩溃次数
   crashResetTime: 300000,     // 5 分钟内的崩溃计数
-  restartDelay: 5000,         // 重启延迟 5 秒
-  logPath: path.join(app.getPath('userData'), 'logs', 'errors.log')
+  restartDelay: 5000          // 重启延迟 5 秒
 });
 
 // 关联到实例管理器

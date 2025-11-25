@@ -28,7 +28,7 @@ if (majorVersion >= 18) {
 console.log('✓ 检查项目文件...');
 const requiredFiles = [
   'package.json',
-  'src/main.js',
+  'src/main-refactored.js',
   'src/config.js'
 ];
 

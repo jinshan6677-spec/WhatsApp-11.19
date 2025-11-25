@@ -1,219 +1,469 @@
 /**
- * 重构后的主入口文件
+ * WhatsApp Desktop - 重构版主入口
  * 
- * 使用新的架构和依赖注入机制
- * 提供清晰的应用启动流程和模块管理
+ * 使用新的架构：依赖注入 + 模块化设计
+ * 替代原有的 main.js，提供更清晰的应用启动流程
  */
 
 const { app } = require('electron');
-const { APP_INFO, EVENTS, ERROR_CODES } = require('./app/constants');
+const path = require('path');
+
+// 导入新的应用引导器
 const { initializeApp } = require('./app/bootstrap');
-const { getErrorHandler } = require('./shared/utils');
 
-// 全局应用实例
-let appInstance = null;
+// 导入IPC处理器
+const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandlers: unregisterSingleWindowIPCHandlers } = require('./single-window/ipcHandlers');
+const { registerIPCHandlers: registerTranslationIPCHandlers, unregisterIPCHandlers: unregisterTranslationIPCHandlers } = require('./translation/ipcHandlers');
+const { registerProxyIPCHandlers, unregisterProxyIPCHandlers } = require('./ipc/proxyIPCHandlers');
+
+// 导入迁移管理器
+const MigrationManager = require('./managers/MigrationManager');
+const MigrationDialog = require('./single-window/migration/MigrationDialog');
+
+// 导入自动清理工具
+const OrphanedDataCleaner = require('./utils/OrphanedDataCleaner');
+
+// 全局变量
+let appBootstrap = null;
+let migrationManager = null;
 
 /**
- * 主启动函数
+ * 确保所有账号都启用了翻译功能
  */
-async function main() {
+async function ensureTranslationEnabled(accountManager) {
   try {
-    // 验证运行环境
-    validateEnvironment();
-    
-    // 初始化应用
-    appInstance = await initializeApp();
-    
-    console.log(`${APP_INFO.NAME} v${APP_INFO.VERSION} started successfully`);
-    
+    const accounts = await accountManager.loadAccounts();
+    let updatedCount = 0;
+
+    for (const account of accounts) {
+      let needsUpdate = false;
+
+      if (!account.translation) {
+        account.translation = {
+          enabled: true,
+          targetLanguage: 'zh-CN',
+          engine: 'google',
+          apiKey: '',
+          autoTranslate: false,
+          translateInput: false,
+          friendSettings: {}
+        };
+        needsUpdate = true;
+      } else if (!account.translation.enabled) {
+        account.translation.enabled = true;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        await accountManager.saveAccount(account);
+        updatedCount++;
+        console.log(`[INFO] 已为账号 ${account.name} 启用翻译功能`);
+      }
+    }
+
+    if (updatedCount > 0) {
+      console.log(`[INFO] 已为 ${updatedCount} 个账号启用翻译功能`);
+    }
   } catch (error) {
-    console.error('Failed to start application:', error);
-    
-    // 错误处理
-    const errorHandler = getErrorHandler();
-    await errorHandler.handleInstanceError('main-process', error, {
-      operation: 'application-startup'
-    });
-    
-    // 退出应用
-    app.quit();
+    console.error('[ERROR] 检查翻译配置时出错:', error);
   }
 }
 
 /**
- * 验证运行环境
+ * 注册所有IPC处理器
  */
-function validateEnvironment() {
-  // 检查主进程
-  if (!app.isPackaged && !app.isDefaultProtocolClient) {
-    console.warn('Running in development mode');
+async function registerAllIPCHandlers() {
+  console.log('[INFO] 注册IPC处理器...');
+
+  try {
+    const accountManager = appBootstrap.getManager('accountConfigManager');
+    const viewManager = appBootstrap.getViewManager();
+    const mainWindow = appBootstrap.getMainWindow();
+    const translationIntegration = appBootstrap.getManager('translationIntegration');
+    const proxyConfigManager = appBootstrap.getManager('proxyConfigManager');
+    const proxyDetectionService = appBootstrap.getManager('proxyDetectionService');
+
+    // 注册单窗口架构IPC处理器
+    registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
+    console.log('[INFO] 单窗口IPC处理器注册完成');
+
+    // 注册翻译IPC处理器
+    await registerTranslationIPCHandlers();
+    console.log('[INFO] 翻译IPC处理器注册完成');
+
+    // 注册代理IPC处理器
+    registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService);
+    console.log('[INFO] 代理IPC处理器注册完成');
+
+    console.log('[INFO] 所有IPC处理器注册完成');
+  } catch (error) {
+    console.error('[ERROR] IPC处理器注册失败:', error);
+    throw error;
   }
-  
-  // 检查必要的事件循环
-  if (!app.eventNames().includes(EVENTS.APP.READY)) {
-    throw new Error('Electron event system not properly initialized');
-  }
-  
-  console.log('Environment validation passed');
 }
 
 /**
- * 设置应用事件处理
+ * 注销所有IPC处理器
  */
-function setupAppEvents() {
-  // 应用准备就绪
-  app.whenReady().then(async () => {
-    try {
-      console.log('Electron app is ready');
-      
-      // 显示应用（在AppBootstrap中处理）
-      
-    } catch (error) {
-      console.error('App ready handler failed:', error);
-      app.quit();
-    }
-  });
-  
-  // 所有窗口关闭
-  app.on('window-all-closed', () => {
-    console.log('All windows closed');
+function unregisterAllIPCHandlers() {
+  console.log('[INFO] 注销IPC处理器...');
+
+  try {
+    unregisterSingleWindowIPCHandlers();
+    console.log('[INFO] 单窗口IPC处理器已注销');
+  } catch (error) {
+    console.error('[ERROR] 注销单窗口IPC处理器时出错:', error);
+  }
+
+  try {
+    unregisterTranslationIPCHandlers();
+    console.log('[INFO] 翻译IPC处理器已注销');
+  } catch (error) {
+    console.error('[ERROR] 注销翻译IPC处理器时出错:', error);
+  }
+
+  try {
+    unregisterProxyIPCHandlers();
+    console.log('[INFO] 代理IPC处理器已注销');
+  } catch (error) {
+    console.error('[ERROR] 注销代理IPC处理器时出错:', error);
+  }
+
+  console.log('[INFO] 所有IPC处理器注销完成');
+}
+
+/**
+ * 加载账号列表并发送到渲染进程
+ */
+async function loadAndSendAccounts() {
+  try {
+    const accountManager = appBootstrap.getManager('accountConfigManager');
+    const mainWindow = appBootstrap.getMainWindow();
     
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
-  
-  // 应用激活（macOS）
-  app.on('activate', async () => {
-    console.log('App activated');
+    const accounts = await accountManager.loadAccounts();
     
-    if (appInstance && appInstance.getMainWindow()) {
-      const mainWindow = appInstance.getMainWindow();
-      if (mainWindow && mainWindow.isDestroyed()) {
-        // 重建主窗口
-        await mainWindow.rebuild();
-      } else if (mainWindow) {
-        mainWindow.show();
-      }
-    }
-  });
-  
-  // 应用退出前
-  app.on('before-quit', async (event) => {
-    console.log('Application quitting...');
+    // 发送账号列表到渲染进程
+    mainWindow.sendToRenderer('accounts-updated', accounts.map(acc => acc.toJSON()));
     
-    if (appInstance) {
+    console.log(`[INFO] 加载了 ${accounts.length} 个账号配置并发送到渲染进程`);
+  } catch (error) {
+    console.error('[ERROR] 加载账号列表失败:', error);
+    
+    // 发送空数组，避免UI显示错误
+    const mainWindow = appBootstrap.getMainWindow();
+    mainWindow.sendToRenderer('accounts-updated', []);
+  }
+}
+
+/**
+ * 自动启动配置的账号
+ */
+async function autoStartAccounts() {
+  console.log('[INFO] 检查自动启动配置...');
+
+  try {
+    const accountManager = appBootstrap.getManager('accountConfigManager');
+    const viewManager = appBootstrap.getViewManager();
+    
+    const accounts = await accountManager.loadAccounts();
+    const autoStartAccounts = accounts.filter(account => account.autoStart === true);
+    
+    if (autoStartAccounts.length === 0) {
+      console.log('[INFO] 没有配置自动启动的账号');
+      return { success: 0, failed: 0, errors: [] };
+    }
+
+    console.log(`[INFO] 找到 ${autoStartAccounts.length} 个自动启动账号`);
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const account of autoStartAccounts) {
       try {
-        // 阻止立即退出，给清理操作时间
-        event.preventDefault();
+        console.log(`[INFO] 自动启动账号: ${account.name} (${account.id})`);
         
-        // 执行清理操作
-        await appInstance.cleanup();
+        const result = await viewManager.openAccount(account.id, {
+          url: 'https://web.whatsapp.com',
+          proxy: account.proxy,
+          translation: account.translation
+        });
         
-        // 允许退出
-        app.quit();
-        
+        if (result.success) {
+          console.log(`[INFO] 账号 ${account.name} 启动成功`);
+          results.success++;
+          
+          await accountManager.updateAccount(account.id, {
+            lastActiveAt: new Date()
+          });
+        } else {
+          console.error(`[ERROR] 账号 ${account.name} 启动失败: ${result.error}`);
+          results.failed++;
+          results.errors.push({
+            accountId: account.id,
+            accountName: account.name,
+            error: result.error
+          });
+        }
       } catch (error) {
-        console.error('Cleanup failed:', error);
-        // 即使清理失败也允许退出
-        app.quit();
+        console.error(`[ERROR] 自动启动账号 ${account.name} 时出错:`, error);
+        results.failed++;
+        results.errors.push({
+          accountId: account.id,
+          accountName: account.name,
+          error: error.message
+        });
       }
     }
-  });
-  
-  // Web内容创建失败
-  app.on('web-contents-created', (event, contents) => {
-    contents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-      console.error('Web contents failed to load', {
-        errorCode,
-        errorDescription,
-        validatedURL
-      });
-    });
-  });
+
+    console.log(`[INFO] 自动启动完成: ${results.success} 成功, ${results.failed} 失败`);
+    
+    if (results.failed > 0) {
+      console.warn('[WARN] 部分账号启动失败:', results.errors);
+    }
+
+    return results;
+  } catch (error) {
+    console.error('[ERROR] 自动启动失败:', error);
+    throw error;
+  }
 }
 
 /**
- * 设置全局错误处理
+ * 执行遗留数据自动清理
  */
-function setupGlobalErrorHandlers() {
-  // 未捕获的异常
-  process.on('uncaughtException', async (error) => {
-    console.error('Uncaught Exception:', error);
-    
-    const errorHandler = getErrorHandler();
-    await errorHandler.handleInstanceError('uncaught-exception', error, {
-      type: 'uncaughtException',
-      stack: error.stack
+async function performOrphanedDataCleanup() {
+  try {
+    console.log('[INFO] 开始执行自动数据清理...');
+
+    const userDataPath = app.getPath('userData');
+    const cleaner = new OrphanedDataCleaner({
+      userDataPath,
+      logFunction: (level, message, ...args) => {
+        console.log(`[${level.toUpperCase()}] OrphanedDataCleaner: ${message}`, ...args);
+      }
     });
-  });
-  
-  // 未处理的Promise拒绝
-  process.on('unhandledRejection', async (reason, promise) => {
-    console.error('Unhandled Rejection:', reason);
+
+    const accountManager = appBootstrap.getManager('accountConfigManager');
+    const accounts = await accountManager.loadAccounts();
+    const accountIds = accounts.map(acc => acc.id);
+
+    console.log(`[INFO] 当前账号数量: ${accounts.length}`);
     
-    const errorHandler = getErrorHandler();
-    await errorHandler.handleInstanceError('unhandled-rejection', new Error(String(reason)), {
-      type: 'unhandledRejection',
-      promise: promise.toString()
-    });
-  });
-  
-  // 警告
-  process.on('warning', (warning) => {
-    console.warn('Process Warning:', warning.name, warning.message);
-  });
+    const cleanupResult = await cleaner.scanAndClean(accountIds);
+
+    if (cleanupResult.success) {
+      console.log(`[INFO] 自动清理完成: 清理了 ${cleanupResult.cleaned} 个遗留目录`);
+      if (cleanupResult.details.totalSizeFreed > 0) {
+        console.log(`[INFO] 释放磁盘空间: ${cleanupResult.details.totalSizeFreed} 字节`);
+      }
+      
+      // 向用户报告清理结果
+      const mainWindow = appBootstrap.getMainWindow();
+      if (cleanupResult.cleaned > 0 && mainWindow && mainWindow.isReady()) {
+        mainWindow.sendToRenderer('cleanup-completed', {
+          cleaned: cleanupResult.cleaned,
+          totalSizeFreed: cleanupResult.details.totalSizeFreed,
+          message: `自动清理完成: 清理了 ${cleanupResult.cleaned} 个遗留目录，释放了 ${Math.round(cleanupResult.details.totalSizeFreed / 1024)} KB 磁盘空间`
+        });
+      }
+    } else {
+      console.warn(`[WARN] 自动清理完成但有错误: ${cleanupResult.errors.join(', ')}`);
+    }
+  } catch (error) {
+    console.error('[ERROR] 自动数据清理失败:', error);
+  }
 }
 
 /**
- * 应用单例检查
+ * 应用程序就绪事件
  */
-function enforceAppSingleInstance() {
-  const gotTheLock = app.requestSingleInstanceLock();
-  
-  if (!gotTheLock) {
-    console.log('Another instance is already running, quitting...');
+app.whenReady().then(async () => {
+  console.log('[INFO] ========================================');
+  console.log('[INFO] WhatsApp Desktop - Refactored Architecture');
+  console.log(`[INFO] 版本: ${app.getVersion()}`);
+  console.log(`[INFO] Node.js: ${process.versions.node}`);
+  console.log(`[INFO] Electron: ${process.versions.electron}`);
+  console.log(`[INFO] Chromium: ${process.versions.chrome}`);
+  console.log(`[INFO] 平台: ${process.platform}`);
+  console.log(`[INFO] 环境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`[INFO] 用户数据路径: ${app.getPath('userData')}`);
+  console.log('[INFO] ========================================');
+
+  try {
+    // 1. 初始化应用（使用新的引导器）
+    appBootstrap = await initializeApp();
+    console.log('[INFO] 应用初始化完成');
+
+    // 4. 确保所有账号启用翻译
+    await appBootstrap.ensureTranslationEnabled();
+
+    // 5. 执行自动数据清理
+    await appBootstrap.performOrphanedDataCleanup();
+
+    // 6. 注册IPC处理器
+    await registerAllIPCHandlers();
+
+    // 7. 加载并发送账号列表
+    await loadAndSendAccounts();
+
+    // 8. 手动账户控制 - 延迟执行自动启动
+    console.log('[INFO] 手动账户控制模式：等待用户手动打开账号');
+    console.log('[INFO] 提示：如果某些账号配置了"自动启动"，将在 1 秒后自动打开');
+    
+    setTimeout(async () => {
+      await autoStartAccounts();
+    }, 1000);
+
+    console.log('[INFO] 应用启动完成');
+
+  } catch (error) {
+    console.error('[ERROR] 应用启动失败:', error);
+    console.error('[ERROR] 错误堆栈:', error.stack);
     app.quit();
-  } else {
-    app.on('second-instance', (event, argv, cwd) => {
-      // 有人运行了第二个实例，应该聚焦到主窗口
-      if (appInstance && appInstance.getMainWindow()) {
-        const mainWindow = appInstance.getMainWindow();
-        if (mainWindow.isMinimized()) {
-          mainWindow.restore();
-        }
+  }
+
+  // macOS特定：点击dock图标时显示主窗口
+  app.on('activate', () => {
+    if (appBootstrap) {
+      const mainWindow = appBootstrap.getMainWindow();
+      if (mainWindow) {
         mainWindow.focus();
       }
+    }
+  });
+});
+
+/**
+ * 所有窗口关闭事件
+ */
+app.on('window-all-closed', async () => {
+  console.log('[INFO] 所有窗口已关闭');
+
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+/**
+ * 应用退出前事件
+ */
+app.on('before-quit', async (event) => {
+  console.log('[INFO] 应用即将退出');
+
+  // 防止重复清理
+  if (app.isQuitting) {
+    console.log('[INFO] 清理已完成，允许退出');
+    return;
+  }
+
+  // 标记正在退出
+  app.isQuitting = true;
+
+  try {
+    // 1. 取消窗口关闭事件，防止重复触发
+    event.preventDefault();
+    
+    // 2. 注销IPC处理器
+    unregisterAllIPCHandlers();
+    
+    // 3. 使用bootstrap清理资源
+    if (appBootstrap) {
+      await appBootstrap.cleanup();
+    }
+    
+    console.log('[INFO] 退出前清理完成');
+    
+    // 4. 允许应用退出
+    app.quit();
+    
+  } catch (error) {
+    console.error('[ERROR] 退出前清理失败:', error);
+    
+    // 即使清理失败也允许退出
+    app.quit();
+  }
+});
+
+/**
+ * 应用即将退出事件
+ */
+app.on('will-quit', () => {
+  console.log('[INFO] 应用正在退出');
+  console.log('[INFO] 应用退出完成');
+});
+
+// 未捕获的异常处理
+process.on('uncaughtException', (error) => {
+  console.error('[ERROR] 未捕获的异常:', error);
+  console.error('[ERROR] 错误堆栈:', error.stack);
+  
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[ERROR] 未处理的Promise拒绝:', reason);
+  if (reason instanceof Error) {
+    console.error('[ERROR] 错误堆栈:', reason.stack);
+  }
+});
+
+/**
+ * 发送账号错误到渲染进程
+ * @param {string} accountId - 账号ID
+ * @param {string} errorMessage - 错误消息
+ * @param {string} category - 错误类别
+ * @param {string} [severity='error'] - 错误严重程度
+ */
+function sendAccountError(accountId, errorMessage, category, severity = 'error') {
+  if (appBootstrap && appBootstrap.getMainWindow() && appBootstrap.getMainWindow().isReady()) {
+    appBootstrap.getMainWindow().sendToRenderer('account-error', {
+      accountId,
+      error: errorMessage,
+      category,
+      severity,
+      timestamp: Date.now()
     });
   }
 }
 
-// 初始化应用
-function initialize() {
-  console.log(`Starting ${APP_INFO.NAME}...`);
-  
-  // 设置单例检查
-  enforceAppSingleInstance();
-  
-  // 设置全局错误处理
-  setupGlobalErrorHandlers();
-  
-  // 设置应用事件
-  setupAppEvents();
-  
-  // 启动主函数
-  main();
+/**
+ * 发送全局错误到渲染进程
+ * @param {string} errorMessage - 错误消息
+ * @param {string} category - 错误类别
+ * @param {string} [level='error'] - 错误级别
+ */
+function sendGlobalError(errorMessage, category, level = 'error') {
+  if (appBootstrap && appBootstrap.getMainWindow() && appBootstrap.getMainWindow().isReady()) {
+    appBootstrap.getMainWindow().sendToRenderer('global-error', {
+      error: errorMessage,
+      category,
+      level,
+      timestamp: Date.now()
+    });
+  }
 }
 
-// 只有在主进程中运行
-if (!app.isPackaged && process.type === 'browser') {
-  initialize();
-} else if (app.isPackaged) {
-  initialize();
+/**
+ * 清除错误
+ * @param {string} [accountId] - 账号ID（如果特定于账号）
+ */
+function clearError(accountId = null) {
+  if (appBootstrap && appBootstrap.getMainWindow() && appBootstrap.getMainWindow().isReady()) {
+    appBootstrap.getMainWindow().sendToRenderer('error-cleared', {
+      accountId,
+      timestamp: Date.now()
+    });
+  }
 }
 
-// 导出应用实例（用于测试）
+// 导出错误通知函数供其他模块使用
 module.exports = {
-  getAppInstance: () => appInstance,
-  initialize
+  sendAccountError,
+  sendGlobalError,
+  clearError
 };

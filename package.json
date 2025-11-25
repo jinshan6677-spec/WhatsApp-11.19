@@ -2,7 +2,7 @@
   "name": "whatsapp-desktop-translation",
   "version": "1.0.0",
   "description": "WhatsApp Desktop application with comprehensive translation support",
-  "main": "src/main.js",
+  "main": "src/main-refactored.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --inspect",

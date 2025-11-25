@@ -40,7 +40,7 @@ function log(type, message) {
  * Read main.js file
  */
 function readMainFile() {
-  const mainPath = path.join(__dirname, '..', 'src', 'main.js');
+  const mainPath = path.join(__dirname, '..', 'src', 'main-refactored.js');
   
   if (!fs.existsSync(mainPath)) {
     log('fail', 'main.js file not found');

@@ -110,7 +110,7 @@ try {
     // 检查主进程中的重连逻辑
     log('\n3. 检查重连逻辑实现...', 'blue');
     
-    const mainPath = path.join(__dirname, '..', 'src', 'main.js');
+    const mainPath = path.join(__dirname, '..', 'src', 'main-refactored.js');
     
     if (fs.existsSync(mainPath)) {
       const mainContent = fs.readFileSync(mainPath, 'utf-8');

@@ -6,7 +6,7 @@
  */
 
 // 引入工具类
-const ErrorHandler = require('./ErrorHandler');
+const { UnifiedErrorHandler, getErrorHandler, createErrorHandler } = require('./ErrorHandler');
 const ErrorLogger = require('../../utils/ErrorLogger');
 const OrphanedDataCleaner = require('../../utils/OrphanedDataCleaner');
 const PasswordEncryption = require('../../utils/PasswordEncryption');
@@ -36,8 +36,8 @@ module.exports = {
   
   // 便捷方法
   getErrorLogger: () => ErrorLogger.getErrorLogger(),
-  getErrorHandler: () => getErrorHandler(),
-  createErrorHandler: (options) => new UnifiedErrorHandler(options),
+  getErrorHandler,
+  createErrorHandler,
   createOrphanedDataCleaner: () => new OrphanedDataCleaner(),
   createRecoveryManager: () => new RecoveryManager(),
   createSmartFillParser: () => new SmartFillParser(),

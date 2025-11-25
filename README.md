@@ -1,4 +1,4 @@
-# WhatsApp Desktop Container
+# WhatsApp Desktop Application
 
 <div align="center">
 

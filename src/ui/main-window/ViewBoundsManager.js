@@ -1,25 +1,13 @@
 /**
- * 视图边界管理器
+ * ViewBoundsManager - 边界计算和管理
  * 
- * 专门负责BrowserView的边界计算和管理
- * 处理窗口大小变化、侧边栏宽度变化等场景下的视图边界更新
+ * 负责计算和管理BrowserView的边界，处理窗口大小变化
  */
 
-const { APP_INFO, WINDOW_CONFIG } = require('../../app/constants');
-
-/**
- * 视图边界管理器类
- */
 class ViewBoundsManager {
-  /**
-   * 创建边界管理器
-   * @param {Object} options - 配置选项
-   * @param {number} options.defaultSidebarWidth - 默认侧边栏宽度
-   * @param {number} options.debounceDelay - 防抖延迟
-   */
-  constructor(options = {}) {
+  constructor(mainWindow, options = {}) {
+    this.mainWindow = mainWindow;
     this.options = {
-      defaultSidebarWidth: options.defaultSidebarWidth || WINDOW_CONFIG.SIDEBAR_WIDTH,
       debounceDelay: options.debounceDelay || 100,
       ...options
     };
@@ -27,6 +15,7 @@ class ViewBoundsManager {
     // 边界缓存
     this.boundsCache = {
       lastSidebarWidth: null,
+      lastTranslationPanelWidth: null,
       lastWindowBounds: null,
       cachedBounds: null,
       cacheTimestamp: null
@@ -35,280 +24,165 @@ class ViewBoundsManager {
     // 防抖定时器
     this.resizeDebounceTimer = null;
 
-    // 日志记录器
-    this.logger = this._createLogger();
+    // 日志函数
+    this.log = this._createLogger();
   }
 
-  /**
-   * 计算BrowserView的边界
-   * @param {Object} windowBounds - 窗口边界
-   * @param {number} sidebarWidth - 侧边栏宽度
-   * @returns {Object} 视图边界
-   */
-  calculateViewBounds(windowBounds, sidebarWidth) {
-    if (!windowBounds) {
-      throw new Error('Window bounds are required');
-    }
-
-    const { width, height } = windowBounds;
-    
-    // 计算主内容区域边界（排除侧边栏）
-    const viewBounds = {
-      x: sidebarWidth,
-      y: 0,
-      width: Math.max(0, width - sidebarWidth),
-      height: height
+  _createLogger() {
+    return (level, message, ...args) => {
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] [ViewBoundsManager] [${level.toUpperCase()}] ${message}`;
+      
+      if (level === 'error') {
+        console.error(logMessage, ...args);
+      } else if (level === 'warn') {
+        console.warn(logMessage, ...args);
+      } else {
+        console.log(logMessage, ...args);
+      }
     };
-
-    // 验证边界值
-    if (viewBounds.width < 0 || viewBounds.height < 0) {
-      this.logger.warn('Invalid view bounds calculated', {
-        windowBounds,
-        sidebarWidth,
-        viewBounds
-      });
-    }
-
-    return viewBounds;
   }
 
   /**
-   * 获取缓存的边界（如果有效）
-   * @param {Object} windowBounds - 当前窗口边界
-   * @param {number} sidebarWidth - 当前侧边栏宽度
-   * @returns {Object|null} 缓存的边界或null
+   * 计算视图边界
+   * @param {number} sidebarWidth - 侧边栏宽度
+   * @param {boolean} forceRecalculate - 强制重新计算
+   * @returns {Object} 边界对象 {x, y, width, height}
    */
-  getCachedBounds(windowBounds, sidebarWidth) {
-    const { cachedBounds, lastWindowBounds, lastSidebarWidth, cacheTimestamp } = this.boundsCache;
-    
-    // 检查缓存是否仍然有效
-    if (
-      cachedBounds &&
-      lastWindowBounds &&
-      lastSidebarWidth !== null &&
-      this._isWindowBoundsEqual(windowBounds, lastWindowBounds) &&
-      sidebarWidth === lastSidebarWidth
-    ) {
-      const cacheAge = Date.now() - cacheTimestamp;
-      // 缓存5秒内认为有效
-      if (cacheAge < 5000) {
-        return cachedBounds;
+  calculateBounds(sidebarWidth, forceRecalculate = false) {
+    const window = this.mainWindow.getWindow();
+    if (!window || window.isDestroyed()) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+
+    const windowBounds = window.getContentBounds();
+    const sidebar = sidebarWidth || this.mainWindow.getSidebarWidth();
+    const translationWidth = this.mainWindow.getTranslationPanelWidth();
+
+    // 检查是否可以使用缓存
+    if (!forceRecalculate && this.boundsCache.cachedBounds) {
+      const cacheAge = Date.now() - (this.boundsCache.cacheTimestamp || 0);
+      const isCacheValid = 
+        this.boundsCache.lastSidebarWidth === sidebar &&
+        this.boundsCache.lastTranslationPanelWidth === translationWidth &&
+        this.boundsCache.lastWindowBounds &&
+        this.boundsCache.lastWindowBounds.width === windowBounds.width &&
+        this.boundsCache.lastWindowBounds.height === windowBounds.height &&
+        cacheAge < 1000;
+
+      if (isCacheValid) {
+        this.log('debug', 'Using cached bounds');
+        return { ...this.boundsCache.cachedBounds };
       }
     }
 
-    return null;
-  }
+    // 计算新边界
+    const bounds = {
+      x: sidebar,
+      y: 0,
+      width: Math.max(0, windowBounds.width - sidebar - translationWidth),
+      height: windowBounds.height
+    };
 
-  /**
-   * 更新边界缓存
-   * @param {Object} windowBounds - 窗口边界
-   * @param {number} sidebarWidth - 侧边栏宽度
-   * @param {Object} viewBounds - 计算出的视图边界
-   */
-  updateBoundsCache(windowBounds, sidebarWidth, viewBounds) {
+    // 更新缓存
     this.boundsCache = {
-      lastSidebarWidth: sidebarWidth,
+      lastSidebarWidth: sidebar,
+      lastTranslationPanelWidth: translationWidth,
       lastWindowBounds: { ...windowBounds },
-      cachedBounds: { ...viewBounds },
+      cachedBounds: { ...bounds },
       cacheTimestamp: Date.now()
     };
+
+    this.log('debug', 'Calculated and cached new bounds');
+    return bounds;
   }
 
   /**
-   * 处理窗口大小变化
-   * @param {Object} windowBounds - 新的窗口边界
-   * @param {number} sidebarWidth - 当前侧边栏宽度
-   * @param {Function} callback - 边界变化回调
+   * 调整所有视图的大小
+   * @param {Map} views - 视图映射
+   * @param {number} sidebarWidth - 侧边栏宽度
+   * @param {Object} options - 选项
    */
-  handleWindowResize(windowBounds, sidebarWidth, callback) {
-    // 清除之前的防抖定时器
+  resizeViews(views, sidebarWidth, options = {}) {
+    // 清除现有的防抖定时器
     if (this.resizeDebounceTimer) {
       clearTimeout(this.resizeDebounceTimer);
+      this.resizeDebounceTimer = null;
     }
 
-    // 设置新的防抖定时器
+    // 如果请求立即调整大小，立即执行
+    if (options.immediate) {
+      this.performResize(views, sidebarWidth);
+      return;
+    }
+
+    // 否则，防抖调整大小操作
     this.resizeDebounceTimer = setTimeout(() => {
+      this.performResize(views, sidebarWidth);
       this.resizeDebounceTimer = null;
-      
-      try {
-        // 尝试从缓存获取
-        let viewBounds = this.getCachedBounds(windowBounds, sidebarWidth);
-        
-        if (!viewBounds) {
-          // 计算新的边界
-          viewBounds = this.calculateViewBounds(windowBounds, sidebarWidth);
-          this.updateBoundsCache(windowBounds, sidebarWidth, viewBounds);
-        }
-
-        this.logger.debug('Window resize handled', {
-          windowBounds,
-          sidebarWidth,
-          viewBounds,
-          fromCache: !!viewBounds && this.boundsCache.cachedBounds === viewBounds
-        });
-
-        // 执行回调
-        if (callback && typeof callback === 'function') {
-          callback(viewBounds);
-        }
-
-      } catch (error) {
-        this.logger.error('Failed to handle window resize', {
-          error: error.message,
-          windowBounds,
-          sidebarWidth
-        });
-      }
     }, this.options.debounceDelay);
   }
 
   /**
-   * 处理侧边栏宽度变化
-   * @param {number} newSidebarWidth - 新的侧边栏宽度
-   * @param {Object} windowBounds - 当前窗口边界
-   * @param {Function} callback - 边界变化回调
-   */
-  handleSidebarResize(newSidebarWidth, windowBounds, callback) {
-    // 验证侧边栏宽度
-    const validatedWidth = this._validateSidebarWidth(newSidebarWidth);
-    
-    if (validatedWidth !== newSidebarWidth) {
-      this.logger.warn('Sidebar width adjusted to valid range', {
-        originalWidth: newSidebarWidth,
-        adjustedWidth: validatedWidth
-      });
-    }
-
-    this.handleWindowResize(windowBounds, validatedWidth, callback);
-  }
-
-  /**
-   * 为所有视图更新边界
-   * @param {Map} views - 视图Map
-   * @param {Object} windowBounds - 窗口边界
+   * 执行实际的调整大小操作
+   * @param {Map} views - 视图映射
    * @param {number} sidebarWidth - 侧边栏宽度
    */
-  updateAllViewBounds(views, windowBounds, sidebarWidth) {
-    const viewBounds = this.getCachedBounds(windowBounds, sidebarWidth) ||
-                      this.calculateViewBounds(windowBounds, sidebarWidth);
-    
-    // 更新缓存
-    this.updateBoundsCache(windowBounds, sidebarWidth, viewBounds);
+  performResize(views, sidebarWidth) {
+    try {
+      this.log('info', `Resizing views for sidebar width: ${sidebarWidth}`);
 
-    // 应用到所有视图
-    let updatedCount = 0;
-    for (const [accountId, viewState] of views.entries()) {
-      if (viewState.browserView && !viewState.browserView.isDestroyed()) {
-        try {
-          viewState.browserView.setBounds(viewBounds);
-          updatedCount++;
-        } catch (error) {
-          this.logger.warn(`Failed to update bounds for view ${accountId}`, {
-            error: error.message
-          });
+      const bounds = this.calculateBounds(sidebarWidth);
+
+      // 更新所有视图的边界
+      for (const [accountId, viewState] of views) {
+        viewState.bounds = bounds;
+        
+        // 更新所有视图，不只是可见的
+        if (viewState.view && !viewState.view.webContents.isDestroyed()) {
+          viewState.view.setBounds(bounds);
         }
       }
+
+      this.log('info', `Views resized to bounds: ${JSON.stringify(bounds)}`);
+    } catch (error) {
+      this.log('error', 'Failed to resize views:', error);
     }
-
-    this.logger.info('Updated bounds for all views', {
-      totalViews: views.size,
-      updatedCount,
-      viewBounds
-    });
-
-    return updatedCount;
   }
 
   /**
-   * 验证侧边栏宽度是否在有效范围内
-   * @param {number} sidebarWidth - 侧边栏宽度
-   * @returns {number} 验证后的宽度
+   * 处理窗口大小变化
+   * @param {Map} views - 视图映射
+   * @param {Object} options - 选项
    */
-  _validateSidebarWidth(sidebarWidth) {
-    const minWidth = WINDOW_CONFIG.SIDEBAR_MIN_WIDTH || 200;
-    const maxWidth = WINDOW_CONFIG.SIDEBAR_MAX_WIDTH || 400;
-    
-    return Math.max(minWidth, Math.min(maxWidth, sidebarWidth));
-  }
-
-  /**
-   * 检查窗口边界是否相等
-   * @param {Object} bounds1 - 边界1
-   * @param {Object} bounds2 - 边界2
-   * @returns {boolean} 是否相等
-   */
-  _isWindowBoundsEqual(bounds1, bounds2) {
-    if (!bounds1 || !bounds2) return false;
-    
-    return (
-      bounds1.x === bounds2.x &&
-      bounds1.y === bounds2.y &&
-      bounds1.width === bounds2.width &&
-      bounds1.height === bounds2.height
-    );
-  }
-
-  /**
-   * 创建日志记录器
-   * @returns {Object} 日志记录器
-   */
-  _createLogger() {
-    return {
-      debug: (message, data) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug(`[ViewBoundsManager] ${message}`, data || '');
-        }
-      },
-      info: (message, data) => {
-        console.info(`[ViewBoundsManager] ${message}`, data || '');
-      },
-      warn: (message, data) => {
-        console.warn(`[ViewBoundsManager] ${message}`, data || '');
-      },
-      error: (message, data) => {
-        console.error(`[ViewBoundsManager] ${message}`, data || '');
+  handleWindowResize(views, options = {}) {
+    try {
+      const window = this.mainWindow.getWindow();
+      if (!window || window.isDestroyed()) {
+        return;
       }
-    };
+
+      // 获取当前侧边栏宽度
+      const sidebarWidth = this.mainWindow.getSidebarWidth();
+
+      // 调整所有视图的大小
+      this.resizeViews(views, sidebarWidth, options);
+
+      this.log('debug', 'Window resize handled');
+    } catch (error) {
+      this.log('error', 'Failed to handle window resize:', error);
+    }
   }
 
   /**
-   * 获取边界缓存状态
-   * @returns {Object} 缓存状态
+   * 清理资源
    */
-  getCacheStatus() {
-    return {
-      ...this.boundsCache,
-      isValid: this.boundsCache.cachedBounds !== null,
-      cacheAge: this.boundsCache.cacheTimestamp ? 
-        Date.now() - this.boundsCache.cacheTimestamp : null
-    };
-  }
-
-  /**
-   * 清除边界缓存
-   */
-  clearBoundsCache() {
-    this.boundsCache = {
-      lastSidebarWidth: null,
-      lastWindowBounds: null,
-      cachedBounds: null,
-      cacheTimestamp: null
-    };
-    
-    this.logger.debug('Bounds cache cleared');
-  }
-
-  /**
-   * 销毁边界管理器
-   */
-  destroy() {
+  cleanup() {
     if (this.resizeDebounceTimer) {
       clearTimeout(this.resizeDebounceTimer);
       this.resizeDebounceTimer = null;
     }
-    
-    this.clearBoundsCache();
-    this.logger.info('ViewBoundsManager destroyed');
+    this.log('info', 'ViewBoundsManager cleaned up');
   }
 }
 
