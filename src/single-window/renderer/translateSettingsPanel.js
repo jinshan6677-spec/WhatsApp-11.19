@@ -1125,6 +1125,56 @@
       }
     }
 
+    async saveCurrentFriendConfig() {
+      console.log('[TranslateSettingsPanel] Saving current friend config');
+      
+      try {
+        // Get current contact info
+        const chatInfo = await this.getActiveChatInfo();
+        const contactId = chatInfo.contactId;
+        
+        if (!contactId) {
+          console.warn('[TranslateSettingsPanel] No contact ID, cannot save friend config');
+          return;
+        }
+        
+        // Get friend config values
+        const enabled = this.panel.querySelector('#currentFriendEnabled')?.checked || false;
+        const targetLang = this.panel.querySelector('#friendTargetLang')?.value || 'en';
+        const blockChinese = this.panel.querySelector('#friendBlockChinese')?.checked || false;
+        
+        console.log('[TranslateSettingsPanel] Friend config for', contactId, ':', {
+          enabled,
+          targetLang,
+          blockChinese
+        });
+        
+        // Update config
+        if (!this.config.friendConfigs) {
+          this.config.friendConfigs = {};
+        }
+        
+        if (enabled) {
+          // Save friend config
+          this.config.friendConfigs[contactId] = {
+            enabled: true,
+            targetLang: targetLang,
+            blockChinese: blockChinese
+          };
+        } else {
+          // Remove friend config if disabled
+          delete this.config.friendConfigs[contactId];
+        }
+        
+        // Save to storage
+        await this.saveSettings();
+        
+        console.log('[TranslateSettingsPanel] ✓ Friend config saved successfully');
+      } catch (error) {
+        console.error('[TranslateSettingsPanel] Error saving friend config:', error);
+      }
+    }
+
     showFriendConfigManager() {
       const friendConfigs = this.config.friendConfigs || {};
       const configCount = Object.keys(friendConfigs).length;

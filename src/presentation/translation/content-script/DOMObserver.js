@@ -10,6 +10,8 @@ class DOMObserver {
     this.inputBoxTranslator = inputBoxTranslator;
     this.messageObserver = null;
     this.chatSwitchObserver = null;
+    this.chatSwitchInterval = null;
+    this.headerObserver = null;
     this._chineseBlockInitialized = false;
     this.chineseBlockHandler = null;
     this.chineseBlockKeypressHandler = null;
@@ -88,80 +90,70 @@ class DOMObserver {
   observeChatSwitch() {
     console.log('[Translation] Setting up chat switch observer');
 
-    // Listen for URL changes (WhatsApp Web uses hash routing)
-    let lastUrl = location.href;
-    let urlChangeTimer = null;
+    let lastContactId = this.core.getCurrentContactId();
+    let reinitTimer = null;
 
-    const urlObserver = new MutationObserver(() => {
-      const currentUrl = location.href;
-      if (currentUrl !== lastUrl) {
-        lastUrl = currentUrl;
-        console.log('[Translation] Chat switched, re-translating messages');
+    // Method 1: Monitor contact ID changes by polling
+    const checkContactChange = () => {
+      const currentContactId = this.core.getCurrentContactId();
+      
+      if (currentContactId && currentContactId !== lastContactId) {
+        console.log('[Translation] 🔄 Chat switched detected!');
+        console.log('[Translation] From:', lastContactId, '→ To:', currentContactId);
+        lastContactId = currentContactId;
 
         // Clear previous timer
-        if (urlChangeTimer) {
-          clearTimeout(urlChangeTimer);
+        if (reinitTimer) {
+          clearTimeout(reinitTimer);
         }
 
-        // Delay a bit, wait for new chat to load
-        urlChangeTimer = setTimeout(() => {
+        // Reinitialize after a short delay
+        reinitTimer = setTimeout(() => {
+          console.log('[Translation] Reinitializing translation for new chat...');
+          
+          // Translate messages in new chat
           this.messageTranslator.translateExistingMessages();
 
-          // Reset initialization flags, allow re-initialization
+          // Reset initialization flags
           this._chineseBlockInitialized = false;
           this.inputBoxTranslator._realtimeInitialized = false;
 
-          this.inputBoxTranslator.initInputBoxTranslation(); // Re-setup input box
-          this.setupChineseBlock(); // Re-setup Chinese block
-        }, 500);
+          // Re-setup input box and realtime translation
+          this.inputBoxTranslator.initInputBoxTranslation();
+          this.setupChineseBlock();
+          
+          console.log('[Translation] ✅ Reinitialization complete');
+        }, 300);
       }
-    });
+    };
 
-    // Observe document.body changes
-    urlObserver.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
+    // Poll every 500ms to check for contact changes
+    this.chatSwitchInterval = setInterval(checkContactChange, 500);
+    console.log('[Translation] Chat switch polling started (every 500ms)');
 
-    // Also listen for #main container changes
-    const mainContainer = document.querySelector('#main');
-    if (mainContainer) {
-      let chatChangeTimer = null;
+    // Method 2: Also observe header changes as backup
+    const observeHeader = () => {
+      const header = document.querySelector('#main header');
+      if (header) {
+        const headerObserver = new MutationObserver(() => {
+          checkContactChange();
+        });
 
-      const chatObserver = new MutationObserver((mutations) => {
-        // Clear previous timer
-        if (chatChangeTimer) {
-          clearTimeout(chatChangeTimer);
-        }
+        headerObserver.observe(header, {
+          childList: true,
+          subtree: true,
+          characterData: true
+        });
 
-        // 500ms debounce
-        chatChangeTimer = setTimeout(() => {
-          // Check if there's significant DOM change (possibly chat switch)
-          const hasSignificantChange = mutations.some(m =>
-            m.addedNodes.length > 5 || m.removedNodes.length > 5
-          );
+        this.headerObserver = headerObserver;
+        console.log('[Translation] Header observer set up');
+      } else {
+        // Retry if header not found
+        setTimeout(observeHeader, 1000);
+      }
+    };
 
-          if (hasSignificantChange) {
-            console.log('[Translation] Significant DOM change detected');
-            setTimeout(() => {
-              this.messageTranslator.translateExistingMessages();
-
-              // Reset initialization flags
-              this._chineseBlockInitialized = false;
-              this.inputBoxTranslator._realtimeInitialized = false;
-
-              this.inputBoxTranslator.initInputBoxTranslation();
-              this.setupChineseBlock();
-            }, 300);
-          }
-        }, 500);
-      });
-
-      chatObserver.observe(mainContainer, {
-        childList: true,
-        subtree: false // Only observe direct children
-      });
-    }
+    observeHeader();
   }
 
   /**
@@ -380,6 +372,16 @@ class DOMObserver {
     if (this.chatSwitchObserver) {
       this.chatSwitchObserver.disconnect();
       this.chatSwitchObserver = null;
+    }
+
+    if (this.chatSwitchInterval) {
+      clearInterval(this.chatSwitchInterval);
+      this.chatSwitchInterval = null;
+    }
+
+    if (this.headerObserver) {
+      this.headerObserver.disconnect();
+      this.headerObserver = null;
     }
 
     this.cleanupChineseBlock();

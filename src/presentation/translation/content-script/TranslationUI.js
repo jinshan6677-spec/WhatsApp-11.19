@@ -241,22 +241,43 @@ class TranslationUI {
    * Create realtime preview element
    */
   createRealtimePreview() {
-    // Check if already exists
-    if (document.querySelector('.wa-realtime-preview')) {
-      return;
-    }
+    console.log('[Translation] Creating realtime preview element');
+    
+    // ALWAYS remove ALL existing preview elements first
+    const allPreviews = document.querySelectorAll('.wa-realtime-preview');
+    allPreviews.forEach(preview => {
+      console.log('[Translation] Removing existing preview element');
+      preview.remove();
+    });
 
-    // Find input box container
-    const footer = document.querySelector('#main footer') ||
-      document.querySelector('[data-testid="conversation-compose-box"]') ||
-      document.querySelector('footer');
+    // Find the CURRENT active input box container
+    // Use multiple strategies to find the correct footer
+    let footer = null;
+    
+    // Strategy 1: Find footer that contains an active input box
+    const footers = document.querySelectorAll('footer, [data-testid="conversation-compose-box"]');
+    for (const f of footers) {
+      const inputBox = f.querySelector('[contenteditable="true"]');
+      if (inputBox && inputBox.isContentEditable) {
+        footer = f;
+        console.log('[Translation] Found footer with active input box');
+        break;
+      }
+    }
+    
+    // Strategy 2: Fallback to standard selectors
+    if (!footer) {
+      footer = document.querySelector('#main footer') ||
+        document.querySelector('[data-testid="conversation-compose-box"]') ||
+        document.querySelector('footer');
+    }
 
     if (!footer) {
       console.warn('[Translation] Footer not found for realtime preview');
       return;
     }
 
-    // Create preview element
+    // Create NEW preview element
     const preview = document.createElement('div');
     preview.className = 'wa-realtime-preview';
     preview.style.display = 'none';
@@ -271,19 +292,32 @@ class TranslationUI {
     // Insert above input box
     footer.insertBefore(preview, footer.firstChild);
 
-    console.log('[Translation] Realtime preview element created');
+    console.log('[Translation] Realtime preview element created and inserted into footer');
   }
 
   /**
    * Show realtime preview
    */
   showRealtimePreview(text, isLoading = false, isError = false) {
-    const preview = document.querySelector('.wa-realtime-preview');
+    let preview = document.querySelector('.wa-realtime-preview');
+    
+    // If preview doesn't exist, try to recreate it
     if (!preview) {
+      console.log('[Translation] Preview not found, recreating...');
+      this.createRealtimePreview();
+      preview = document.querySelector('.wa-realtime-preview');
+    }
+    
+    if (!preview) {
+      console.warn('[Translation] Could not create or find realtime preview element');
       return;
     }
 
     const textDiv = preview.querySelector('.translation-text');
+    if (!textDiv) {
+      console.warn('[Translation] Translation text div not found in preview');
+      return;
+    }
 
     if (isLoading) {
       textDiv.textContent = text;
@@ -298,6 +332,7 @@ class TranslationUI {
     }
 
     preview.style.display = 'block';
+    console.log('[Translation] Realtime preview shown with text:', text.substring(0, 50));
   }
 
   /**

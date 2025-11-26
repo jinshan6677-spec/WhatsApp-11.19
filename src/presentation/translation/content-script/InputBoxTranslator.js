@@ -145,12 +145,29 @@ class InputBoxTranslator {
 
     this.isTranslating = true;
 
-    // If inputBox not passed, try to find it
-    if (!inputBox) {
-      inputBox = document.querySelector('footer [contenteditable="true"]') ||
-        document.querySelector('[data-testid="conversation-compose-box-input"]') ||
-        document.querySelector('#main footer div[contenteditable="true"]');
+    // Always try to find the current input box (don't trust passed reference)
+    // This is important after chat switches
+    const inputBoxSelectors = [
+      '#main footer [contenteditable="true"]',
+      'footer [contenteditable="true"]',
+      '[data-testid="conversation-compose-box-input"]',
+      '#main footer div[contenteditable="true"]',
+      'div[contenteditable="true"][data-tab="10"]',
+      'div[contenteditable="true"][role="textbox"]'
+    ];
+
+    let foundInputBox = null;
+    for (const selector of inputBoxSelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.isContentEditable) {
+        foundInputBox = element;
+        console.log('[Translation] Found input box with selector:', selector);
+        break;
+      }
     }
+
+    // Use the found input box, or fall back to passed parameter
+    inputBox = foundInputBox || inputBox;
 
     if (!inputBox) {
       this.ui.showToast('找不到输入框', 'error');
@@ -159,23 +176,91 @@ class InputBoxTranslator {
       return;
     }
 
-    // Get text - handle Lexical editor
-    let text = '';
+    // Wait a bit to ensure the input box is fully rendered (especially after chat switch)
+    await new Promise(resolve => setTimeout(resolve, 100));
 
+    // Get text - handle multiple editor types
+    let text = '';
+    
+    console.log('[Translation] Input box attributes:', {
+      hasLexical: inputBox.hasAttribute('data-lexical-editor'),
+      contentEditable: inputBox.isContentEditable,
+      childCount: inputBox.children.length,
+      innerHTML: inputBox.innerHTML.substring(0, 100)
+    });
+
+    // Method 1: Lexical editor (data-lexical-editor attribute)
     if (inputBox.hasAttribute('data-lexical-editor')) {
-      const textNodes = inputBox.querySelectorAll('p, span[data-text="true"]');
-      if (textNodes.length > 0) {
-        text = Array.from(textNodes).map(node => node.textContent).join('\n');
-      } else {
-        text = inputBox.innerText || inputBox.textContent || '';
+      console.log('[Translation] Using Lexical editor text extraction');
+      
+      // Try to get text from paragraph elements
+      const paragraphs = inputBox.querySelectorAll('p');
+      if (paragraphs.length > 0) {
+        text = Array.from(paragraphs).map(p => p.textContent || '').join('\n');
+        console.log('[Translation] Got text from paragraphs:', paragraphs.length);
       }
-    } else {
-      text = inputBox.textContent || inputBox.innerText || '';
+      
+      // If no paragraphs, try span elements with data-text attribute
+      if (!text) {
+        const textSpans = inputBox.querySelectorAll('span[data-text="true"]');
+        if (textSpans.length > 0) {
+          text = Array.from(textSpans).map(span => span.textContent || '').join('');
+          console.log('[Translation] Got text from data-text spans:', textSpans.length);
+        }
+      }
+      
+      // Try all span elements
+      if (!text) {
+        const allSpans = inputBox.querySelectorAll('span');
+        if (allSpans.length > 0) {
+          text = Array.from(allSpans).map(span => span.textContent || '').join('');
+          console.log('[Translation] Got text from all spans:', allSpans.length);
+        }
+      }
+      
+      // Fallback to innerText/textContent
+      if (!text) {
+        text = inputBox.innerText || inputBox.textContent || '';
+        console.log('[Translation] Got text from innerText/textContent');
+      }
+    }
+    // Method 2: Regular contenteditable
+    else {
+      console.log('[Translation] Using regular contenteditable text extraction');
+      
+      // Try innerText first (preserves line breaks better)
+      text = inputBox.innerText || '';
+      
+      // Fallback to textContent
+      if (!text) {
+        text = inputBox.textContent || '';
+      }
+      
+      // Last resort: try to get from child elements
+      if (!text) {
+        const children = inputBox.querySelectorAll('p, div, span');
+        if (children.length > 0) {
+          text = Array.from(children).map(el => el.textContent || '').join('\n');
+          console.log('[Translation] Got text from child elements:', children.length);
+        }
+      }
     }
 
+    // Clean up the text
     text = text.trim();
+    
+    // Remove placeholder text if present
+    const placeholder = inputBox.getAttribute('data-placeholder') || 
+                       inputBox.getAttribute('placeholder') ||
+                       '输入消息';
+    if (text === placeholder) {
+      console.log('[Translation] Removed placeholder text');
+      text = '';
+    }
 
-    if (!text) {
+    console.log('[Translation] Final extracted text:', text ? `"${text.substring(0, 100)}..." (length: ${text.length})` : '(empty)');
+
+    if (!text || text.length === 0) {
       this.ui.showToast('请输入要翻译的内容', 'warning');
       this.isTranslating = false;
       return;
@@ -689,14 +774,19 @@ class InputBoxTranslator {
    * Setup realtime translation
    */
   setupRealtimeTranslation(inputBox) {
+    console.log('[Translation] setupRealtimeTranslation called');
+    
     // Check if realtime translation is enabled
     if (!this.core.config.advanced.realtime) {
       this.cleanupRealtimeTranslation();
-      console.log('[Translation] Realtime translation disabled');
+      // Remove ALL preview elements when disabling
+      const allPreviews = document.querySelectorAll('.wa-realtime-preview');
+      allPreviews.forEach(p => p.remove());
+      console.log('[Translation] Realtime translation disabled, removed all previews');
       return;
     }
 
-    // Cleanup old listeners
+    // Cleanup old listeners first
     this.cleanupRealtimeTranslation();
 
     console.log('[Translation] Setting up realtime translation');
@@ -704,27 +794,38 @@ class InputBoxTranslator {
     let debounceTimer = null;
     let lastText = '';
 
-    // Create preview element
+    // ALWAYS create new preview element (createRealtimePreview will remove old ones)
     this.ui.createRealtimePreview();
+    console.log('[Translation] Preview element created');
 
-    // Create input listener
+    // Create input listener - DON'T capture inputBox in closure, always find it fresh
     this.realtimeInputHandler = () => {
       // Clear previous timer
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
 
+      // Always find the current input box (important after chat switch)
+      const currentInputBox = document.querySelector('#main footer [contenteditable="true"]') ||
+        document.querySelector('footer [contenteditable="true"]') ||
+        document.querySelector('[data-testid="conversation-compose-box-input"]');
+
+      if (!currentInputBox) {
+        console.warn('[Translation] Realtime: Input box not found');
+        return;
+      }
+
       // Get current text
       let text = '';
-      if (inputBox.hasAttribute('data-lexical-editor')) {
-        const textNodes = inputBox.querySelectorAll('p, span[data-text="true"]');
+      if (currentInputBox.hasAttribute('data-lexical-editor')) {
+        const textNodes = currentInputBox.querySelectorAll('p, span[data-text="true"]');
         if (textNodes.length > 0) {
           text = Array.from(textNodes).map(node => node.textContent).join('\n');
         } else {
-          text = inputBox.innerText || inputBox.textContent || '';
+          text = currentInputBox.innerText || currentInputBox.textContent || '';
         }
       } else {
-        text = inputBox.textContent || inputBox.innerText || '';
+        text = currentInputBox.textContent || currentInputBox.innerText || '';
       }
 
       text = text.trim();
@@ -818,8 +919,18 @@ class InputBoxTranslator {
       }, 500);
     };
 
-    // Add listener
-    inputBox.addEventListener('input', this.realtimeInputHandler);
+    // Add listener to the current input box
+    // Always find the current input box, don't use the passed parameter
+    const currentInputBox = document.querySelector('#main footer [contenteditable="true"]') ||
+      document.querySelector('footer [contenteditable="true"]') ||
+      document.querySelector('[data-testid="conversation-compose-box-input"]');
+
+    if (currentInputBox) {
+      currentInputBox.addEventListener('input', this.realtimeInputHandler);
+      console.log('[Translation] Realtime translation listener added to input box');
+    } else {
+      console.warn('[Translation] Could not find input box to attach realtime listener');
+    }
 
     this._realtimeInitialized = true;
   }
@@ -828,24 +939,23 @@ class InputBoxTranslator {
    * Cleanup realtime translation
    */
   cleanupRealtimeTranslation() {
-    // Remove old listener
+    console.log('[Translation] Cleaning up realtime translation');
+    
+    // Remove old listener from ALL possible input boxes
     if (this.realtimeInputHandler) {
-      const inputBox = document.querySelector('#main footer [contenteditable="true"]') ||
-        document.querySelector('footer [contenteditable="true"]');
-      if (inputBox) {
+      // Find all input boxes in the document
+      const allInputBoxes = document.querySelectorAll('[contenteditable="true"]');
+      allInputBoxes.forEach(inputBox => {
         inputBox.removeEventListener('input', this.realtimeInputHandler);
-      }
+      });
+      
+      console.log('[Translation] Removed realtime listener from all input boxes');
       this.realtimeInputHandler = null;
     }
 
-    // Only remove preview element when disabling realtime translation
-    if (!this.core.config || !this.core.config.advanced || !this.core.config.advanced.realtime) {
-      const preview = document.querySelector('.wa-realtime-preview');
-      if (preview) {
-        preview.remove();
-      }
-    }
-
+    // DON'T remove preview element during cleanup
+    // It will be recreated by setupRealtimeTranslation
+    
     this._realtimeInitialized = false;
   }
 
