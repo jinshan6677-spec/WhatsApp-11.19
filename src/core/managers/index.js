@@ -3,6 +3,8 @@
  * 
  * 提供所有核心管理器的统一导入接口
  * 避免使用复杂的相对路径引用
+ * 
+ * 支持新架构的Repository模式适配器
  */
 
 // 基础管理器
@@ -19,6 +21,10 @@ const ResourceManager = require('../../managers/ResourceManager');
 
 // 集成管理器
 const TranslationIntegration = require('../../managers/TranslationIntegration');
+
+// 新架构适配器
+const AccountConfigManagerAdapter = require('../../managers/AccountConfigManagerAdapter');
+const ProxyConfigManagerAdapter = require('../../managers/ProxyConfigManagerAdapter');
 
 // 导出统一接口
 module.exports = {
@@ -37,14 +43,22 @@ module.exports = {
   // 集成管理器
   TranslationIntegration,
   
-  // 便捷方法
+  // 新架构适配器
+  AccountConfigManagerAdapter,
+  ProxyConfigManagerAdapter,
+  
+  // 便捷方法 - 传统模式
   createAccountConfigManager: (options) => new AccountConfigManager(options),
   createInstanceManager: (options) => new InstanceManager(options),
   createSessionManager: (options) => new SessionManager(options),
   createTranslationIntegration: (options) => new TranslationIntegration(options),
   createNotificationManager: () => new NotificationManager(),
   createTrayManager: () => new TrayManager(),
-  createProxyConfigManager: () => new ProxyConfigManager(),
-  createMigrationManager: () => new MigrationManager(),
-  createResourceManager: () => new ResourceManager()
+  createProxyConfigManager: (options) => new ProxyConfigManager(options),
+  createMigrationManager: (options) => new MigrationManager(options),
+  createResourceManager: (options) => new ResourceManager(options),
+  
+  // 便捷方法 - 新架构模式（使用Repository）
+  createAccountConfigManagerWithRepository: (options) => new AccountConfigManagerAdapter({ ...options, useRepository: true }),
+  createProxyConfigManagerWithRepository: (options) => new ProxyConfigManagerAdapter({ ...options, useRepository: true })
 };

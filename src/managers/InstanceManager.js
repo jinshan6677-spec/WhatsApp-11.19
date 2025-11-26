@@ -5,9 +5,17 @@
  * 包括创建、销毁、监控和重启实例
  */
 
-const { BrowserWindow, app, session } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+
+// Electron will be injected for testing, or required at runtime
+let electron;
+try {
+  electron = require('electron');
+} catch (e) {
+  // Electron not available (e.g., in test environment without proper mock)
+  electron = null;
+}
 
 /**
  * @typedef {Object} InstanceStatus
@@ -46,8 +54,12 @@ class InstanceManager {
    * @param {Object} [options.sessionManager] - 会话管理器实例
    * @param {Object} [options.notificationManager] - 通知管理器实例
    * @param {Object} [options.resourceManager] - 资源管理器实例
+   * @param {Object} [options.electron] - Electron对象（用于测试注入）
    */
   constructor(options = {}) {
+    // Electron对象（支持依赖注入用于测试）
+    this.electron = options.electron || electron;
+    
     // 实例存储 Map: instanceId -> InstanceInfo
     this.instances = new Map();
     
@@ -58,7 +70,7 @@ class InstanceManager {
     this.unreadMonitoringIntervals = new Map();
     
     // 配置选项
-    this.userDataPath = options.userDataPath || app.getPath('userData');
+    this.userDataPath = options.userDataPath || (this.electron && this.electron.app ? this.electron.app.getPath('userData') : '/tmp/whatsapp-data');
     this.maxInstances = options.maxInstances || 30;
     
     // 翻译集成
@@ -275,7 +287,7 @@ class InstanceManager {
       
       // 2. 创建独立的 session partition
       const partition = `persist:account_${id}`;
-      const instanceSession = session.fromPartition(partition, { cache: true });
+      const instanceSession = this.electron.session.fromPartition(partition, { cache: true });
       
       // 2.3. 配置 session 持久化选项
       if (this.sessionManager) {
@@ -299,7 +311,7 @@ class InstanceManager {
         height: windowConfig?.height || 800
       });
       
-      const window = new BrowserWindow({
+      const window = new this.electron.BrowserWindow({
         width: windowBounds.width,
         height: windowBounds.height,
         x: windowBounds.x,
@@ -477,7 +489,7 @@ class InstanceManager {
     }
     
     // 获取所有显示器
-    const displays = screen.getAllDisplays();
+    const displays = this.electron.screen.getAllDisplays();
     
     // 检查窗口是否在任何显示器的可见区域内
     let isVisible = false;
@@ -501,7 +513,7 @@ class InstanceManager {
     
     // 如果窗口不在可见范围内，使用主显示器的中心位置
     if (!isVisible) {
-      const primaryDisplay = screen.getPrimaryDisplay();
+      const primaryDisplay = this.electron.screen.getPrimaryDisplay();
       const { x, y, width, height } = primaryDisplay.workArea;
       
       this.log('warn', 'Window position is outside visible area, centering on primary display');
@@ -614,7 +626,7 @@ class InstanceManager {
       
       // 获取实例的 session
       const partition = `persist:account_${instanceId}`;
-      const instanceSession = session.fromPartition(partition);
+      const instanceSession = this.electron.session.fromPartition(partition);
       
       // 应用新的代理配置
       if (proxyConfig && proxyConfig.enabled) {

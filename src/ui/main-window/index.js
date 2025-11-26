@@ -1,24 +1,41 @@
 /**
  * UI主窗口模块统一导出
  * 
- * 重构说明：ViewManager现在统一使用 single-window/ViewManager.js
- * 此模块提供其他UI组件的统一导出接口
+ * 重构说明：ViewManager已重构为模块化设计
+ * 新的模块化实现位于 src/presentation/windows/view-manager/
+ * 此模块提供向后兼容的导出接口
  */
 
-// 导入实际的ViewManager实现
-const ViewManager = require('../../single-window/ViewManager');
-const ViewBoundsManager = require('./ViewBoundsManager');
-const ViewMemoryManager = require('./ViewMemoryManager');
+// 导入新的模块化ViewManager实现
+const viewManagerModule = require('../../presentation/windows/view-manager');
+
+// 保留旧的独立模块（向后兼容）
+const LegacyViewBoundsManager = require('./ViewBoundsManager');
+const LegacyViewMemoryManager = require('./ViewMemoryManager');
 
 module.exports = {
-  ViewManager,
-  ViewBoundsManager,
-  ViewMemoryManager,
+  // 新的模块化ViewManager
+  ViewManager: viewManagerModule.ViewManager,
   
+  // 新的子模块
+  ViewFactory: viewManagerModule.ViewFactory,
+  ViewLifecycle: viewManagerModule.ViewLifecycle,
+  ViewBoundsManager: viewManagerModule.ViewBoundsManager,
+  ViewResizeHandler: viewManagerModule.ViewResizeHandler,
+  ViewMemoryManager: viewManagerModule.ViewMemoryManager,
+  ViewPerformanceOptimizer: viewManagerModule.ViewPerformanceOptimizer,
+  ViewProxyIntegration: viewManagerModule.ViewProxyIntegration,
+  ViewTranslationIntegration: viewManagerModule.ViewTranslationIntegration,
+  
+  // 旧的独立模块（向后兼容）
+  LegacyViewBoundsManager,
+  LegacyViewMemoryManager,
+  
+  // 工厂方法
   createViewManager: (mainWindow, sessionManager, options) => 
-    new ViewManager(mainWindow, sessionManager, options),
+    viewManagerModule.createViewManager(mainWindow, sessionManager, options),
   createViewBoundsManager: (mainWindow, options) => 
-    new ViewBoundsManager(mainWindow, options),
+    new LegacyViewBoundsManager(mainWindow, options),
   createViewMemoryManager: (options) => 
-    new ViewMemoryManager(options)
+    new LegacyViewMemoryManager(options)
 };

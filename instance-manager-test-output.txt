@@ -1,0 +1,88 @@
+
+🧪 Starting test suite...
+
+FAIL src/managers/__tests__/InstanceManager.test.js
+  InstanceManager
+    initialization
+      √ should initialize with default options (16 ms)
+      √ should initialize with custom options (6 ms)
+    getInstanceStatus
+      √ should return null for non-existent instance (6 ms)
+      √ should return status after instance creation (16 ms)
+    getRunningInstances
+      √ should return empty array when no instances running (9 ms)
+      √ should return running instances (12 ms)
+    createInstance
+      √ should create instance successfully (11 ms)
+      √ should fail when instance already running (13 ms)
+      √ should fail when max instances reached (26 ms)
+      √ should create instance with proxy configuration (13 ms)
+    destroyInstance
+      √ should destroy instance successfully (14 ms)
+      √ should fail to destroy non-existent instance (5 ms)
+      √ should save window state when destroying (15 ms)
+    restartInstance
+      √ should restart instance successfully (1027 ms)
+      √ should fail to restart non-existent instance (6 ms)
+    instance counting
+      √ getInstanceCount should return correct count (12 ms)
+      √ getRunningInstanceCount should return correct count (14 ms)
+    instanceExists
+      √ should return false for non-existent instance (5 ms)
+      √ should return true for existing instance (9 ms)
+    window state management
+      √ should save window state (8 ms)
+      √ should get window state (10 ms)
+      √ should set window state (10 ms)
+    proxy configuration
+      × should update proxy configuration (11 ms)
+      × should disable proxy (10 ms)
+    health monitoring
+      √ should get instance health (9 ms)
+      √ should detect unhealthy instance (9 ms)
+      √ should get all instances health summary (11 ms)
+    destroyAllInstances
+      √ should destroy all instances (10 ms)
+
+  ● InstanceManager › proxy configuration › should update proxy configuration
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 409 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m manager[33m.[39mupdateProxyConfig(account[33m.[39mid[33m,[39m newProxyConfig)[33m;[39m
+     [90m 410 |[39m       
+    [31m[1m>[22m[39m[90m 411 |[39m       expect(result[33m.[39msuccess)[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+     [90m     |[39m                              [31m[1m^[22m[39m
+     [90m 412 |[39m     })[33m;[39m
+     [90m 413 |[39m
+     [90m 414 |[39m     test([32m'should disable proxy'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (src/managers/__tests__/InstanceManager.test.js:411:30)
+
+  ● InstanceManager › proxy configuration › should disable proxy
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 426 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m manager[33m.[39mupdateProxyConfig(account[33m.[39mid[33m,[39m { enabled[33m:[39m [36mfalse[39m })[33m;[39m
+     [90m 427 |[39m       
+    [31m[1m>[22m[39m[90m 428 |[39m       expect(result[33m.[39msuccess)[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+     [90m     |[39m                              [31m[1m^[22m[39m
+     [90m 429 |[39m     })[33m;[39m
+     [90m 430 |[39m   })[33m;[39m
+     [90m 431 |[39m[0m
+
+      at Object.<anonymous> (src/managers/__tests__/InstanceManager.test.js:428:30)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 26 passed, 28 total
+Snapshots:   0 total
+Time:        1.723 s, estimated 2 s
+Ran all test suites matching /src\\managers\\__tests__\\InstanceManager.test.js/i.
+
+✅ Test suite completed in 1.74s
+

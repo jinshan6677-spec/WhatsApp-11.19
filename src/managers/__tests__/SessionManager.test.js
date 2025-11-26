@@ -41,9 +41,13 @@ describe('SessionManager', () => {
 
     session.fromPartition.mockReturnValue(mockSession);
 
-    // 创建 SessionManager 实例
+    // Get mocked electron from jest.mock
+    const electron = require('electron');
+
+    // 创建 SessionManager 实例，注入electron mock
     sessionManager = new SessionManager({
-      userDataPath: tempDir
+      userDataPath: tempDir,
+      electron: electron
     });
   });
 

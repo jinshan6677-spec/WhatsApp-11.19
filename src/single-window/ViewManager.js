@@ -387,17 +387,38 @@ class ViewManager {
         }
       }
 
+      // Set account ID in environment for preload script
+      process.env.ACCOUNT_ID = accountId;
+      
+      // Remove CSP to allow script injection for translation
+      accountSession.webRequest.onHeadersReceived((details, callback) => {
+        if (details.url.includes('web.whatsapp.com')) {
+          const headers = details.responseHeaders;
+          
+          // Remove CSP entirely to allow our translation script
+          delete headers['content-security-policy'];
+          delete headers['content-security-policy-report-only'];
+          
+          this.log('info', `CSP removed for translation injection: ${details.url}`);
+          
+          callback({ responseHeaders: headers });
+        } else {
+          callback({ responseHeaders: details.responseHeaders });
+        }
+      });
+      
       // Create BrowserView with isolated session
       const view = new BrowserView({
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
-          sandbox: true,
+          sandbox: false, // Must be false to allow preload script to inject content
           partition: `persist:account_${accountId}`,
           session: accountSession,
           webSecurity: true,
           allowRunningInsecureContent: false,
-          preload: path.join(__dirname, '../preload.js')
+          preload: path.join(__dirname, '../preload-view.js'),
+          additionalArguments: [`--account-id=${accountId}`]
         }
       });
 
@@ -411,6 +432,28 @@ class ViewManager {
       // Set user agent if provided, otherwise use default WhatsApp-compatible UA
       const userAgent = config.userAgent || this._getDefaultUserAgent();
       view.webContents.setUserAgent(userAgent);
+
+      // Enable DevTools for debugging
+      // This allows F12 to work on the BrowserView
+      view.webContents.on('before-input-event', (event, input) => {
+        // F12 or Ctrl+Shift+I to toggle DevTools
+        if (input.key === 'F12' || 
+            (input.control && input.shift && input.key === 'I')) {
+          if (view.webContents.isDevToolsOpened()) {
+            view.webContents.closeDevTools();
+          } else {
+            view.webContents.openDevTools({ mode: 'detach' });
+          }
+        }
+      });
+
+      // Auto-open DevTools in development mode for debugging
+      if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TRANSLATION === 'true') {
+        view.webContents.once('did-finish-load', () => {
+          this.log('info', `Auto-opening DevTools for account ${accountId} (development mode)`);
+          view.webContents.openDevTools({ mode: 'detach' });
+        });
+      }
 
       // Initialize view state
       const viewState = {

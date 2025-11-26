@@ -7,9 +7,19 @@
 const managers = require('./managers');
 const models = require('./models');
 const services = require('./services');
+const eventbus = require('./eventbus');
+const container = require('./container');
+const config = require('./config');
+const errors = require('./errors');
+const state = require('./state');
 
 module.exports = {
   managers,
   models,
-  services
+  services,
+  eventbus,
+  container,
+  config,
+  errors,
+  state
 };

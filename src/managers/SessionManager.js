@@ -6,9 +6,17 @@
  * 支持 BrowserView 会话和代理配置
  */
 
-const { session } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+
+// Electron will be injected for testing, or required at runtime
+let electron;
+try {
+  electron = require('electron');
+} catch (e) {
+  // Electron not available (e.g., in test environment without proper mock)
+  electron = null;
+}
 
 /**
  * SessionManager 类
@@ -18,8 +26,12 @@ class SessionManager {
    * 创建会话管理器
    * @param {Object} [options] - 配置选项
    * @param {string} [options.userDataPath] - 用户数据根目录
+   * @param {Object} [options.electron] - Electron对象（用于测试注入）
    */
   constructor(options = {}) {
+    // Electron对象（支持依赖注入用于测试）
+    this.electron = options.electron || electron;
+    
     this.userDataPath = options.userDataPath;
 
     // 登录状态缓存 Map: accountId -> boolean
@@ -81,7 +93,7 @@ class SessionManager {
 
       // 创建隔离的 session partition
       const partition = `persist:account_${accountId}`;
-      const accountSession = session.fromPartition(partition);
+      const accountSession = this.electron.session.fromPartition(partition);
 
       // 缓存 session 实例
       this.sessionCache.set(accountId, accountSession);
@@ -142,7 +154,7 @@ class SessionManager {
     // 如果缓存中没有，尝试从 partition 获取
     try {
       const partition = `persist:account_${accountId}`;
-      const accountSession = session.fromPartition(partition);
+      const accountSession = this.electron.session.fromPartition(partition);
       this.sessionCache.set(accountId, accountSession);
       return accountSession;
     } catch (error) {
@@ -457,7 +469,7 @@ class SessionManager {
 
       // 创建临时 session 用于测试
       const testPartition = `temp:proxy-test-${Date.now()}`;
-      const testSession = session.fromPartition(testPartition);
+      const testSession = this.electron.session.fromPartition(testPartition);
 
       const { protocol, host, port, username, password } = proxyConfig;
       const proxyRules = `${protocol}://${host}:${port}`;

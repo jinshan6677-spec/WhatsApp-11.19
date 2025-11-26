@@ -1,0 +1,48 @@
+﻿
+馃И Starting test suite...
+
+node.exe : FAIL src/infrastruct
+ure/proxy/__tests__/IPLeakDetec
+tor.test.js
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/no
+de.exe" "D:\Users\txy39\AppData
+\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (FAIL src/in  
+  fras...etector.test.js:Str   
+ ing) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+  鈼?Test suite failed to run
+
+    Your test suite must contai
+n at least one test.
+
+      at onResult (node_modules
+/@jest/core/build/TestScheduler
+.js:133:18)
+      at node_modules/@jest/cor
+e/build/TestScheduler.js:254:19
+      at node_modules/emittery/
+index.js:363:13
+          at Array.map (<anonym
+ous>)
+      at Emittery.emit (node_mo
+dules/emittery/index.js:361:23)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.369 s
+Ran all test suites matching /s
+rc\\infrastructure\\proxy\\__te
+sts__\\IPLeakDetector.test.js/i
+.
+
+鉁?Test suite completed in 0.39s
+

@@ -16,6 +16,10 @@ const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandl
 const { registerIPCHandlers: registerTranslationIPCHandlers, unregisterIPCHandlers: unregisterTranslationIPCHandlers } = require('./translation/ipcHandlers');
 const { registerProxyIPCHandlers, unregisterProxyIPCHandlers } = require('./ipc/proxyIPCHandlers');
 
+// 导入新架构的IPC处理器
+const TranslationServiceIPCHandlers = require('./presentation/ipc/handlers/TranslationServiceIPCHandlers');
+const translationService = require('./translation/translationService');
+
 // 导入迁移管理器
 const MigrationManager = require('./managers/MigrationManager');
 const MigrationDialog = require('./single-window/migration/MigrationDialog');
@@ -82,14 +86,22 @@ async function registerAllIPCHandlers() {
     const translationIntegration = appBootstrap.getManager('translationIntegration');
     const proxyConfigManager = appBootstrap.getManager('proxyConfigManager');
     const proxyDetectionService = appBootstrap.getManager('proxyDetectionService');
+    const ipcRouter = appBootstrap.getIPCRouter();
 
     // 注册单窗口架构IPC处理器
     registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
     console.log('[INFO] 单窗口IPC处理器注册完成');
 
-    // 注册翻译IPC处理器
+    // 注册翻译IPC处理器 (legacy - for backward compatibility)
     await registerTranslationIPCHandlers();
-    console.log('[INFO] 翻译IPC处理器注册完成');
+    console.log('[INFO] 翻译IPC处理器注册完成 (legacy)');
+
+    // 注册翻译服务IPC处理器 (new IPCRouter architecture)
+    if (ipcRouter && translationService) {
+      await translationService.initialize();
+      TranslationServiceIPCHandlers.registerWithRouter(ipcRouter, { translationService });
+      console.log('[INFO] 翻译服务IPC处理器注册完成 (IPCRouter - 13 channels)');
+    }
 
     // 注册代理IPC处理器
     registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService);
@@ -117,9 +129,19 @@ function unregisterAllIPCHandlers() {
 
   try {
     unregisterTranslationIPCHandlers();
-    console.log('[INFO] 翻译IPC处理器已注销');
+    console.log('[INFO] 翻译IPC处理器已注销 (legacy)');
   } catch (error) {
     console.error('[ERROR] 注销翻译IPC处理器时出错:', error);
+  }
+
+  try {
+    const ipcRouter = appBootstrap.getIPCRouter();
+    if (ipcRouter) {
+      TranslationServiceIPCHandlers.unregisterFromRouter(ipcRouter);
+      console.log('[INFO] 翻译服务IPC处理器已注销 (IPCRouter)');
+    }
+  } catch (error) {
+    console.error('[ERROR] 注销翻译服务IPC处理器时出错:', error);
   }
 
   try {
@@ -298,10 +320,13 @@ app.whenReady().then(async () => {
     console.log('[INFO] 应用初始化完成');
 
     // 4. 确保所有账号启用翻译
-    await appBootstrap.ensureTranslationEnabled();
+    const accountManager = appBootstrap.getManager('accountConfigManager');
+    if (accountManager) {
+      await ensureTranslationEnabled(accountManager);
+    }
 
     // 5. 执行自动数据清理
-    await appBootstrap.performOrphanedDataCleanup();
+    await performOrphanedDataCleanup();
 
     // 6. 注册IPC处理器
     await registerAllIPCHandlers();

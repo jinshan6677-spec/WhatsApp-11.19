@@ -26,16 +26,18 @@ jest.mock('electron', () => {
       this.loadURL = jest.fn().mockResolvedValue(undefined);
       this.isDestroyed = jest.fn(() => this.destroyed);
       this.destroy = jest.fn(() => { this.destroyed = true; });
+      this._closedCallbacks = [];
       this.close = jest.fn(() => { 
         this.destroyed = true;
-        // Immediately trigger the closed callback
-        setImmediate(() => {
-          if (this._closedCallback) this._closedCallback();
+        // Trigger all closed callbacks synchronously
+        process.nextTick(() => {
+          this._closedCallbacks.forEach(cb => cb());
+          this._closedCallbacks = [];
         });
       });
       this.once = jest.fn((event, callback) => {
         if (event === 'closed') {
-          this._closedCallback = callback;
+          this._closedCallbacks.push(callback);
         }
       });
       this.on = jest.fn();
@@ -92,10 +94,56 @@ describe('InstanceManager', () => {
     tempDir = path.join(os.tmpdir(), `test-instances-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
     
-    // 创建管理器实例
+    // Get mocked electron from jest.mock
+    const { BrowserWindow, app, session, screen } = require('electron');
+    
+    // Mock dependencies
+    const mockSessionManager = {
+      hasSessionData: jest.fn().mockResolvedValue(false),
+      configureSessionPersistence: jest.fn().mockResolvedValue({ success: true }),
+      detectLoginStatus: jest.fn().mockResolvedValue(true)
+    };
+    
+    const mockResourceManager = {
+      canCreateInstance: jest.fn((currentCount) => {
+        // Simulate max instance limit check
+        const maxInstances = 5;
+        if (currentCount >= maxInstances) {
+          return Promise.resolve({
+            allowed: false,
+            reason: `Maximum instance limit reached: ${maxInstances}`
+          });
+        }
+        return Promise.resolve({
+          allowed: true,
+          resources: {
+            memoryUsagePercent: 50,
+            cpuUsage: 30
+          }
+        });
+      })
+    };
+    
+    const mockTranslationIntegration = {
+      injectScripts: jest.fn().mockResolvedValue({ success: true }),
+      removeInstance: jest.fn()
+    };
+    
+    const mockNotificationManager = {
+      startUnreadMonitoring: jest.fn().mockReturnValue(setInterval(() => {}, 5000)),
+      stopUnreadMonitoring: jest.fn((interval) => clearInterval(interval)),
+      clearUnreadCount: jest.fn()
+    };
+    
+    // 创建管理器实例，注入electron mock
     manager = new InstanceManager({
       userDataPath: tempDir,
-      maxInstances: 5
+      maxInstances: 5,
+      sessionManager: mockSessionManager,
+      resourceManager: mockResourceManager,
+      translationIntegration: mockTranslationIntegration,
+      notificationManager: mockNotificationManager,
+      electron: { BrowserWindow, app, session, screen }
     });
   });
 
@@ -113,7 +161,9 @@ describe('InstanceManager', () => {
 
   describe('initialization', () => {
     test('should initialize with default options', () => {
-      const defaultManager = new InstanceManager();
+      const defaultManager = new InstanceManager({
+        userDataPath: tempDir // Provide userDataPath to avoid app.getPath call
+      });
       
       expect(defaultManager.instances).toBeInstanceOf(Map);
       expect(defaultManager.instanceStatuses).toBeInstanceOf(Map);

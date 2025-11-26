@@ -2,17 +2,26 @@
  * 应用启动引导器
  * 
  * 负责应用的整体初始化和依赖注入
- * 提供清晰的应用启动流程，与现有架构完全整合
+ * 集成新架构组件：EventBus、ConfigProvider、StateManager、PluginManager、IPCRouter
+ * 
+ * @module app/bootstrap
  */
 
 const { app } = require('electron');
 const path = require('path');
 
-// 导入统一导出模块，避免复杂的相对路径
+// 导入统一导出模块
 const { APP_INFO, EVENTS, ERROR_CODES } = require('./constants');
 
-// 导入依赖注入容器
-const { getGlobalContainer } = require('./DependencyContainer');
+// 导入新架构核心组件
+const { EventBus } = require('../core/eventbus/EventBus');
+const { ConfigProvider, getGlobalConfigProvider } = require('../core/config/ConfigProvider');
+const { StateManager, getGlobalStateManager } = require('../core/state/StateManager');
+const { getGlobalContainer } = require('../core/container/DependencyContainer');
+const { PluginManager } = require('../infrastructure/plugins/PluginManager');
+const { PluginContext, createPluginContext } = require('../infrastructure/plugins/PluginContext');
+const { IPCRouter } = require('../presentation/ipc/IPCRouter');
+const { ErrorHandler, getGlobalErrorHandler } = require('../core/errors/ErrorHandler');
 
 // 导入现有架构组件
 const MainWindow = require('../single-window/MainWindow');
@@ -22,21 +31,42 @@ const TrayManager = require('../managers/TrayManager');
 
 // 导入工具类
 const { getErrorLogger, ErrorCategory } = require('../utils/ErrorLogger');
-const { getErrorHandler } = require('../shared/utils/ErrorHandler');
 const OrphanedDataCleaner = require('../utils/OrphanedDataCleaner');
 
 // 导入配置
 const config = require('../config');
 
-// 应用实例
+/**
+ * 应用状态定义
+ */
+const AppState = {
+  accounts: { items: {}, activeId: null, loading: false, error: null },
+  ui: { sidebarWidth: 280, theme: 'system', language: 'zh-CN', notifications: [] },
+  plugins: { loaded: [], active: [], errors: [] },
+  config: { loaded: false, path: null }
+};
+
+
+/**
+ * 应用实例类
+ */
 class AppBootstrap {
   constructor() {
     this.isInitialized = false;
-    this.container = getGlobalContainer();
+    
+    // 新架构核心组件
+    this.eventBus = null;
+    this.configProvider = null;
+    this.stateManager = null;
+    this.container = null;
+    this.pluginManager = null;
+    this.ipcRouter = null;
+    this.errorHandler = null;
+    
+    // 现有组件
     this.managers = {};
     this.mainWindow = null;
     this.viewManager = null;
-    this.errorHandler = null;
     this.errorLogger = null;
     this.config = config;
   }
@@ -54,26 +84,38 @@ class AppBootstrap {
     try {
       console.log(`Starting ${APP_INFO.NAME} v${APP_INFO.VERSION}...`);
       
-      // 1. 注册服务到依赖容器
+      // 1. 初始化核心架构组件
+      await this.initializeCoreComponents();
+      
+      // 2. 注册服务到依赖容器
       await this.registerServices();
       
-      // 2. 初始化错误处理和日志记录
+      // 3. 初始化错误处理和日志记录
       await this.initializeErrorHandling();
       
-      // 3. 初始化核心管理器
+      // 4. 初始化核心管理器
       await this.initializeManagers();
       
-      // 3. 初始化UI组件
+      // 5. 初始化插件系统
+      await this.initializePlugins();
+      
+      // 6. 初始化UI组件
       await this.initializeUIComponents();
       
-      // 4. 初始化ViewManager
+      // 7. 初始化ViewManager
       await this.initializeViewManager();
       
-      // 5. 注册全局事件处理器
+      // 8. 注册全局事件处理器
       this.registerGlobalEventHandlers();
       
+      // 9. 发布应用初始化完成事件
+      await this.eventBus.publish('app:initialized', {
+        version: APP_INFO.VERSION,
+        timestamp: Date.now()
+      });
+      
       this.isInitialized = true;
-      console.log('Application initialized successfully');
+      console.log('Application initialized successfully with new architecture');
       
     } catch (error) {
       console.error('Failed to initialize application:', error);
@@ -81,26 +123,124 @@ class AppBootstrap {
     }
   }
 
+
+  /**
+   * 初始化核心架构组件
+   * @returns {Promise<void>}
+   */
+  async initializeCoreComponents() {
+    console.log('Initializing core architecture components...');
+    
+    // 1. 初始化 EventBus
+    this.eventBus = new EventBus({
+      historyRetentionMs: 300000, // 5 minutes
+      maxHistorySize: 1000
+    });
+    console.log('✓ EventBus initialized');
+    
+    // 2. 初始化 ConfigProvider
+    this.configProvider = getGlobalConfigProvider();
+    this.configProvider.setSchema({
+      properties: {
+        app: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', default: APP_INFO.NAME },
+            version: { type: 'string', default: APP_INFO.VERSION },
+            theme: { type: 'string', enum: ['light', 'dark', 'system'], default: 'system' },
+            language: { type: 'string', default: 'zh-CN' }
+          }
+        },
+        tray: {
+          type: 'object',
+          properties: {
+            enabled: { type: 'boolean', default: true }
+          }
+        },
+        plugins: {
+          type: 'object',
+          default: {}
+        }
+      }
+    });
+    
+    // 尝试加载配置文件
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    try {
+      await this.configProvider.load(configPath);
+    } catch (error) {
+      console.warn('Config file not found, using defaults:', error.message);
+    }
+    console.log('✓ ConfigProvider initialized');
+    
+    // 3. 初始化 StateManager
+    this.stateManager = getGlobalStateManager({
+      initialState: AppState,
+      persistPath: path.join(app.getPath('userData'), 'app-state.json')
+    });
+    console.log('✓ StateManager initialized');
+    
+    // 4. 获取增强的依赖容器
+    this.container = getGlobalContainer();
+    console.log('✓ DependencyContainer initialized');
+    
+    // 5. 初始化 IPCRouter
+    this.ipcRouter = new IPCRouter({
+      defaultTimeout: 30000
+    });
+    console.log('✓ IPCRouter initialized');
+    
+    // 6. 初始化 PluginManager
+    this.pluginManager = new PluginManager();
+    console.log('✓ PluginManager initialized');
+    
+    // 7. 初始化 ErrorHandler
+    this.errorHandler = getGlobalErrorHandler();
+    console.log('✓ ErrorHandler initialized');
+    
+    console.log('Core architecture components initialized successfully');
+  }
+
+
   /**
    * 初始化错误处理
    * @returns {Promise<void>}
    */
   async initializeErrorHandling() {
+    // 注册错误恢复策略
     if (this.errorHandler) {
       try {
-        this.errorHandler.initialize();
+        // 注册网络错误恢复策略
+        this.errorHandler.registerRecoveryStrategy('NETWORK_ERROR', async (error) => {
+          console.log('Attempting network error recovery...');
+          return { recovered: false, message: 'Network recovery not implemented' };
+        });
+        
+        // 注册存储错误恢复策略
+        this.errorHandler.registerRecoveryStrategy('STORAGE_ERROR', async (error) => {
+          console.log('Attempting storage error recovery...');
+          return { recovered: false, message: 'Storage recovery not implemented' };
+        });
+        
+        console.log('✓ Error recovery strategies registered');
       } catch (error) {
-        console.warn('错误处理器初始化失败，使用默认处理:', error.message);
+        console.warn('Error handler initialization failed:', error.message);
       }
     }
     
     // 捕获未处理的异常
     process.on('uncaughtException', (error) => {
-      console.error('未捕获的异常:', error.message);
+      console.error('Uncaught exception:', error.message);
+      if (this.errorHandler) {
+        this.errorHandler.handle(error, { source: 'uncaughtException' });
+      }
     });
     
     process.on('unhandledRejection', (reason, promise) => {
-      console.error('未处理的Promise拒绝:', reason);
+      console.error('Unhandled Promise rejection:', reason);
+      if (this.errorHandler) {
+        this.errorHandler.handle(reason, { source: 'unhandledRejection' });
+      }
     });
   }
 
@@ -110,14 +250,19 @@ class AppBootstrap {
    */
   async registerServices() {
     try {
-      // 注册配置
-      this.container.registerSingleton('config', config);
+      // 注册核心架构组件
+      this.container.registerSingleton('eventBus', this.eventBus, { isInstance: true });
+      this.container.registerSingleton('configProvider', this.configProvider, { isInstance: true });
+      this.container.registerSingleton('stateManager', this.stateManager, { isInstance: true });
+      this.container.registerSingleton('pluginManager', this.pluginManager, { isInstance: true });
+      this.container.registerSingleton('ipcRouter', this.ipcRouter, { isInstance: true });
+      this.container.registerSingleton('errorHandler', this.errorHandler, { isInstance: true });
       
-      // 注册错误处理器
-      this.container.registerSingleton('errorHandler', getErrorHandler());
+      // 注册配置
+      this.container.registerSingleton('config', config, { isInstance: true });
       
       // 注册错误日志记录器
-      this.container.registerSingleton('errorLogger', getErrorLogger());
+      this.container.registerSingleton('errorLogger', getErrorLogger(), { isInstance: true });
       
       // 注册账号配置管理器
       this.container.registerFactory('accountConfigManager', () => {
@@ -149,11 +294,12 @@ class AppBootstrap {
         });
       });
       
-      console.log('✓ 依赖容器服务注册完成');
+      console.log('✓ Services registered to dependency container');
     } catch (error) {
-      console.warn('依赖容器服务注册失败:', error.message);
+      console.warn('Service registration failed:', error.message);
     }
   }
+
 
   /**
    * 初始化核心管理器
@@ -167,83 +313,128 @@ class AppBootstrap {
       this.managers.proxyDetectionService = this.container.resolve('proxyDetectionService');
       this.managers.sessionManager = this.container.resolve('sessionManager');
       
-      console.log('✓ 核心管理器初始化完成');
+      console.log('✓ Core managers initialized from container');
     } catch (error) {
-      console.warn('管理器初始化失败，回退到直接实例化:', error.message);
+      console.warn('Manager initialization from container failed, falling back:', error.message);
+      await this._initializeManagersFallback();
+    }
+  }
+
+  /**
+   * 管理器初始化回退方法
+   * @private
+   */
+  async _initializeManagersFallback() {
+    try {
+      const { AccountConfigManager } = require('../core/managers');
+      this.managers.accountConfigManager = new AccountConfigManager({
+        cwd: app.getPath('userData')
+      });
+      console.log('✓ AccountConfigManager initialized (fallback)');
+    } catch (error) {
+      console.warn('AccountConfigManager initialization failed:', error.message);
+    }
+    
+    try {
+      const { ProxyConfigManager } = require('../core/managers');
+      this.managers.proxyConfigManager = new ProxyConfigManager({
+        cwd: app.getPath('userData')
+      });
+      console.log('✓ ProxyConfigManager initialized (fallback)');
+    } catch (error) {
+      console.warn('ProxyConfigManager initialization failed:', error.message);
+    }
+    
+    try {
+      const { createProxyDetectionService } = require('../core/services');
+      this.managers.proxyDetectionService = createProxyDetectionService();
+      console.log('✓ ProxyDetectionService initialized (fallback)');
+    } catch (error) {
+      console.warn('ProxyDetectionService initialization failed:', error.message);
+    }
+    
+    try {
+      const { SessionManager } = require('../core/managers');
+      this.managers.sessionManager = new SessionManager({
+        userDataPath: app.getPath('userData')
+      });
+      console.log('✓ SessionManager initialized (fallback)');
+    } catch (error) {
+      console.warn('SessionManager initialization failed:', error.message);
+    }
+    
+    try {
+      const { NotificationManager } = require('../core/managers');
+      this.managers.notificationManager = new NotificationManager();
+      console.log('✓ NotificationManager initialized (fallback)');
+    } catch (error) {
+      console.warn('NotificationManager initialization failed:', error.message);
+    }
+    
+    try {
+      const { TranslationIntegration } = require('../core/managers');
+      this.managers.translationIntegration = new TranslationIntegration(null);
+      if (typeof this.managers.translationIntegration.initialize === 'function') {
+        await this.managers.translationIntegration.initialize();
+      }
+      console.log('✓ TranslationIntegration initialized (fallback)');
+    } catch (error) {
+      console.warn('TranslationIntegration initialization failed:', error.message);
+    }
+    
+    try {
+      const { MigrationManager } = require('../core/managers');
+      this.managers.migrationManager = new MigrationManager({
+        userDataPath: app.getPath('userData')
+      });
+      console.log('✓ MigrationManager initialized (fallback)');
+    } catch (error) {
+      console.warn('MigrationManager initialization failed:', error.message);
+    }
+  }
+
+
+  /**
+   * 初始化插件系统
+   * @returns {Promise<void>}
+   */
+  async initializePlugins() {
+    try {
+      // 创建插件上下文
+      const pluginContext = createPluginContext({
+        eventBus: this.eventBus,
+        container: this.container,
+        config: this.configProvider
+      });
       
-      // 回退到原来的方式
-      try {
-        const { AccountConfigManager } = require('../core/managers');
-        this.managers.accountConfigManager = new AccountConfigManager({
-          cwd: app.getPath('userData')
-        });
-        console.log('✓ 账号配置管理器初始化');
-      } catch (error) {
-        console.warn('账号配置管理器初始化失败:', error.message);
+      // 设置插件管理器上下文
+      this.pluginManager.setContext(pluginContext);
+      
+      // 初始化所有已注册的插件
+      const result = await this.pluginManager.initializeAll();
+      
+      // 更新状态
+      this.stateManager.setSlice('plugins', {
+        loaded: result.successful,
+        active: result.successful,
+        errors: result.failed.map(f => ({ name: f.name, error: f.error.message }))
+      });
+      
+      if (result.successful.length > 0) {
+        console.log(`✓ Plugins initialized: ${result.successful.join(', ')}`);
+      }
+      if (result.failed.length > 0) {
+        console.warn(`Plugin initialization failures: ${result.failed.map(f => f.name).join(', ')}`);
       }
       
-      try {
-        const { ProxyConfigManager } = require('../core/managers');
-        this.managers.proxyConfigManager = new ProxyConfigManager({
-          cwd: app.getPath('userData')
-        });
-        console.log('✓ 代理配置管理器初始化');
-      } catch (error) {
-        console.warn('代理配置管理器初始化失败:', error.message);
-      }
+      // 发布插件初始化完成事件
+      await this.eventBus.publish('plugins:initialized', {
+        successful: result.successful,
+        failed: result.failed.map(f => f.name)
+      });
       
-      try {
-        const { createProxyDetectionService } = require('../core/services');
-        this.managers.proxyDetectionService = createProxyDetectionService();
-        console.log('✓ 代理检测服务初始化');
-      } catch (error) {
-        console.warn('代理检测服务初始化失败:', error.message);
-      }
-      
-      try {
-        const { SessionManager } = require('../core/managers');
-        this.managers.sessionManager = new SessionManager({
-          userDataPath: app.getPath('userData')
-        });
-        console.log('✓ 会话管理器初始化');
-      } catch (error) {
-        console.warn('会话管理器初始化失败:', error.message);
-      }
-      
-      // 5. 通知管理器
-      try {
-        const { NotificationManager } = require('../core/managers');
-        this.managers.notificationManager = new NotificationManager();
-        console.log('✓ 通知管理器初始化');
-      } catch (error) {
-        console.warn('通知管理器初始化失败:', error.message);
-      }
-      
-      // 6. 翻译集成管理器
-      try {
-        const { TranslationIntegration } = require('../core/managers');
-        this.managers.translationIntegration = new TranslationIntegration(null);
-        if (typeof this.managers.translationIntegration.initialize === 'function') {
-          await this.managers.translationIntegration.initialize();
-        }
-        console.log('✓ 翻译集成管理器初始化');
-      } catch (error) {
-        console.warn('翻译集成管理器初始化失败:', error.message);
-      }
-      
-      // 7. 迁移管理器
-      try {
-        const { MigrationManager } = require('../core/managers');
-        this.managers.migrationManager = new MigrationManager({
-          userDataPath: app.getPath('userData')
-        });
-        console.log('✓ 迁移管理器初始化');
-      } catch (error) {
-        console.warn('迁移管理器初始化失败:', error.message);
-      }
-      
-      console.log('核心管理器初始化完成');
-      
+    } catch (error) {
+      console.warn('Plugin system initialization failed:', error.message);
     }
   }
 
@@ -254,7 +445,6 @@ class AppBootstrap {
   async initializeUIComponents() {
     try {
       // 1. 初始化主窗口
-      // 让MainWindow使用其默认的正确路径，避免路径计算错误
       this.mainWindow = new MainWindow({
         width: 1400,
         height: 900,
@@ -263,34 +453,41 @@ class AppBootstrap {
         title: 'WhatsApp Desktop'
       });
       this.mainWindow.initialize();
-      console.log('✓ 主窗口初始化完成');
+      console.log('✓ MainWindow initialized');
 
-      // 2. 设置通知管理器的主窗口引用
+      // 2. 初始化通知管理器
+      if (!this.managers.notificationManager) {
+        this.managers.notificationManager = new NotificationManager();
+      }
       this.managers.notificationManager.setMainWindow(this.mainWindow);
 
-      // 3. 初始化系统托盘（如果启用）
+      // 3. 初始化系统托盘
       if (this.config.trayConfig && this.config.trayConfig.enabled) {
         try {
           this.managers.trayManager = new TrayManager();
           this.managers.trayManager.initialize(this.mainWindow.getWindow(), this.config.trayConfig);
-          
-          // 设置托盘管理器引用
           this.managers.notificationManager.setTrayManager(this.managers.trayManager);
-          
-          console.log('✓ 系统托盘初始化完成');
+          console.log('✓ TrayManager initialized');
         } catch (error) {
-          console.warn('系统托盘初始化失败:', error.message);
+          console.warn('TrayManager initialization failed:', error.message);
         }
       }
 
       // 4. 设置窗口关闭事件处理器
       this.setupMainWindowCloseHandler();
-      console.log('✓ 窗口关闭处理器已设置');
+      console.log('✓ Window close handler configured');
+
+      // 发布UI初始化完成事件
+      await this.eventBus.publish('ui:initialized', {
+        hasMainWindow: true,
+        hasTray: !!this.managers.trayManager
+      });
 
     } catch (error) {
       throw new Error(`Failed to initialize UI components: ${error.message}`);
     }
   }
+
 
   /**
    * 初始化ViewManager
@@ -303,7 +500,7 @@ class AppBootstrap {
         translationIntegration: this.managers.translationIntegration,
         accountManager: this.managers.accountConfigManager
       });
-      console.log('✓ ViewManager初始化完成');
+      console.log('✓ ViewManager initialized');
     } catch (error) {
       throw new Error(`Failed to initialize ViewManager: ${error.message}`);
     }
@@ -323,12 +520,12 @@ class AppBootstrap {
     }
 
     window.on('close', async () => {
-      console.log('主窗口正在关闭');
+      console.log('Main window closing');
       try {
         await this.saveApplicationState();
-        console.log('窗口关闭前状态已保存');
+        console.log('Application state saved before window close');
       } catch (error) {
-        console.error('保存窗口关闭状态时出错:', error);
+        console.error('Error saving state on window close:', error);
       }
     });
   }
@@ -361,13 +558,18 @@ class AppBootstrap {
   /**
    * 应用准备就绪事件处理
    */
-  onAppReady() {
+  async onAppReady() {
     console.log(`${APP_INFO.NAME} is ready`);
     
     // 显示主窗口
     if (this.mainWindow) {
       this.mainWindow.show();
     }
+    
+    // 发布应用就绪事件
+    await this.eventBus.publish('app:ready', {
+      timestamp: Date.now()
+    });
   }
 
   /**
@@ -395,12 +597,18 @@ class AppBootstrap {
     console.log('Application shutting down...');
     
     try {
+      // 发布应用关闭事件
+      await this.eventBus.publish('app:shutdown', {
+        timestamp: Date.now()
+      });
+      
       // 清理资源
       await this.cleanup();
     } catch (error) {
       console.error('Error during cleanup:', error);
     }
   }
+
 
   /**
    * 保存应用状态
@@ -412,7 +620,11 @@ class AppBootstrap {
       if (this.viewManager) {
         const activeAccountId = this.viewManager.getActiveAccountId();
         if (activeAccountId) {
-          console.log(`当前活跃账号: ${activeAccountId}`);
+          this.stateManager.setSlice('accounts', {
+            ...this.stateManager.getSlice('accounts'),
+            activeId: activeAccountId
+          });
+          console.log(`Active account: ${activeAccountId}`);
         }
       }
 
@@ -430,100 +642,31 @@ class AppBootstrap {
           }
         }
 
-        console.log(`已更新 ${updatedCount} 个账号的活跃时间`);
+        console.log(`Updated ${updatedCount} account(s) last active time`);
       }
 
       // 3. 保存窗口状态
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         const bounds = this.mainWindow.getBounds();
         if (bounds) {
-          console.log(`窗口状态已保存: ${bounds.width}x${bounds.height}`);
+          this.stateManager.setSlice('ui', {
+            ...this.stateManager.getSlice('ui'),
+            windowBounds: bounds
+          });
+          console.log(`Window state saved: ${bounds.width}x${bounds.height}`);
         }
       }
 
-      console.log('应用状态保存完成');
-    } catch (error) {
-      console.error('保存应用状态时出错:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 执行遗留数据清理
-   * @returns {Promise<void>}
-   */
-  async performOrphanedDataCleanup() {
-    try {
-      console.log('开始执行自动数据清理...');
-
-      const userDataPath = app.getPath('userData');
-      const cleaner = new OrphanedDataCleaner({
-        userDataPath,
-        logFunction: (level, message, ...args) => {
-          console.log(`[${level.toUpperCase()}] OrphanedDataCleaner: ${message}`, ...args);
-        }
-      });
-
-      const accounts = await this.managers.accountConfigManager.loadAccounts();
-      const accountIds = accounts.map(acc => acc.id);
-
-      console.log(`当前账号数量: ${accounts.length}`);
+      // 4. 持久化状态
+      await this.stateManager.persist();
       
-      const cleanupResult = await cleaner.scanAndClean(accountIds);
+      // 5. 保存配置
+      await this.configProvider.save();
 
-      if (cleanupResult.success) {
-        console.log(`自动清理完成: 清理了 ${cleanupResult.cleaned} 个遗留目录`);
-        if (cleanupResult.details.totalSizeFreed > 0) {
-          console.log(`释放磁盘空间: ${cleanupResult.details.totalSizeFreed} 字节`);
-        }
-      } else {
-        console.warn(`自动清理完成但有错误: ${cleanupResult.errors.join(', ')}`);
-      }
+      console.log('Application state saved successfully');
     } catch (error) {
-      console.error('自动数据清理失败:', error);
-    }
-  }
-
-  /**
-   * 确保所有账号启用了翻译功能
-   * @returns {Promise<void>}
-   */
-  async ensureTranslationEnabled() {
-    try {
-      const accounts = await this.managers.accountConfigManager.loadAccounts();
-      let updatedCount = 0;
-
-      for (const account of accounts) {
-        let needsUpdate = false;
-
-        if (!account.translation) {
-          account.translation = {
-            enabled: true,
-            targetLanguage: 'zh-CN',
-            engine: 'google',
-            apiKey: '',
-            autoTranslate: false,
-            translateInput: false,
-            friendSettings: {}
-          };
-          needsUpdate = true;
-        } else if (!account.translation.enabled) {
-          account.translation.enabled = true;
-          needsUpdate = true;
-        }
-
-        if (needsUpdate) {
-          await this.managers.accountConfigManager.saveAccount(account);
-          updatedCount++;
-          console.log(`已为账号 ${account.name} 启用翻译功能`);
-        }
-      }
-
-      if (updatedCount > 0) {
-        console.log(`已为 ${updatedCount} 个账号启用翻译功能`);
-      }
-    } catch (error) {
-      console.error('检查翻译配置时出错:', error);
+      console.error('Error saving application state:', error);
+      throw error;
     }
   }
 
@@ -532,7 +675,7 @@ class AppBootstrap {
    * @returns {Promise<void>}
    */
   async cleanup() {
-    console.log('开始清理资源...');
+    console.log('Starting resource cleanup...');
 
     try {
       // 1. 保存应用状态
@@ -542,49 +685,64 @@ class AppBootstrap {
       if (this.viewManager) {
         try {
           const stopResult = this.viewManager.stopAllConnectionMonitoring();
-          console.log(`连接监控已停止: ${stopResult.stopped} 个账号`);
+          console.log(`Connection monitoring stopped: ${stopResult.stopped} accounts`);
 
           const stopLoginResult = this.viewManager.stopAllLoginStatusMonitoring();
-          console.log(`登录状态监控已停止: ${stopLoginResult.stopped} 个账号`);
+          console.log(`Login status monitoring stopped: ${stopLoginResult.stopped} accounts`);
         } catch (error) {
-          console.error('停止监控时出错:', error);
+          console.error('Error stopping monitoring:', error);
         }
       }
 
-      // 3. 优雅关闭所有BrowserView
-      if (this.viewManager) {
-        console.log('开始优雅关闭所有BrowserView...');
-        const allViews = this.viewManager.getAllViews();
-        console.log(`准备关闭 ${allViews.length} 个BrowserView`);
-
-        const result = await this.viewManager.destroyAllViews();
-        console.log(`BrowserView关闭完成: ${result.destroyed} 个成功, ${result.failed} 个失败`);
+      // 3. 销毁所有插件
+      if (this.pluginManager) {
+        const destroyResult = await this.pluginManager.destroyAll();
+        console.log(`Plugins destroyed: ${destroyResult.successful.length} successful, ${destroyResult.failed.length} failed`);
       }
 
-      // 4. 销毁系统托盘
+      // 4. 关闭所有BrowserView
+      if (this.viewManager) {
+        console.log('Destroying all BrowserViews...');
+        const allViews = this.viewManager.getAllViews();
+        console.log(`Preparing to close ${allViews.length} BrowserView(s)`);
+
+        const result = await this.viewManager.destroyAllViews();
+        console.log(`BrowserViews closed: ${result.destroyed} successful, ${result.failed} failed`);
+      }
+
+      // 5. 销毁系统托盘
       if (this.managers.trayManager) {
         this.managers.trayManager.destroy();
         this.managers.trayManager = null;
-        console.log('系统托盘已销毁');
+        console.log('TrayManager destroyed');
       }
 
-      // 5. 清理翻译集成
+      // 6. 清理翻译集成
       if (this.managers.translationIntegration) {
         this.managers.translationIntegration.cleanup();
-        console.log('翻译集成已清理');
+        console.log('TranslationIntegration cleaned up');
       }
 
-      // 6. 清理通知管理器
+      // 7. 清理通知管理器
       if (this.managers.notificationManager) {
         this.managers.notificationManager.clearAll();
-        console.log('通知管理器已清理');
+        console.log('NotificationManager cleaned up');
       }
 
-      console.log('资源清理完成');
+      // 8. 清理EventBus
+      if (this.eventBus) {
+        this.eventBus.clear();
+        console.log('EventBus cleared');
+      }
+
+      console.log('Resource cleanup completed');
     } catch (error) {
-      console.error('资源清理过程中发生错误:', error);
+      console.error('Error during resource cleanup:', error);
     }
   }
+
+
+  // ==================== Accessor Methods ====================
 
   /**
    * 获取管理器实例
@@ -620,6 +778,62 @@ class AppBootstrap {
   }
 
   /**
+   * 获取EventBus实例
+   * @returns {EventBus}
+   */
+  getEventBus() {
+    return this.eventBus;
+  }
+
+  /**
+   * 获取ConfigProvider实例
+   * @returns {ConfigProvider}
+   */
+  getConfigProvider() {
+    return this.configProvider;
+  }
+
+  /**
+   * 获取StateManager实例
+   * @returns {StateManager}
+   */
+  getStateManager() {
+    return this.stateManager;
+  }
+
+  /**
+   * 获取DependencyContainer实例
+   * @returns {DependencyContainer}
+   */
+  getContainer() {
+    return this.container;
+  }
+
+  /**
+   * 获取PluginManager实例
+   * @returns {PluginManager}
+   */
+  getPluginManager() {
+    return this.pluginManager;
+  }
+
+  /**
+   * 获取IPCRouter实例
+   * @returns {IPCRouter}
+   */
+  getIPCRouter() {
+    return this.ipcRouter;
+  }
+
+  /**
+   * 获取ErrorHandler实例
+   * @returns {ErrorHandler}
+   */
+  getErrorHandler() {
+    return this.errorHandler;
+  }
+
+  /**
    * 获取应用状态
    * @returns {Object} 应用状态
    */
@@ -632,10 +846,23 @@ class AppBootstrap {
       version: APP_INFO.VERSION,
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
-      platform: process.platform
+      platform: process.platform,
+      // 新架构组件状态
+      architecture: {
+        eventBus: !!this.eventBus,
+        configProvider: !!this.configProvider,
+        stateManager: !!this.stateManager,
+        pluginManager: !!this.pluginManager,
+        ipcRouter: !!this.ipcRouter,
+        errorHandler: !!this.errorHandler,
+        pluginCount: this.pluginManager ? this.pluginManager.getAllPlugins().length : 0,
+        ipcChannelCount: this.ipcRouter ? this.ipcRouter.getChannelCount() : 0
+      }
     };
   }
 }
+
+// ==================== Module Exports ====================
 
 // 单例实例
 let appInstance = null;

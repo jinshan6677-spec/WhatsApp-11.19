@@ -222,18 +222,5 @@
     },
     "afterPack": "./scripts/afterPack.js",
     "npmRebuild": true
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coverageDirectory": "coverage",
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/**/*.test.js",
-      "!src/**/__tests__/**"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.js",
-      "**/*.test.js"
-    ]
   }
 }
