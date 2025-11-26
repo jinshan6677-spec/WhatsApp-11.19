@@ -101,12 +101,30 @@ class MessageTranslator {
         options: {} // Chat window translation doesn't pass style parameter
       });
 
-      if (response.success) {
-        console.log(`[Translation] ✅ Translation successful, using engine: ${response.data.engineName || engineName}`);
-        this.ui.displayTranslation(messageNode, response.data);
+      // The IPC handler returns the result directly (not wrapped in { success, data })
+      // because ipcMain.handle returns response.data
+      if (response) {
+        // Check if response is wrapped or direct
+        let translationResult;
+        if (response.success !== undefined) {
+          // Wrapped response: { success: true, data: result }
+          if (response.success) {
+            translationResult = response.data;
+          } else {
+            console.error('[Translation] Translation failed:', response.error);
+            this.ui.displayError(messageNode, response.error);
+            return;
+          }
+        } else {
+          // Direct result object (translatedText, etc.)
+          translationResult = response;
+        }
+        
+        console.log(`[Translation] ✅ Translation successful, using engine: ${translationResult.engineName || engineName}`);
+        this.ui.displayTranslation(messageNode, translationResult);
       } else {
-        console.error('[Translation] Translation failed:', response.error);
-        this.ui.displayError(messageNode, response.error);
+        console.error('[Translation] Empty translation response');
+        this.ui.displayError(messageNode, 'Empty response');
       }
 
     } catch (error) {

@@ -13,7 +13,6 @@ const { initializeApp } = require('./app/bootstrap');
 
 // 导入IPC处理器
 const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandlers: unregisterSingleWindowIPCHandlers } = require('./single-window/ipcHandlers');
-const { registerIPCHandlers: registerTranslationIPCHandlers, unregisterIPCHandlers: unregisterTranslationIPCHandlers } = require('./translation/ipcHandlers');
 const { registerProxyIPCHandlers, unregisterProxyIPCHandlers } = require('./ipc/proxyIPCHandlers');
 
 // 导入新架构的IPC处理器
@@ -92,10 +91,6 @@ async function registerAllIPCHandlers() {
     registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
     console.log('[INFO] 单窗口IPC处理器注册完成');
 
-    // 注册翻译IPC处理器 (legacy - for backward compatibility)
-    await registerTranslationIPCHandlers();
-    console.log('[INFO] 翻译IPC处理器注册完成 (legacy)');
-
     // 注册翻译服务IPC处理器 (new IPCRouter architecture)
     if (ipcRouter && translationService) {
       await translationService.initialize();
@@ -125,13 +120,6 @@ function unregisterAllIPCHandlers() {
     console.log('[INFO] 单窗口IPC处理器已注销');
   } catch (error) {
     console.error('[ERROR] 注销单窗口IPC处理器时出错:', error);
-  }
-
-  try {
-    unregisterTranslationIPCHandlers();
-    console.log('[INFO] 翻译IPC处理器已注销 (legacy)');
-  } catch (error) {
-    console.error('[ERROR] 注销翻译IPC处理器时出错:', error);
   }
 
   try {

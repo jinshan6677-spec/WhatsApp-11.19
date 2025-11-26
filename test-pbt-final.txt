@@ -24,95 +24,95 @@ s
     Property 1: Deep merge preserve
 s structure integrity
       鈭?merged result contains all 
-keys from both target and source (5
-43 ms)
+keys from both target and source (1
+147 ms)
       鈭?source values override targ
-et values for primitives (21 ms)
+et values for primitives (29 ms)
       鈭?arrays are replaced, not me
-rged (30 ms)
+rged (35 ms)
       鈭?nested objects are recursiv
-ely merged (38 ms)
+ely merged (57 ms)
       鈭?translation config merge pr
-eserves all sections (69 ms)
+eserves all sections (98 ms)
       鈭?handles null and undefined 
-gracefully (66 ms)
+gracefully (102 ms)
       鈭?result is a new object (imm
-utability) (74 ms)
+utability) (99 ms)
   WhatsAppTranslation Config Update
  Property Tests
     Property 8: Config update state
  consistency
       鈭?config and core.config are 
-identical after updateConfig (63 ms
-)
+identical after updateConfig (101 m
+s)
       鈭?applyConfigChanges is calle
-d after successful update (28 ms)
+d after successful update (32 ms)
       鈭?partial config updates pres
-erve unmodified fields (36 ms)
+erve unmodified fields (51 ms)
       鈭?config state is consistent 
-even with nested partial updates (4
-6 ms)
+even with nested partial updates (5
+1 ms)
       鈭?multiple sequential updates
- maintain consistency (43 ms)
+ maintain consistency (59 ms)
   WhatsAppTranslation Feature Toggl
 e Property Tests
     Property 2: Auto-translate togg
 le controls translation behavior
       鈭?messages are translated onl
-y when autoTranslate is enabled (19
+y when autoTranslate is enabled (30
  ms)
       鈭?translation behavior change
-s immediately with config update (1
-2 ms)
+s immediately with config update (2
+6 ms)
     Property 3: Group translation t
 oggle controls group chat translati
 on
       鈭?group messages are translat
 ed only when both autoTranslate and
- groupTranslation are enabled (21 m
+ groupTranslation are enabled (30 m
 s)
       鈭?group translation toggle ch
-anges behavior immediately (19 ms)
+anges behavior immediately (24 ms)
     Property 4: Chinese block toggl
 e controls send behavior
       鈭?Chinese text is blocked onl
-y when blockChinese is enabled (26 
+y when blockChinese is enabled (34 
 ms)
       鈭?non-Chinese text is never b
-locked regardless of config (12 ms)
+locked regardless of config (20 ms)
       鈭?Chinese block toggle change
-s behavior immediately (18 ms)
+s behavior immediately (22 ms)
     Input box translation button to
 ggle
       鈭?translate button is shown o
 nly when inputBox.enabled is true (
-19 ms)
+21 ms)
       鈭?input box button toggle cha
-nges behavior immediately (19 ms)
+nges behavior immediately (22 ms)
     Realtime translation preview to
 ggle
       鈭?realtime preview is enabled
  only when advanced.realtime is tru
-e (23 ms)
+e (27 ms)
       鈭?realtime preview toggle cha
-nges behavior immediately (16 ms)
+nges behavior immediately (23 ms)
     Reverse translation verificatio
 n toggle
       鈭?reverse translation is show
 n only when advanced.reverseTransla
-tion is true (12 ms)
+tion is true (21 ms)
       鈭?reverse translation toggle 
-changes behavior immediately (15 ms
+changes behavior immediately (22 ms
 )
 
 Test Suites: 1 passed, 1 total
 Tests:       25 passed, 25 total
 Snapshots:   0 total
-Time:        1.861 s, estimated 4 s
+Time:        2.953 s
 Ran all test suites matching /src\\
 presentation\\translation\\content-
 script\\__tests__\\WhatsAppTranslat
 ion.property.test.js/i.
 
-鉁?Test suite completed in 1.88s
+鉁?Test suite completed in 2.98s
 

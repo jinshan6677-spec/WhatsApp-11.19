@@ -110,27 +110,82 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       const chatInfo = await view.webContents.executeJavaScript(`
         (function() {
           try {
-            // Try to get the active chat element
-            const chatHeader = document.querySelector('[data-testid="conversation-header"]');
-            if (!chatHeader) {
+            // Check if main chat panel exists
+            const mainPanel = document.querySelector('#main');
+            if (!mainPanel) {
+              console.log('[get-active-chat] No main panel found');
               return { contactId: null, contactName: null };
             }
 
-            // Try to get contact name
-            const nameElement = chatHeader.querySelector('[data-testid="conversation-info-header-chat-title"]');
-            const contactName = nameElement ? nameElement.textContent : null;
-
-            // Try to get contact ID from the URL or data attributes
+            let contactName = null;
             let contactId = null;
-            const urlMatch = window.location.href.match(/chat\\/([^/]+)/);
-            if (urlMatch) {
-              contactId = urlMatch[1];
+
+            // Method 1: Try to get from URL hash
+            const hash = window.location.hash;
+            if (hash) {
+              const hashMatch = hash.match(/\\/chat\\/([^/]+)/);
+              if (hashMatch && hashMatch[1]) {
+                contactId = decodeURIComponent(hashMatch[1]);
+                console.log('[get-active-chat] Contact ID from hash:', contactId);
+              }
             }
+
+            // Method 2: Try to get from URL path
+            if (!contactId) {
+              const urlMatch = window.location.href.match(/chat\\/([^/]+)/);
+              if (urlMatch && urlMatch[1]) {
+                contactId = decodeURIComponent(urlMatch[1]);
+                console.log('[get-active-chat] Contact ID from URL:', contactId);
+              }
+            }
+
+            // Method 3: Try multiple selectors for contact name
+            const nameSelectors = [
+              '#main header [data-testid="conversation-info-header-chat-title"]',
+              '#main header [data-testid="conversation-title"]',
+              '#main header span[title]',
+              '#main header span[dir="auto"][title]',
+              '#main header ._amig span[dir="auto"]',
+              '#main header ._amie span[dir="auto"]',
+              '#main [data-testid="conversation-header"] span[dir="auto"]',
+              '#main header [data-testid="conversation-info-header"]',
+              '#main header span[dir="auto"]'
+            ];
+
+            for (const selector of nameSelectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                // Try title attribute first
+                let name = element.getAttribute('title');
+                if (!name) {
+                  name = element.textContent?.trim();
+                }
+                if (name && name.length > 0) {
+                  contactName = name;
+                  console.log('[get-active-chat] Contact name from selector (' + selector + '):', contactName);
+                  break;
+                }
+              }
+            }
+
+            // Method 4: If no contact ID but have name, use name as ID
+            if (!contactId && contactName) {
+              contactId = contactName;
+            }
+
+            // Method 5: Check for group chat
+            const chatHeader = document.querySelector('#main header') || 
+                              document.querySelector('[data-testid="conversation-header"]');
+            const isGroup = chatHeader ? 
+              (chatHeader.querySelector('[data-icon="default-group"]') !== null ||
+               chatHeader.querySelector('[data-icon="group"]') !== null) : false;
+
+            console.log('[get-active-chat] Final result:', { contactId, contactName, isGroup });
 
             return {
               contactId: contactId,
               contactName: contactName,
-              isGroup: chatHeader.querySelector('[data-testid="default-group"]') !== null
+              isGroup: isGroup
             };
           } catch (error) {
             console.error('[get-active-chat] Error:', error);

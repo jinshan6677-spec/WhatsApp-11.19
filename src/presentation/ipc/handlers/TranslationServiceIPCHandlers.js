@@ -1,9 +1,8 @@
 /**
  * TranslationServiceIPCHandlers - Translation Service IPC Handlers for IPCRouter
  * 
- * Migrates the 13 translation IPC channels from src/translation/ipcHandlers.js
- * to the new IPCRouter architecture with request validation.
- * Maintains backward compatibility with existing functionality.
+ * Handles 13 translation IPC channels using the new IPCRouter architecture
+ * with request validation and error handling.
  * 
  * IPC Channels:
  * - translation:translate - Translate text
@@ -26,6 +25,7 @@
 'use strict';
 
 const { EventSchema } = require('../../../core/eventbus/EventSchema');
+const { BrowserView } = require('electron');
 
 // Store reference to translation service
 let _translationService = null;
@@ -173,6 +173,9 @@ const handlers = {
     _translationService.saveConfig(accountId, config);
     console.log(`[IPC:Translation] Translation config saved for account ${accountId}`);
     
+    // Notify corresponding BrowserView about config change
+    await notifyBrowserViewConfigChanged(accountId, config);
+    
     return {
       success: true,
       accountId
@@ -306,6 +309,36 @@ const handlers = {
 };
 
 /**
+ * Notify BrowserView about config change
+ * @param {string} accountId - Account ID
+ * @param {Object} config - New configuration
+ */
+async function notifyBrowserViewConfigChanged(accountId, config) {
+  try {
+    const allViews = BrowserView.getAllViews();
+    
+    for (const view of allViews) {
+      if (view && view.webContents && !view.webContents.isDestroyed()) {
+        try {
+          // Get the account ID from the view's window context
+          const viewAccountId = await view.webContents.executeJavaScript('window.ACCOUNT_ID').catch(() => null);
+          
+          if (viewAccountId === accountId) {
+            console.log(`[IPC:Translation] Notifying BrowserView for account ${accountId} about config change`);
+            view.webContents.send('translation:configChanged', config);
+          }
+        } catch (err) {
+          // Ignore errors for individual views (e.g., view might be loading)
+          console.debug(`[IPC:Translation] Could not check view for account ID: ${err.message}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`[IPC:Translation] Error notifying BrowserView about config change:`, error);
+  }
+}
+
+/**
  * Wraps a handler with error handling
  * @param {Function} handler - Handler function
  * @param {string} name - Handler name for logging
@@ -327,12 +360,33 @@ function wrapHandler(handler, name) {
 }
 
 /**
- * Registers translation IPC handlers with IPCRouter
+ * List of all translation IPC channels
+ */
+const TRANSLATION_CHANNELS = [
+  'translation:translate',
+  'translation:detectLanguage',
+  'translation:getConfig',
+  'translation:saveConfig',
+  'translation:getStats',
+  'translation:clearCache',
+  'translation:saveEngineConfig',
+  'translation:getEngineConfig',
+  'translation:clearHistory',
+  'translation:clearUserData',
+  'translation:clearAllData',
+  'translation:getPrivacyReport',
+  'translation:getAccountStats'
+];
+
+/**
+ * Registers translation IPC handlers with IPCRouter AND ipcMain
  * @param {IPCRouter} router - IPCRouter instance
  * @param {Object} dependencies - Handler dependencies
  * @param {Object} dependencies.translationService - Translation service instance
  */
 function registerWithRouter(router, dependencies) {
+  const { ipcMain } = require('electron');
+  
   _translationService = dependencies.translationService;
   
   if (!_translationService) {
@@ -414,35 +468,64 @@ function registerWithRouter(router, dependencies) {
   });
 
   console.log('[IPC:Translation] Translation service handlers registered with IPCRouter');
+  
+  // ========== CRITICAL: Register with ipcMain ==========
+  // The IPCRouter is an internal router, but we need to connect it to Electron's ipcMain
+  // so that renderer processes can actually invoke these handlers
+  
+  for (const channel of TRANSLATION_CHANNELS) {
+    // Remove existing handler if any (to avoid duplicate registration errors)
+    try {
+      ipcMain.removeHandler(channel);
+    } catch (e) {
+      // Ignore - handler might not exist
+    }
+    
+    // Register the handler with ipcMain
+    ipcMain.handle(channel, async (event, ...args) => {
+      // Build request object for IPCRouter
+      const request = {
+        payload: args.length === 1 ? args[0] : args,
+        requestId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      };
+      
+      // Route through IPCRouter
+      const response = await router.handle(channel, request);
+      
+      if (response.success) {
+        return response.data;
+      } else {
+        throw new Error(response.error?.message || 'Unknown error');
+      }
+    });
+    
+    console.log(`[IPC:Translation] ✓ Registered ipcMain.handle for: ${channel}`);
+  }
+  
+  console.log(`[IPC:Translation] ✓ All ${TRANSLATION_CHANNELS.length} channels registered with ipcMain`);
 }
 
 /**
- * Unregisters translation IPC handlers from IPCRouter
+ * Unregisters translation IPC handlers from IPCRouter and ipcMain
  * @param {IPCRouter} router - IPCRouter instance
  */
 function unregisterFromRouter(router) {
-  const channels = [
-    'translation:translate',
-    'translation:detectLanguage',
-    'translation:getConfig',
-    'translation:saveConfig',
-    'translation:getStats',
-    'translation:clearCache',
-    'translation:saveEngineConfig',
-    'translation:getEngineConfig',
-    'translation:clearHistory',
-    'translation:clearUserData',
-    'translation:clearAllData',
-    'translation:getPrivacyReport',
-    'translation:getAccountStats'
-  ];
-
-  for (const channel of channels) {
+  const { ipcMain } = require('electron');
+  
+  for (const channel of TRANSLATION_CHANNELS) {
+    // Unregister from IPCRouter
     router.unregister(channel);
+    
+    // Unregister from ipcMain
+    try {
+      ipcMain.removeHandler(channel);
+    } catch (e) {
+      // Ignore - handler might not exist
+    }
   }
 
   _translationService = null;
-  console.log('[IPC:Translation] Translation service handlers unregistered from IPCRouter');
+  console.log('[IPC:Translation] Translation service handlers unregistered from IPCRouter and ipcMain');
 }
 
 module.exports = {

@@ -771,14 +771,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 
 // Expose translation API to renderer (mirrors content script interface)
+// Note: The IPCRouter expects payload as a single object, so we wrap parameters accordingly
 contextBridge.exposeInMainWorld('translationAPI', {
   translate: (request) => ipcRenderer.invoke('translation:translate', request),
   detectLanguage: (text) => ipcRenderer.invoke('translation:detectLanguage', text),
   getConfig: (accountId) => ipcRenderer.invoke('translation:getConfig', accountId),
-  saveConfig: (accountId, config) => ipcRenderer.invoke('translation:saveConfig', accountId, config),
+  // saveConfig expects { accountId, config } as payload
+  saveConfig: (accountId, config) => ipcRenderer.invoke('translation:saveConfig', { accountId, config }),
   getStats: () => ipcRenderer.invoke('translation:getStats'),
   clearCache: (accountId = null) => ipcRenderer.invoke('translation:clearCache', accountId),
-  saveEngineConfig: (engineName, config) => ipcRenderer.invoke('translation:saveEngineConfig', engineName, config),
+  // saveEngineConfig expects { engineName, config } as payload
+  saveEngineConfig: (engineName, config) => ipcRenderer.invoke('translation:saveEngineConfig', { engineName, config }),
   getEngineConfig: (engineName) => ipcRenderer.invoke('translation:getEngineConfig', engineName)
 });
 

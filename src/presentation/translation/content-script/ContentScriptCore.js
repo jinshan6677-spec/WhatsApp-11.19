@@ -71,10 +71,23 @@ class ContentScriptCore {
     try {
       if (window.translationAPI) {
         const response = await window.translationAPI.getConfig(this.accountId);
-        if (response.success && (response.config || response.data)) {
-          this.config = response.config || response.data;
+        
+        // The IPC handler returns the config directly (not wrapped in { success, data })
+        // because ipcMain.handle returns response.data
+        if (response) {
+          // Check if response is the config object itself or wrapped
+          if (response.success !== undefined) {
+            // Wrapped response: { success: true, data: config }
+            this.config = response.data || response.config || this.getDefaultConfig();
+          } else if (response.global || response.inputBox || response.advanced) {
+            // Direct config object
+            this.config = response;
+          } else {
+            console.warn('[Translation] Unexpected config format:', response);
+            this.config = this.getDefaultConfig();
+          }
         } else {
-          console.error('[Translation] Failed to load config:', response.error);
+          console.error('[Translation] Empty config response');
           this.config = this.getDefaultConfig();
         }
       } else {
@@ -122,30 +135,123 @@ class ContentScriptCore {
    */
   getCurrentContactId() {
     try {
-      // Method 1: Get from URL
+      // Method 1: Get from URL hash (WhatsApp Web uses hash-based routing)
+      const hash = window.location.hash;
+      if (hash) {
+        // Format: #/chat/1234567890@c.us or similar
+        const hashMatch = hash.match(/\/chat\/([^/]+)/);
+        if (hashMatch && hashMatch[1]) {
+          const contactId = decodeURIComponent(hashMatch[1]);
+          if (this._lastContactId !== contactId) {
+            console.log('[Translation] Contact ID from hash:', contactId);
+            this._lastContactId = contactId;
+          }
+          return contactId;
+        }
+      }
+
+      // Method 2: Get from URL path
       const urlMatch = window.location.href.match(/\/chat\/([^/]+)/);
       if (urlMatch && urlMatch[1]) {
         const contactId = decodeURIComponent(urlMatch[1]);
         if (this._lastContactId !== contactId) {
-          console.log('[Translation] Contact ID changed to:', contactId);
+          console.log('[Translation] Contact ID from URL:', contactId);
           this._lastContactId = contactId;
         }
         return contactId;
       }
 
-      // Method 2: Get from chat title
-      const header = document.querySelector('#main header [data-testid="conversation-info-header"]') ||
-        document.querySelector('#main header span[dir="auto"]') ||
-        document.querySelector('header[data-testid="chatlist-header"] + div span[dir="auto"]');
+      // Method 3: Get from chat header - try multiple selectors
+      const headerSelectors = [
+        // Primary: conversation info header with title
+        '#main header [data-testid="conversation-info-header-chat-title"]',
+        '#main header [data-testid="conversation-title"]',
+        // Secondary: header span with contact name
+        '#main header span[title]',
+        '#main header span[dir="auto"][title]',
+        // Tertiary: any span in header area
+        '#main header ._amig span[dir="auto"]',
+        '#main header ._amie span[dir="auto"]',
+        '#main [data-testid="conversation-header"] span[dir="auto"]',
+        // Fallback: conversation info header
+        '#main header [data-testid="conversation-info-header"]',
+        '#main header span[dir="auto"]'
+      ];
 
-      if (header) {
-        const contactName = header.textContent.trim();
-        if (contactName) {
-          if (this._lastContactId !== contactName) {
-            console.log('[Translation] Contact ID changed to:', contactName);
-            this._lastContactId = contactName;
+      for (const selector of headerSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          // Try to get title attribute first (more reliable)
+          let contactName = element.getAttribute('title');
+          if (!contactName) {
+            contactName = element.textContent?.trim();
           }
-          return contactName;
+          
+          if (contactName && contactName.length > 0) {
+            if (this._lastContactId !== contactName) {
+              console.log('[Translation] Contact ID from header (' + selector + '):', contactName);
+              this._lastContactId = contactName;
+            }
+            return contactName;
+          }
+        }
+      }
+
+      // Method 4: Get from active chat in chat list
+      const activeChatSelectors = [
+        '[data-testid="cell-frame-container"][aria-selected="true"] span[title]',
+        '._ak8l[aria-selected="true"] span[title]',
+        '[role="listitem"][aria-selected="true"] span[title]'
+      ];
+
+      for (const selector of activeChatSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const contactName = element.getAttribute('title') || element.textContent?.trim();
+          if (contactName && contactName.length > 0) {
+            if (this._lastContactId !== contactName) {
+              console.log('[Translation] Contact ID from active chat:', contactName);
+              this._lastContactId = contactName;
+            }
+            return contactName;
+          }
+        }
+      }
+
+      // Method 5: Check if #main exists (chat is open)
+      const mainPanel = document.querySelector('#main');
+      if (!mainPanel) {
+        // No chat is open
+        if (this._lastContactId !== null) {
+          console.log('[Translation] No chat open, clearing contact ID');
+          this._lastContactId = null;
+        }
+        return null;
+      }
+
+      // Chat panel exists but couldn't find contact name
+      // Try one more approach: look for any visible contact name in header
+      const headerArea = document.querySelector('#main header');
+      if (headerArea) {
+        const spans = headerArea.querySelectorAll('span[dir="auto"]');
+        for (const span of spans) {
+          const text = span.textContent?.trim();
+          // Filter out common UI text
+          if (text && text.length > 0 && 
+              !text.includes('点击') && 
+              !text.includes('click') &&
+              !text.includes('在线') &&
+              !text.includes('online') &&
+              !text.includes('离线') &&
+              !text.includes('offline') &&
+              !text.includes('正在输入') &&
+              !text.includes('typing')) {
+            if (this._lastContactId !== text) {
+              console.log('[Translation] Contact ID from header span:', text);
+              this._lastContactId = text;
+            }
+            return text;
+          }
         }
       }
 

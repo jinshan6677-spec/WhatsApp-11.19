@@ -417,6 +417,122 @@ class TranslationUI {
       /* Input box reverse translation styles */
       .wa-input-reverse-translation {
         animation: slideDown 0.3s ease;
+        margin: 8px 12px;
+        padding: 12px;
+        background: rgba(156, 39, 176, 0.08);
+        border-left: 3px solid #9c27b0;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .wa-input-reverse-translation .reverse-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .wa-input-reverse-translation .reverse-title {
+        font-weight: 500;
+        color: #9c27b0;
+      }
+
+      .wa-input-reverse-translation .reverse-close {
+        margin-left: auto;
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #666;
+        padding: 0 4px;
+        line-height: 1;
+      }
+
+      .wa-input-reverse-translation .reverse-close:hover {
+        color: #333;
+      }
+
+      .wa-input-reverse-translation .similarity-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .wa-input-reverse-translation .similarity-badge.good {
+        background: rgba(76, 175, 80, 0.2);
+        color: #2e7d32;
+      }
+
+      .wa-input-reverse-translation .similarity-badge.warning {
+        background: rgba(255, 152, 0, 0.2);
+        color: #e65100;
+      }
+
+      .wa-input-reverse-translation .reverse-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 6px;
+      }
+
+      .wa-input-reverse-translation .reverse-label {
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+
+      .wa-input-reverse-translation .reverse-text {
+        color: #333;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+      }
+
+      .wa-input-reverse-translation .reverse-warning {
+        margin-top: 8px;
+        padding: 8px;
+        background: rgba(255, 152, 0, 0.1);
+        border-radius: 6px;
+        color: #e65100;
+        font-size: 12px;
+      }
+
+      .wa-input-reverse-translation .reverse-error {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #d32f2f;
+        padding: 8px;
+        background: rgba(211, 47, 47, 0.1);
+        border-radius: 6px;
+      }
+
+      /* Dark mode support for reverse translation */
+      [data-theme="dark"] .wa-input-reverse-translation {
+        background: rgba(156, 39, 176, 0.15);
+      }
+
+      [data-theme="dark"] .wa-input-reverse-translation .reverse-item {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      [data-theme="dark"] .wa-input-reverse-translation .reverse-text {
+        color: #e9edef;
+      }
+
+      [data-theme="dark"] .wa-input-reverse-translation .reverse-label {
+        color: #8696a0;
+      }
+
+      [data-theme="dark"] .wa-input-reverse-translation .reverse-close {
+        color: #8696a0;
+      }
+
+      [data-theme="dark"] .wa-input-reverse-translation .reverse-close:hover {
+        color: #e9edef;
       }
 
       @keyframes slideDown {

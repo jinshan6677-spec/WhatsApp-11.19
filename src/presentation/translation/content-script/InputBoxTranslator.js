@@ -242,9 +242,26 @@ class InputBoxTranslator {
         }
       });
 
-      if (response.success) {
+      // The IPC handler returns the result directly (not wrapped in { success, data })
+      // because ipcMain.handle returns response.data
+      let translationResult;
+      if (response) {
+        if (response.success !== undefined) {
+          // Wrapped response
+          if (response.success) {
+            translationResult = response.data;
+          } else {
+            console.error('[Translation] Translation failed:', response.error);
+            this.ui.showToast('翻译失败: ' + response.error, 'error');
+            return;
+          }
+        } else {
+          // Direct result object
+          translationResult = response;
+        }
+        
         // Decode HTML entities
-        const translatedText = this.core.decodeHTMLEntitiesInBrowser(response.data.translatedText);
+        const translatedText = this.core.decodeHTMLEntitiesInBrowser(translationResult.translatedText);
 
         console.log('[Translation] Translation successful:', translatedText);
 
@@ -257,8 +274,8 @@ class InputBoxTranslator {
           await this.showInputBoxReverseTranslation(text, translatedText, targetLang);
         }
       } else {
-        console.error('[Translation] Translation failed:', response.error);
-        this.ui.showToast('翻译失败: ' + response.error, 'error');
+        console.error('[Translation] Empty translation response');
+        this.ui.showToast('翻译失败: 空响应', 'error');
       }
 
     } catch (error) {
@@ -293,8 +310,19 @@ class InputBoxTranslator {
           // Call language detection API
           const result = await window.translationAPI.detectLanguage(text);
 
-          if (result.success && result.data.language) {
-            const detectedLang = result.data.language;
+          // Handle both wrapped and direct response formats
+          let detectedLang;
+          if (result) {
+            if (result.success !== undefined) {
+              // Wrapped response
+              detectedLang = result.success && result.data ? result.data.language : null;
+            } else if (result.language) {
+              // Direct result object
+              detectedLang = result.language;
+            }
+          }
+          
+          if (detectedLang) {
             console.log('[Translation] Detected language from message:', detectedLang, 'Text:', text.substring(0, 50));
 
             // If detected language is not Chinese, use this language
@@ -420,21 +448,44 @@ class InputBoxTranslator {
         <div class="reverse-content"></div>
       `;
 
-      // Add styles
+      // Add container styles
       reverseDiv.style.cssText = `
         margin: 8px 12px;
         padding: 12px;
-        background: rgba(156, 39, 176, 0.05);
+        background: rgba(156, 39, 176, 0.08);
         border-left: 3px solid #9c27b0;
         border-radius: 8px;
         font-size: 13px;
+        line-height: 1.5;
+      `;
+
+      // Style the header
+      const header = reverseDiv.querySelector('.reverse-header');
+      header.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      `;
+
+      // Style the close button
+      const closeBtn = reverseDiv.querySelector('.reverse-close');
+      closeBtn.style.cssText = `
+        margin-left: auto;
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #666;
+        padding: 0 4px;
+        line-height: 1;
       `;
 
       // Insert above input box
       footer.insertBefore(reverseDiv, footer.firstChild);
 
       // Bind close button
-      const closeBtn = reverseDiv.querySelector('.reverse-close');
       closeBtn.onclick = () => {
         reverseDiv.remove();
       };
@@ -443,10 +494,19 @@ class InputBoxTranslator {
       let sourceLang = 'zh-CN'; // Default Chinese
       try {
         const detectResult = await window.translationAPI.detectLanguage(originalText);
-        if (detectResult.success && detectResult.data.language) {
-          sourceLang = detectResult.data.language;
-          console.log('[Translation] Detected original language:', sourceLang);
+        // Handle both wrapped and direct response formats
+        if (detectResult) {
+          if (detectResult.success !== undefined) {
+            // Wrapped response
+            if (detectResult.success && detectResult.data && detectResult.data.language) {
+              sourceLang = detectResult.data.language;
+            }
+          } else if (detectResult.language) {
+            // Direct result object
+            sourceLang = detectResult.language;
+          }
         }
+        console.log('[Translation] Detected original language:', sourceLang);
       } catch (error) {
         console.warn('[Translation] Language detection failed, using default zh-CN:', error);
       }
@@ -462,27 +522,82 @@ class InputBoxTranslator {
         options: {} // Reverse translation doesn't use style
       });
 
-      if (response.success) {
-        const reverseText = response.data.translatedText;
+      // Handle both wrapped and direct response formats
+      let reverseResult;
+      let reverseError = null;
+      if (response) {
+        if (response.success !== undefined) {
+          // Wrapped response
+          if (response.success) {
+            reverseResult = response.data;
+          } else {
+            reverseError = response.error;
+          }
+        } else if (response.translatedText) {
+          // Direct result object
+          reverseResult = response;
+        } else {
+          reverseError = 'Unknown response format';
+        }
+      } else {
+        reverseError = 'Empty response';
+      }
+      
+      if (reverseResult) {
+        const reverseText = reverseResult.translatedText;
 
         // Calculate similarity
         const similarity = this.core.calculateSimilarity(originalText, reverseText);
         const similarityPercent = Math.round(similarity * 100);
         const needsWarning = similarityPercent < 70;
 
-        // Update display
-        const header = reverseDiv.querySelector('.reverse-header');
-        const content = reverseDiv.querySelector('.reverse-content');
-
-        header.innerHTML = `
+        // Update header with similarity badge
+        const headerDiv = reverseDiv.querySelector('.reverse-header');
+        headerDiv.innerHTML = `
           <span class="reverse-icon">🔄</span>
           <span class="reverse-title">反向翻译验证</span>
-          <span class="similarity-badge ${needsWarning ? 'warning' : 'good'}">
-            相似度: ${similarityPercent}%
-          </span>
+          <span class="similarity-badge">相似度: ${similarityPercent}%</span>
           <button class="reverse-close" title="关闭">×</button>
         `;
 
+        // Re-apply header styles
+        headerDiv.style.cssText = `
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+          flex-wrap: wrap;
+        `;
+
+        // Style similarity badge
+        const badge = headerDiv.querySelector('.similarity-badge');
+        badge.style.cssText = `
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          background: ${needsWarning ? 'rgba(255, 152, 0, 0.2)' : 'rgba(76, 175, 80, 0.2)'};
+          color: ${needsWarning ? '#e65100' : '#2e7d32'};
+        `;
+
+        // Style new close button
+        const newCloseBtn = headerDiv.querySelector('.reverse-close');
+        newCloseBtn.style.cssText = `
+          margin-left: auto;
+          background: transparent;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          color: #666;
+          padding: 0 4px;
+          line-height: 1;
+        `;
+        newCloseBtn.onclick = () => {
+          reverseDiv.remove();
+        };
+
+        // Update content
+        const content = reverseDiv.querySelector('.reverse-content');
         content.innerHTML = `
           <div class="reverse-item">
             <div class="reverse-label">实时翻译</div>
@@ -495,24 +610,74 @@ class InputBoxTranslator {
           ${needsWarning ? '<div class="reverse-warning">⚠️ 相似度较低，翻译可能不够准确</div>' : ''}
         `;
 
+        // Style content items
+        const items = content.querySelectorAll('.reverse-item');
+        items.forEach(item => {
+          item.style.cssText = `
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+          `;
+        });
+
+        // Style labels
+        const labels = content.querySelectorAll('.reverse-label');
+        labels.forEach(label => {
+          label.style.cssText = `
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 500;
+          `;
+        });
+
+        // Style text containers
+        const texts = content.querySelectorAll('.reverse-text');
+        texts.forEach(text => {
+          text.style.cssText = `
+            color: #333;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+          `;
+        });
+
+        // Style warning if present
+        const warning = content.querySelector('.reverse-warning');
+        if (warning) {
+          warning.style.cssText = `
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(255, 152, 0, 0.1);
+            border-radius: 6px;
+            color: #e65100;
+            font-size: 12px;
+          `;
+        }
+
         // Decode HTML entities in browser and use textContent to set
         const decodedTranslated = this.core.decodeHTMLEntitiesInBrowser(translatedText);
         const decodedReverse = this.core.decodeHTMLEntitiesInBrowser(reverseText);
         content.querySelector('[data-type="translated"]').textContent = decodedTranslated;
         content.querySelector('[data-type="reverse"]').textContent = decodedReverse;
 
-        // Re-bind close button
-        const newCloseBtn = reverseDiv.querySelector('.reverse-close');
-        newCloseBtn.onclick = () => {
-          reverseDiv.remove();
-        };
       } else {
         const content = reverseDiv.querySelector('.reverse-content');
         content.innerHTML = `
           <div class="reverse-error">
             <span>⚠️</span>
-            <span>反向翻译失败: ${response.error}</span>
+            <span>反向翻译失败: ${reverseError}</span>
           </div>
+        `;
+        const errorDiv = content.querySelector('.reverse-error');
+        errorDiv.style.cssText = `
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #d32f2f;
+          padding: 8px;
+          background: rgba(211, 47, 47, 0.1);
+          border-radius: 6px;
         `;
       }
     } catch (error) {
@@ -622,10 +787,29 @@ class InputBoxTranslator {
             }
           });
 
-          if (response.success) {
-            this.ui.showRealtimePreview(response.data.translatedText, false);
+          // Handle both wrapped and direct response formats
+          if (response) {
+            let translatedText;
+            if (response.success !== undefined) {
+              // Wrapped response
+              if (response.success) {
+                translatedText = response.data.translatedText;
+              } else {
+                this.ui.showRealtimePreview('翻译失败: ' + response.error, false, true);
+                return;
+              }
+            } else if (response.translatedText) {
+              // Direct result object
+              translatedText = response.translatedText;
+            }
+            
+            if (translatedText) {
+              this.ui.showRealtimePreview(translatedText, false);
+            } else {
+              this.ui.showRealtimePreview('翻译失败: 无翻译结果', false, true);
+            }
           } else {
-            this.ui.showRealtimePreview('翻译失败: ' + response.error, false, true);
+            this.ui.showRealtimePreview('翻译失败: 空响应', false, true);
           }
         } catch (error) {
           console.error('[Translation] Realtime translation error:', error);

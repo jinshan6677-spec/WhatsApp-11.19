@@ -98,15 +98,33 @@ class TranslationIntegration {
    */
   async _loadScriptsToCache() {
     try {
-      // 加载性能优化器脚本
-      const optimizerPath = path.join(__dirname, '../translation/contentScriptWithOptimizer.js');
-      this.scriptCache.optimizer = await fs.readFile(optimizerPath, 'utf8');
-      this.log('info', 'Loaded optimizer script');
+      // 使用新框架的模块化脚本路径
+      const modulesDir = path.join(__dirname, '../presentation/translation/content-script');
       
-      // 加载主翻译脚本
-      const contentScriptPath = path.join(__dirname, '../translation/contentScript.js');
-      this.scriptCache.contentScript = await fs.readFile(contentScriptPath, 'utf8');
-      this.log('info', 'Loaded content script');
+      // 按依赖顺序加载模块
+      const modules = [
+        'ContentScriptCore.js',
+        'TranslationUI.js',
+        'MessageTranslator.js',
+        'InputBoxTranslator.js',
+        'DOMObserver.js',
+        'index.js'
+      ];
+
+      // 合并所有模块内容
+      let combinedScript = '';
+      for (const moduleName of modules) {
+        const modulePath = path.join(modulesDir, moduleName);
+        const moduleContent = await fs.readFile(modulePath, 'utf8');
+        combinedScript += `\n// ==================== ${moduleName} ====================\n`;
+        combinedScript += moduleContent;
+        this.log('info', `Loaded module: ${moduleName}`);
+      }
+
+      this.scriptCache.contentScript = combinedScript;
+      this.scriptCache.optimizer = ''; // 不再需要单独的优化器
+      
+      this.log('info', `Loaded ${modules.length} translation modules`);
       
     } catch (error) {
       this.log('error', 'Failed to load scripts to cache:', error);

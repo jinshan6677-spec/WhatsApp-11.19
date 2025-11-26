@@ -41,7 +41,8 @@ contextBridge.exposeInMainWorld('translationAPI', {
    * @returns {Promise<Object>} 保存结果
    */
   saveConfig: (accountId, config) => {
-    return ipcRenderer.invoke('translation:saveConfig', accountId, config);
+    // IPCRouter expects { accountId, config } as payload
+    return ipcRenderer.invoke('translation:saveConfig', { accountId, config });
   },
 
   /**
@@ -67,7 +68,8 @@ contextBridge.exposeInMainWorld('translationAPI', {
    * @returns {Promise<Object>} 保存结果
    */
   saveEngineConfig: (engineName, config) => {
-    return ipcRenderer.invoke('translation:saveEngineConfig', engineName, config);
+    // IPCRouter expects { engineName, config } as payload
+    return ipcRenderer.invoke('translation:saveEngineConfig', { engineName, config });
   },
 
   /**
