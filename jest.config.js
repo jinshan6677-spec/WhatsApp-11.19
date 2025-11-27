@@ -38,8 +38,7 @@ module.exports = {
     'src/**/*.js',
     '!src/**/*.test.js',
     '!src/**/__tests__/**',
-    '!src/examples/**',
-    '!src/main-backup-old-architecture.js.backup'
+    '!src/examples/**'
   ],
   coverageThreshold: {
     global: {

@@ -1,12 +1,19 @@
 /**
- * WhatsApp Desktop - 重构版主入口
+ * WhatsApp Desktop - 新架构主入口
  * 
- * 使用新的架构：依赖注入 + 模块化设计
- * 替代原有的 main.js，提供更清晰的应用启动流程
+ * 使用新的架构：依赖注入 + 模块化设计 + 代理安全防护
+ * 完全迁移到新架构，不再支持旧架构回退
+ * 
+ * 架构组件：
+ * - EventBus: 事件总线
+ * - ConfigProvider: 配置管理
+ * - StateManager: 状态管理
+ * - PluginManager: 插件系统
+ * - IPCRouter: IPC路由
+ * - ProxyService: 代理安全服务
  */
 
 const { app } = require('electron');
-const path = require('path');
 
 // 导入新的应用引导器
 const { initializeApp } = require('./app/bootstrap');
@@ -19,19 +26,14 @@ const TranslationServiceIPCHandlers = require('./presentation/ipc/handlers/Trans
 const ProxyIPCHandlers = require('./presentation/ipc/handlers/ProxyIPCHandlers');
 const translationService = require('./translation/translationService');
 
-// 导入代理Repository（新架构）
+// 导入代理Repository（新架构数据访问层）
 const ProxyRepository = require('./infrastructure/repositories/ProxyRepository');
-
-// 导入迁移管理器
-const MigrationManager = require('./managers/MigrationManager');
-const MigrationDialog = require('./single-window/migration/MigrationDialog');
 
 // 导入自动清理工具
 const OrphanedDataCleaner = require('./utils/OrphanedDataCleaner');
 
 // 全局变量
 let appBootstrap = null;
-let migrationManager = null;
 
 /**
  * 确保所有账号都启用了翻译功能
@@ -86,8 +88,6 @@ async function registerAllIPCHandlers() {
     const viewManager = appBootstrap.getViewManager();
     const mainWindow = appBootstrap.getMainWindow();
     const translationIntegration = appBootstrap.getManager('translationIntegration');
-    const proxyConfigManager = appBootstrap.getManager('proxyConfigManager');
-    const proxyDetectionService = appBootstrap.getManager('proxyDetectionService');
     const ipcRouter = appBootstrap.getIPCRouter();
     const eventBus = appBootstrap.getEventBus();
     
@@ -98,15 +98,14 @@ async function registerAllIPCHandlers() {
     registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
     console.log('[INFO] 单窗口IPC处理器注册完成');
 
-    // 注册翻译服务IPC处理器 (new IPCRouter architecture)
+    // 注册翻译服务IPC处理器 (IPCRouter架构)
     if (ipcRouter && translationService) {
       await translationService.initialize();
       TranslationServiceIPCHandlers.registerWithRouter(ipcRouter, { translationService });
       console.log('[INFO] 翻译服务IPC处理器注册完成 (IPCRouter - 13 channels)');
     }
 
-    // 注册代理IPC处理器 (new IPCRouter architecture with ProxyService)
-    // 初始化ProxyRepository用于数据访问
+    // 注册代理IPC处理器 (新架构 - ProxyService + ProxyRepository)
     const proxyRepository = new ProxyRepository({
       storagePath: app.getPath('userData'),
       fileName: 'proxies.json'
@@ -115,25 +114,15 @@ async function registerAllIPCHandlers() {
     if (ipcRouter && proxyService) {
       ProxyIPCHandlers.registerWithRouter(ipcRouter, {
         proxyService,
-        proxyConfigManager,
-        proxyDetectionService,
         proxyRepository,
         eventBus
       });
       console.log('[INFO] 代理IPC处理器注册完成 (IPCRouter - 15 channels: 8 existing + 7 security)');
-      console.log('[INFO] ✓ 代理安全功能已启用 (ProxyService available)');
-      console.log('[INFO] ✓ ProxyRepository已集成用于数据访问');
-    } else if (proxyConfigManager && proxyDetectionService) {
-      // Fallback to legacy registration if ProxyService not available
-      ProxyIPCHandlers.register({
-        proxyConfigManager,
-        proxyDetectionService,
-        proxyService: null,
-        proxyRepository,
-        eventBus
-      });
-      console.log('[INFO] 代理IPC处理器注册完成 (legacy ipcMain - 8 channels)');
-      console.log('[INFO] ⚠ 代理安全功能受限 (ProxyService not available)');
+      console.log('[INFO] ✓ 代理安全功能已启用');
+      console.log('[INFO] ✓ ProxyRepository已集成');
+    } else {
+      console.error('[ERROR] 代理服务初始化失败 - ProxyService或IPCRouter不可用');
+      throw new Error('ProxyService initialization failed');
     }
 
     console.log('[INFO] 所有IPC处理器注册完成');

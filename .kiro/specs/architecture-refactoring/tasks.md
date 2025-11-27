@@ -605,7 +605,7 @@
 
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 22. 代理功能完全重写（企业级IP安全防护 - 参考AdsPower/Multilogin设计）
+- [x] 22. 代理功能完全重写（企业级IP安全防护 - 参考AdsPower/Multilogin设计）
   - [x] 22.1 分析现有代理功能并记录
 
 
@@ -1213,3 +1213,47 @@
   - 运行 `browser-ip-check.js` 验证IP保护
   - 验证代理IP与预期出口IP一致
   - 验证WebRTC泄露被阻止
+
+
+- [x] 29. 完整迁移到新架构
+
+
+  - [x] 29.1 验证新架构完全启用
+    - 确认 `package.json` main 指向 `src/main-refactored.js`
+    - 确认 `src/app/bootstrap.js` 初始化所有新架构组件
+    - 确认代理安全模块已集成到应用引导器
+    - _Requirements: 1.1, 1.2, 1.3_
+
+  - [x] 29.2 备份旧架构遗留文件
+    - 创建 `archive/full-migration-backup/` 目录
+    - 记录所有已备份文件清单
+    - _Requirements: 1.4_
+
+  - [x] 29.3 清理不需要的旧文件
+    - 删除空的 `src/services/` 目录
+    - 确认旧的 `ProxyConfigManager.js` 已删除
+    - 确认旧的 `ProxyDetectionService.js` 已删除
+    - 确认旧的 `proxyIPCHandlers.js` 已删除
+    - _Requirements: 12_
+
+  - [x] 29.4 验证测试通过
+    - 运行核心组件属性测试（EventBus、ConfigProvider、StateManager）
+    - 运行代理安全属性测试
+    - 运行Repository属性测试
+    - _Requirements: 10.1, 10.3_
+
+  - [x] 29.5 创建迁移完成文档
+    - 创建 `ARCHITECTURE_MIGRATION_COMPLETE.md`
+    - 记录新架构目录结构
+    - 记录所有已启用的组件
+    - 记录测试验证结果
+    - _Requirements: 1.1_
+
+
+- [x] 30. Final Checkpoint - 完整迁移验证
+
+
+  - 确认所有测试通过
+  - 确认新架构完全启用
+  - 确认旧架构代码已备份和清理
+  - 确认文档已更新

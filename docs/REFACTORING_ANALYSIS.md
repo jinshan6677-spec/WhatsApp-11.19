@@ -2,58 +2,43 @@
 
 ## 架构分析总结
 
-### 发现的主要问题
+### 迁移状态 (2025-11-27 更新)
 
-1. **重复的主入口文件**
-   - `main-refactored.js` (新架构，469行) - 使用依赖注入和模块化设计
-   - `main-backup-old-architecture.js` (旧架构备份，615行) - 传统的直接实例化方式
+**✅ 已完成迁移到新架构**
 
-2. **ViewManager系统混乱**
-   - 实际使用：`single-window/ViewManager.js` (4096行，功能完整)
-   - 占位符：`ui/main-window/ViewManager.js` (仅注释，无实现)
-   - 测试文件：`single-window/__tests__/ViewManager.test.js`
+所有旧架构代码已备份到 `archive/old-architecture-backup/` 并从项目中移除。
 
-3. **错误处理重复**
-   - `utils/ErrorHandler.js` (323行) - 提供包装器和工具函数
-   - `shared/utils/ErrorHandler.js` (503行) - 统一的错误处理器，包含前者的功能
+### 当前架构
 
-4. **目录结构问题**
-   - `ui/` 和 `single-window/` 功能重叠
-   - `core/` 目录为空
-   - `features/` 目录为空
+1. **主入口文件**
+   - `main-refactored.js` - 新架构主入口，使用依赖注入和模块化设计
+   - 旧架构备份已移至 `archive/old-architecture-backup/main-old.js`
 
-### 重构策略
+2. **ViewManager系统**
+   - 主文件：`single-window/ViewManager.js` - 兼容层入口
+   - 模块化组件：`presentation/windows/view-manager/` - 新架构模块
+   - 旧备份已移至 `archive/old-architecture-backup/ViewManager-old.js`
 
-#### 阶段1：清理重复架构
-- [ ] 删除 `main-backup-old-architecture.js`
-- [ ] 确认 `main-refactored.js` 作为唯一入口
-- [ ] 更新 `package.json` 中的 main 字段（如果需要）
+3. **代理系统**
+   - 新架构：`infrastructure/proxy/` - 完整的代理安全模块
+   - 服务层：`application/services/ProxyService.js`
+   - 数据层：`infrastructure/repositories/ProxyRepository.js`
+   - 旧代码备份：`archive/proxy-legacy-backup/`
 
-#### 阶段2：统一ViewManager系统
-- [ ] 删除 `ui/main-window/ViewManager.js` 占位符
-- [ ] 更新 `ui/main-window/index.js` 导出逻辑
-- [ ] 确保所有引用指向 `single-window/ViewManager.js`
+4. **错误处理**
+   - 新架构：`core/errors/ErrorHandler.js`
+   - 旧备份已移至 `archive/old-architecture-backup/ErrorHandler-old.js`
 
-#### 阶段3：整合错误处理
-- [ ] 删除 `utils/ErrorHandler.js`
-- [ ] 确保所有引用使用 `shared/utils/ErrorHandler.js`
-- [ ] 更新相关的导入语句
+### 已完成的重构任务
 
-#### 阶段4：优化目录结构
-- [ ] 清理空的 `core/` 和 `features/` 目录
-- [ ] 整理 `ui/` 目录结构
-- [ ] 优化模块导入路径
-
-#### 阶段5：依赖关系优化
-- [ ] 完善 `DependencyContainer.js` 的使用
-- [ ] 减少循环依赖
-- [ ] 统一依赖注入模式
-
-#### 阶段6：功能验证
-- [ ] 测试多账户功能
-- [ ] 测试翻译功能
-- [ ] 测试代理功能
-- [ ] 验证应用启动和关闭
+- [x] 删除 `main-backup-old-architecture.js.backup`
+- [x] 确认 `main-refactored.js` 作为唯一入口
+- [x] ViewManager已拆分为模块化组件
+- [x] 代理功能完全重写（企业级IP安全防护）
+- [x] IPC处理器迁移到IPCRouter
+- [x] 翻译功能渐进式迁移
+- [x] 大文件拆分完成
+- [x] 清理所有旧架构备份文件
 
 ## 风险评估
 
