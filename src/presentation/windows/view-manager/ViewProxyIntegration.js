@@ -184,21 +184,58 @@ class ViewProxyIntegration {
       return false;
     }
 
+    // 检查是否已经注入过（防止重复添加监听器）
+    const webContentsId = webContents.id;
+    if (this._injectedWebContents && this._injectedWebContents.has(webContentsId)) {
+      this.log('info', '[IP保护] 已注入过，跳过重复注入');
+      return true;
+    }
+
+    // 初始化跟踪集合
+    if (!this._injectedWebContents) {
+      this._injectedWebContents = new Set();
+    }
+
     try {
-      const script = this.ipProtectionInjector.getInjectionScript();
+      const script = this.ipProtectionInjector.getProtectionScript();
       
-      // 在页面加载前注入
-      webContents.on('did-start-loading', async () => {
+      // 创建注入处理函数
+      const injectHandler = async () => {
         try {
-          await webContents.executeJavaScript(script);
-          this.log('info', '[IP保护] 脚本已注入');
+          if (!webContents.isDestroyed()) {
+            await webContents.executeJavaScript(script);
+            this.log('info', '[IP保护] 脚本已注入');
+          }
         } catch (error) {
           this.log('warn', `[IP保护] 注入失败: ${error.message}`);
         }
+      };
+
+      // 在页面加载前注入（使用命名函数以便后续清理）
+      webContents.on('did-start-loading', injectHandler);
+      
+      // 当 webContents 销毁时清理
+      webContents.once('destroyed', () => {
+        this._injectedWebContents.delete(webContentsId);
       });
 
-      // 立即注入一次（如果页面已加载）
-      await webContents.executeJavaScript(script);
+      // 标记为已注入
+      this._injectedWebContents.add(webContentsId);
+
+      // 尝试立即注入一次（如果页面已加载）
+      // 注意：如果页面还没加载，这会失败，但不影响后续的自动注入
+      try {
+        const url = webContents.getURL();
+        if (url && url !== '' && url !== 'about:blank') {
+          await webContents.executeJavaScript(script);
+          this.log('info', '[IP保护] 脚本已立即注入到当前页面');
+        } else {
+          this.log('info', '[IP保护] 页面尚未加载，将在页面加载时注入');
+        }
+      } catch (immediateError) {
+        // 忽略立即注入的错误，因为页面可能还没加载
+        this.log('debug', `[IP保护] 立即注入跳过: ${immediateError.message}`);
+      }
       
       this.log('info', '✓ [IP保护] IP保护脚本已配置');
       return true;

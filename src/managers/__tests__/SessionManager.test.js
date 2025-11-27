@@ -4,20 +4,37 @@
  */
 
 const SessionManager = require('../SessionManager');
-const { session } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs').promises;
 
-// Mock Electron session
-jest.mock('electron', () => ({
-  session: {
-    fromPartition: jest.fn()
+// Create mock session object
+const mockSessionInstance = {
+  setProxy: jest.fn().mockResolvedValue(undefined),
+  clearStorageData: jest.fn().mockResolvedValue(undefined),
+  clearCache: jest.fn().mockResolvedValue(undefined),
+  webRequest: {
+    onBeforeSendHeaders: jest.fn()
   },
-  net: {
-    request: jest.fn()
-  }
-}));
+  setWebRTCIPHandlingPolicy: jest.fn()
+};
+
+// Mock Electron session
+jest.mock('electron', () => {
+  const mockSession = {
+    fromPartition: jest.fn(() => mockSessionInstance)
+  };
+  return {
+    session: mockSession,
+    net: {
+      request: jest.fn()
+    }
+  };
+});
+
+// Get the mocked electron module
+const electron = require('electron');
+const { session } = electron;
 
 describe('SessionManager', () => {
   let sessionManager;
@@ -29,20 +46,14 @@ describe('SessionManager', () => {
     tempDir = path.join(os.tmpdir(), `test-sessions-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
 
-    // 创建 mock session
-    mockSession = {
-      setProxy: jest.fn().mockResolvedValue(undefined),
-      clearStorageData: jest.fn().mockResolvedValue(undefined),
-      clearCache: jest.fn().mockResolvedValue(undefined),
-      webRequest: {
-        onBeforeSendHeaders: jest.fn()
-      }
-    };
-
+    // Reset mock session
+    mockSession = mockSessionInstance;
+    mockSession.setProxy.mockClear();
+    mockSession.clearStorageData.mockClear();
+    mockSession.clearCache.mockClear();
+    mockSession.webRequest.onBeforeSendHeaders.mockClear();
+    session.fromPartition.mockClear();
     session.fromPartition.mockReturnValue(mockSession);
-
-    // Get mocked electron from jest.mock
-    const electron = require('electron');
 
     // 创建 SessionManager 实例，注入electron mock
     sessionManager = new SessionManager({

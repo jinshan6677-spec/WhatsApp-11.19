@@ -1,23 +1,25 @@
 /**
- * ProxyConfigManagerAdapter - Adapter for ProxyConfigManager to Repository pattern
+ * ProxyConfigManagerAdapter - Adapter for ProxyRepository with legacy API compatibility
  * 
- * Provides backward compatibility while integrating with the new Repository pattern.
- * Wraps the existing ProxyConfigManager and delegates to ProxyRepository when available.
+ * Provides backward compatibility while using the new Repository pattern.
+ * The legacy ProxyConfigManager has been removed - this adapter now uses ProxyRepository directly.
  * 
  * @module managers/ProxyConfigManagerAdapter
  */
 
 'use strict';
 
-const ProxyConfigManager = require('./ProxyConfigManager');
 const ProxyRepository = require('../infrastructure/repositories/ProxyRepository');
 const ProxyConfig = require('../domain/entities/ProxyConfig');
 
 /**
  * ProxyConfigManagerAdapter class
  * 
- * Provides a unified interface that works with both the legacy ProxyConfigManager
- * and the new ProxyRepository pattern.
+ * Provides a unified interface that wraps ProxyRepository with the legacy
+ * ProxyConfigManager API for backward compatibility.
+ * 
+ * Note: The legacy ProxyConfigManager has been removed. This adapter now
+ * always uses ProxyRepository internally.
  */
 class ProxyConfigManagerAdapter {
   /**
@@ -25,50 +27,40 @@ class ProxyConfigManagerAdapter {
    * @param {Object} options - Configuration options
    * @param {string} [options.cwd] - Configuration file directory
    * @param {string} [options.storagePath] - Storage path for repository
-   * @param {boolean} [options.useRepository=false] - Whether to use the new Repository pattern
+   * @param {boolean} [options.useRepository=true] - Always true now (legacy option kept for compatibility)
    */
   constructor(options = {}) {
     this._options = options;
-    this._useRepository = options.useRepository || false;
+    // Always use repository now (legacy ProxyConfigManager has been removed)
+    this._useRepository = true;
     
-    // Initialize the appropriate backend
-    if (this._useRepository) {
-      this._repository = new ProxyRepository({
-        storagePath: options.storagePath || options.cwd || 'session-data'
-      });
-      this._legacyManager = null;
-    } else {
-      this._legacyManager = new ProxyConfigManager(options);
-      this._repository = null;
-    }
+    // Initialize ProxyRepository
+    this._repository = new ProxyRepository({
+      storagePath: options.storagePath || options.cwd || 'session-data'
+    });
+    this._legacyManager = null; // No longer available
   }
 
 
   /**
    * Get all proxy configurations
-   * @param {boolean} [decrypt=true] - Whether to decrypt passwords
+   * @param {boolean} [decrypt=true] - Whether to decrypt passwords (kept for API compatibility)
    * @returns {Promise<Array>}
    */
   async getAllProxyConfigs(decrypt = true) {
-    if (this._useRepository) {
-      const configs = await this._repository.findAll();
-      // Note: Repository doesn't handle encryption, that's done at a higher level
-      return configs;
-    }
-    return this._legacyManager.getAllProxyConfigs(decrypt);
+    const configs = await this._repository.findAll();
+    // Note: Repository doesn't handle encryption, that's done at a higher level
+    return configs;
   }
 
   /**
    * Get a single proxy configuration
    * @param {string} id - Configuration ID
-   * @param {boolean} [decrypt=true] - Whether to decrypt password
+   * @param {boolean} [decrypt=true] - Whether to decrypt password (kept for API compatibility)
    * @returns {Promise<Object|null>}
    */
   async getProxyConfig(id, decrypt = true) {
-    if (this._useRepository) {
-      return this._repository.findById(id);
-    }
-    return this._legacyManager.getProxyConfig(id, decrypt);
+    return this._repository.findById(id);
   }
 
   /**
@@ -77,21 +69,18 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<{success: boolean, errors?: string[]}>}
    */
   async saveProxyConfig(config) {
-    if (this._useRepository) {
-      try {
-        const proxyConfig = config instanceof ProxyConfig 
-          ? config 
-          : ProxyConfig.fromJSON(config.toJSON ? config.toJSON() : config);
-        await this._repository.save(proxyConfig);
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          errors: [error.message]
-        };
-      }
+    try {
+      const proxyConfig = config instanceof ProxyConfig 
+        ? config 
+        : ProxyConfig.fromJSON(config.toJSON ? config.toJSON() : config);
+      await this._repository.save(proxyConfig);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        errors: [error.message]
+      };
     }
-    return this._legacyManager.saveProxyConfig(config);
   }
 
   /**
@@ -100,18 +89,15 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<{success: boolean, errors?: string[]}>}
    */
   async deleteProxyConfig(id) {
-    if (this._useRepository) {
-      try {
-        await this._repository.delete(id);
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          errors: [error.message]
-        };
-      }
+    try {
+      await this._repository.delete(id);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        errors: [error.message]
+      };
     }
-    return this._legacyManager.deleteProxyConfig(id);
   }
 
   /**
@@ -120,17 +106,14 @@ class ProxyConfigManagerAdapter {
    * @returns {string}
    */
   generateConfigName(config) {
-    if (this._useRepository) {
-      const protocol = (config.protocol || 'socks5').toUpperCase();
-      const host = config.host || 'unknown';
-      const port = config.port || 0;
-      
-      if (config.username) {
-        return `${protocol} - ${config.username}@${host}:${port}`;
-      }
-      return `${protocol} - ${host}:${port}`;
+    const protocol = (config.protocol || 'socks5').toUpperCase();
+    const host = config.host || 'unknown';
+    const port = config.port || 0;
+    
+    if (config.username) {
+      return `${protocol} - ${config.username}@${host}:${port}`;
     }
-    return this._legacyManager.generateConfigName(config);
+    return `${protocol} - ${host}:${port}`;
   }
 
   /**
@@ -139,13 +122,10 @@ class ProxyConfigManagerAdapter {
    * @returns {{valid: boolean, errors: string[]}}
    */
   validateProxyConfig(config) {
-    if (this._useRepository) {
-      const proxyConfig = config instanceof ProxyConfig 
-        ? config 
-        : new ProxyConfig(config);
-      return proxyConfig.validate();
-    }
-    return this._legacyManager.validateProxyConfig(config);
+    const proxyConfig = config instanceof ProxyConfig 
+      ? config 
+      : new ProxyConfig(config);
+    return proxyConfig.validate();
   }
 
   /**
@@ -154,10 +134,7 @@ class ProxyConfigManagerAdapter {
    * @returns {boolean}
    */
   configExists(id) {
-    if (this._useRepository) {
-      return this._repository._cache ? this._repository._cache.has(id) : false;
-    }
-    return this._legacyManager.configExists(id);
+    return this._repository._cache ? this._repository._cache.has(id) : false;
   }
 
   /**
@@ -165,10 +142,7 @@ class ProxyConfigManagerAdapter {
    * @returns {string[]}
    */
   getAllConfigIds() {
-    if (this._useRepository) {
-      return this._repository._cache ? Array.from(this._repository._cache.keys()) : [];
-    }
-    return this._legacyManager.getAllConfigIds();
+    return this._repository._cache ? Array.from(this._repository._cache.keys()) : [];
   }
 
   /**
@@ -176,10 +150,7 @@ class ProxyConfigManagerAdapter {
    * @returns {number}
    */
   getConfigCount() {
-    if (this._useRepository) {
-      return this._repository._cache ? this._repository._cache.size : 0;
-    }
-    return this._legacyManager.getConfigCount();
+    return this._repository._cache ? this._repository._cache.size : 0;
   }
 
 
@@ -188,15 +159,12 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<{success: boolean}>}
    */
   async clearAllConfigs() {
-    if (this._useRepository) {
-      try {
-        await this._repository.deleteAll();
-        return { success: true };
-      } catch (error) {
-        return { success: false };
-      }
+    try {
+      await this._repository.deleteAll();
+      return { success: true };
+    } catch (error) {
+      return { success: false };
     }
-    return this._legacyManager.clearAllConfigs();
   }
 
   /**
@@ -204,15 +172,12 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<Object>}
    */
   async exportConfigs() {
-    if (this._useRepository) {
-      const configs = await this._repository.findAll();
-      return {
-        version: '1.0.0',
-        exportDate: new Date().toISOString(),
-        configs: configs.map(c => c.toJSON())
-      };
-    }
-    return this._legacyManager.exportConfigs();
+    const configs = await this._repository.findAll();
+    return {
+      version: '1.0.0',
+      exportDate: new Date().toISOString(),
+      configs: configs.map(c => c.toJSON())
+    };
   }
 
   /**
@@ -222,46 +187,43 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<{success: boolean, imported: number, skipped: number, errors: string[]}>}
    */
   async importConfigs(data, options = {}) {
-    if (this._useRepository) {
-      const errors = [];
-      let imported = 0;
-      let skipped = 0;
+    const errors = [];
+    let imported = 0;
+    let skipped = 0;
 
-      if (!data.configs || !Array.isArray(data.configs)) {
-        return {
-          success: false,
-          imported: 0,
-          skipped: 0,
-          errors: ['Invalid import data format']
-        };
-      }
-
-      for (const configData of data.configs) {
-        try {
-          const config = ProxyConfig.fromJSON(configData);
-          const exists = await this._repository.exists(config.id);
-          
-          if (exists && !options.overwrite) {
-            skipped++;
-            continue;
-          }
-
-          await this._repository.save(config);
-          imported++;
-        } catch (error) {
-          errors.push(`Failed to import config: ${error.message}`);
-          skipped++;
-        }
-      }
-
+    if (!data.configs || !Array.isArray(data.configs)) {
       return {
-        success: errors.length === 0,
-        imported,
-        skipped,
-        errors
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['Invalid import data format']
       };
     }
-    return this._legacyManager.importConfigs(data, options);
+
+    for (const configData of data.configs) {
+      try {
+        const config = ProxyConfig.fromJSON(configData);
+        const exists = await this._repository.exists(config.id);
+        
+        if (exists && !options.overwrite) {
+          skipped++;
+          continue;
+        }
+
+        await this._repository.save(config);
+        imported++;
+      } catch (error) {
+        errors.push(`Failed to import config: ${error.message}`);
+        skipped++;
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      imported,
+      skipped,
+      errors
+    };
   }
 
   /**
@@ -270,12 +232,7 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<Array>}
    */
   async findByProtocol(protocol) {
-    if (this._useRepository) {
-      return this._repository.findByProtocol(protocol);
-    }
-    // Legacy manager doesn't have this method, filter manually
-    const configs = await this._legacyManager.getAllProxyConfigs();
-    return configs.filter(c => c.protocol === protocol);
+    return this._repository.findByProtocol(protocol);
   }
 
   /**
@@ -283,17 +240,12 @@ class ProxyConfigManagerAdapter {
    * @returns {Promise<Array>}
    */
   async findEnabled() {
-    if (this._useRepository) {
-      return this._repository.findEnabled();
-    }
-    // Legacy manager doesn't have this method, filter manually
-    const configs = await this._legacyManager.getAllProxyConfigs();
-    return configs.filter(c => c.enabled === true);
+    return this._repository.findEnabled();
   }
 
   /**
    * Get the underlying repository (for advanced use)
-   * @returns {ProxyRepository|null}
+   * @returns {ProxyRepository}
    */
   getRepository() {
     return this._repository;
@@ -301,18 +253,19 @@ class ProxyConfigManagerAdapter {
 
   /**
    * Get the underlying legacy manager (for backward compatibility)
-   * @returns {ProxyConfigManager|null}
+   * @returns {null} Always returns null - legacy manager has been removed
+   * @deprecated Legacy manager has been removed, use getRepository() instead
    */
   getLegacyManager() {
-    return this._legacyManager;
+    return null;
   }
 
   /**
    * Check if using repository mode
-   * @returns {boolean}
+   * @returns {boolean} Always returns true
    */
   isUsingRepository() {
-    return this._useRepository;
+    return true;
   }
 }
 

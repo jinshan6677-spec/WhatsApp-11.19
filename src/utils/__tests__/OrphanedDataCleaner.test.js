@@ -4,6 +4,21 @@
  * 测试自动清理功能的各个方面
  */
 
+// Mock fs methods - must be before require
+const mockFs = {
+  access: jest.fn(),
+  readdir: jest.fn(),
+  stat: jest.fn(),
+  mkdir: jest.fn(),
+  rm: jest.fn(),
+  writeFile: jest.fn(),
+  unlink: jest.fn()
+};
+
+jest.mock('fs', () => ({
+  promises: mockFs
+}));
+
 const fs = require('fs').promises;
 const path = require('path');
 const OrphanedDataCleaner = require('../OrphanedDataCleaner');
@@ -19,19 +34,6 @@ beforeAll(() => {
 afterAll(() => {
   Object.assign(console, originalConsole);
 });
-
-// Mock fs methods
-jest.mock('fs', () => ({
-  promises: {
-    access: jest.fn(),
-    readdir: jest.fn(),
-    stat: jest.fn(),
-    mkdir: jest.fn(),
-    rm: jest.fn(),
-    writeFile: jest.fn(),
-    unlink: jest.fn()
-  }
-}));
 
 describe('OrphanedDataCleaner', () => {
   let cleaner;

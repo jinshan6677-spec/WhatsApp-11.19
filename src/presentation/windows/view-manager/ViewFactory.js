@@ -83,19 +83,33 @@ class ViewFactory {
       }
     });
     
+    // IMPORTANT: Do NOT set both 'partition' and 'session' - they are mutually exclusive!
+    // When both are set, 'session' is ignored and a new session is created from 'partition'.
+    // This would cause proxy configuration to be lost!
+    // We use 'session' directly since it's already configured with proxy settings.
+    
+    this.log('info', `[SOCKS5-DEBUG] Creating BrowserView with session partition: ${accountSession.partition}`);
+    this.log('info', `[SOCKS5-DEBUG] Session storage path: ${accountSession.getStoragePath()}`);
+    
     const view = new BrowserView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: false, // Must be false to allow preload script to inject content
-        partition: `persist:account_${accountId}`,
-        session: accountSession,
+        // REMOVED: partition: `persist:account_${accountId}`, - This would override the session!
+        session: accountSession, // Use the pre-configured session with proxy settings
         webSecurity: true,
         allowRunningInsecureContent: false,
         preload: path.join(__dirname, '../../../preload-view.js'),
         additionalArguments: [`--account-id=${accountId}`]
       }
     });
+    
+    // Verify the session is correctly applied
+    this.log('info', `[SOCKS5-DEBUG] BrowserView created, verifying session...`);
+    this.log('info', `[SOCKS5-DEBUG] View session partition: ${view.webContents.session.partition}`);
+    this.log('info', `[SOCKS5-DEBUG] Expected session partition: ${accountSession.partition}`);
+    this.log('info', `[SOCKS5-DEBUG] Sessions match: ${view.webContents.session === accountSession}`);
 
     // Verify the view's session matches the expected session
     if (view.webContents.session !== accountSession) {

@@ -4,6 +4,20 @@
  * Tests for view state persistence functionality
  */
 
+// Mock electron module - must be before require
+jest.mock('electron', () => ({
+  BrowserView: jest.fn().mockImplementation(() => ({
+    webContents: {
+      setUserAgent: jest.fn(),
+      loadURL: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn(),
+      isDestroyed: jest.fn(() => false),
+      executeJavaScript: jest.fn().mockResolvedValue(undefined)
+    },
+    setBounds: jest.fn()
+  }))
+}));
+
 const ViewManager = require('../ViewManager');
 const MainWindow = require('../MainWindow');
 
@@ -39,6 +53,7 @@ describe('State Persistence', () => {
         }
       })),
       getSidebarWidth: jest.fn(() => 280),
+      getTranslationPanelWidth: jest.fn(() => 0),
       setSidebarWidth: jest.fn(),
       getStateStore: jest.fn(() => mockStateStore)
     };
@@ -48,7 +63,8 @@ describe('State Persistence', () => {
       getInstanceSession: jest.fn(() => ({
         setProxy: jest.fn(),
         webRequest: {
-          onBeforeSendHeaders: jest.fn()
+          onBeforeSendHeaders: jest.fn(),
+          onHeadersReceived: jest.fn()
         }
       }))
     };
@@ -254,8 +270,3 @@ describe('State Persistence', () => {
     });
   });
 });
-
-// Mock electron module
-jest.mock('electron', () => ({
-  BrowserView: jest.fn()
-}));

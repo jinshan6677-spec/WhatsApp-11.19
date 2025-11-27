@@ -250,9 +250,13 @@ describe('Performance Tests', () => {
       cwd: tempDir
     });
     
+    // Get the mocked electron module
+    const electron = require('electron');
+    
     instanceManager = new InstanceManager({
       userDataPath: tempDir,
-      maxInstances: 50  // Allow more instances for performance testing
+      maxInstances: 50,  // Allow more instances for performance testing
+      electron: electron  // Inject the mocked electron
     });
 
     performanceMetrics = new PerformanceMetrics();

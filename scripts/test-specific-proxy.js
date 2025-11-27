@@ -1,13 +1,15 @@
 /**
  * 测试特定的代理配置
+ * 
+ * 注意：ProxyDetectionService已被ProxyPreChecker替代
  */
 
-const ProxyDetectionService = require('../src/services/ProxyDetectionService');
+const ProxyPreChecker = require('../src/infrastructure/proxy/ProxyPreChecker');
 
 async function testProxy() {
   console.log('=== 测试代理连接 ===\n');
   
-  const service = new ProxyDetectionService();
+  const service = new ProxyPreChecker();
   
   const proxyConfig = {
     protocol: 'socks5',
@@ -23,16 +25,21 @@ async function testProxy() {
   
   try {
     console.log('正在测试代理连接...');
-    const result = await service.testProxy(proxyConfig);
+    // 使用新的ProxyPreChecker API
+    const result = await service.performFullCheck(proxyConfig);
     
     console.log('\n测试结果:');
     console.log('成功:', result.success);
     
     if (result.success) {
       console.log('IP 地址:', result.ip);
-      console.log('位置:', result.location);
-      console.log('国家:', result.country);
-      console.log('响应时间:', result.responseTime, 'ms');
+      console.log('IP 来源:', result.ipSource);
+      console.log('连接延迟:', result.connectivity?.latency, 'ms');
+      if (result.latency) {
+        console.log('平均延迟:', result.latency.avg, 'ms');
+        console.log('最小延迟:', result.latency.min, 'ms');
+        console.log('最大延迟:', result.latency.max, 'ms');
+      }
     } else {
       console.log('错误:', result.error);
     }

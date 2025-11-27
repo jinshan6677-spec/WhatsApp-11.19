@@ -104,7 +104,7 @@ class ProxySecurityManager {
       throw ProxyError.invalidConfig('Session is required for proxy enforcement');
     }
 
-    const id = sessionId || this._generateSessionId();
+    const id = sessionId || this._getSessionId(session);
     
     try {
       this.log('info', `Enforcing proxy-only mode for session: ${id}`);
@@ -230,22 +230,55 @@ class ProxySecurityManager {
       const bypassRules = this._buildBypassRules(proxyConfig);
 
       // Apply proxy configuration
+      this.log('info', `[SOCKS5-DEBUG] Setting proxy rules: ${proxyRules.replace(/:([^:@]+)@/, ':***@')}`);
+      this.log('info', `[SOCKS5-DEBUG] Bypass rules: ${bypassRules}`);
+      
       await session.setProxy({
         proxyRules,
         proxyBypassRules: bypassRules
       });
 
-      // Set up authentication handler for HTTP/HTTPS proxies
-      if (proxyConfig.protocol !== 'socks5' && proxyConfig.hasAuthentication()) {
-        this._setupProxyAuth(session, proxyConfig, id);
+      // Test proxy resolution
+      const resolution = await this.testProxyResolution(session);
+      this.log('info', `[SOCKS5-DEBUG] Proxy resolution result: ${resolution}`);
+
+      // Test actual proxy connection using Electron's net module
+      this.log('info', `[SOCKS5-DEBUG] Testing actual proxy connection...`);
+      const connectionTest = await this.testProxyConnection(session);
+      if (connectionTest.success) {
+        this.log('info', `[SOCKS5-DEBUG] ✓ Proxy connection test passed! IP: ${connectionTest.ip || 'N/A'}`);
+      } else {
+        this.log('error', `[SOCKS5-DEBUG] ✗ Proxy connection test failed: ${connectionTest.error}`);
+        // Don't throw here, let the BrowserView try to load and see what happens
       }
 
-      // Update session state
-      const state = this._enforcedSessions.get(id);
+      // Set up authentication handler
+      if (proxyConfig.hasAuthentication()) {
+        if (proxyConfig.protocol === 'socks5' || proxyConfig.protocol === 'socks4') {
+          // SOCKS proxy - use session login event for authentication
+          this._setupSocksAuth(session, proxyConfig, id);
+        } else {
+          // HTTP/HTTPS proxy - use header-based authentication
+          this._setupProxyAuth(session, proxyConfig, id);
+        }
+      }
+
+      // Update or create session state
+      let state = this._enforcedSessions.get(id);
       if (state) {
         state.proxyConfigured = true;
         state.proxyConfig = proxyConfig;
         state.blocked = false;
+      } else {
+        // Create new session state if it doesn't exist
+        this._enforcedSessions.set(id, {
+          session,
+          enforcedAt: new Date(),
+          policy: this.policy,
+          proxyConfigured: true,
+          proxyConfig: proxyConfig,
+          blocked: false
+        });
       }
 
       this.log('info', `✓ Proxy rules configured for session: ${id}`);
@@ -343,21 +376,67 @@ class ProxySecurityManager {
   _buildProxyRules(config) {
     const { protocol, host, port, username, password } = config;
     
-    let proxyUrl;
+    // For SOCKS5 proxies with authentication:
+    // Chromium supports username:password in SOCKS5 URLs
+    // Format: socks5://username:password@host:port
+    // 
+    // IMPORTANT: Chromium/Electron SOCKS5 authentication notes:
+    // 1. URL-embedded credentials: socks5://user:pass@host:port
+    //    - This is the most reliable method for SOCKS5 auth in Chromium
+    //    - The 'login' event does NOT trigger for SOCKS5 proxies
+    // 2. socks5h:// vs socks5://
+    //    - socks5:// - DNS resolution happens locally
+    //    - socks5h:// - DNS resolution happens through the proxy (more secure)
+    //    - Chromium may not support socks5h:// in all versions
+    // 3. Special characters in credentials must be URL-encoded
     
-    if (protocol === 'socks5' || protocol === 'socks4') {
-      // SOCKS proxy - include auth in URL if present
-      if (username && password) {
-        proxyUrl = `${protocol}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
-      } else {
-        proxyUrl = `${protocol}://${host}:${port}`;
-      }
+    let proxyUrl;
+    if (config.hasAuthentication() && (protocol === 'socks5' || protocol === 'socks4')) {
+      // URL-encode username and password to handle special characters
+      // Use double encoding for characters that might cause issues
+      const encodedUsername = this._encodeProxyCredential(username);
+      const encodedPassword = this._encodeProxyCredential(password);
+      
+      // Try socks5:// first (most compatible)
+      proxyUrl = `${protocol}://${encodedUsername}:${encodedPassword}@${host}:${port}`;
+      
+      this.log('info', `[SOCKS5-AUTH] Building SOCKS proxy URL with embedded credentials`);
+      this.log('info', `[SOCKS5-AUTH] Protocol: ${protocol}`);
+      this.log('info', `[SOCKS5-AUTH] Host: ${host}:${port}`);
+      this.log('info', `[SOCKS5-AUTH] Username length: ${username.length}`);
+      this.log('info', `[SOCKS5-AUTH] Password length: ${password.length}`);
+      this.log('info', `[SOCKS5-AUTH] Encoded username: ${encodedUsername}`);
+      this.log('info', `[SOCKS5-AUTH] URL (masked): ${protocol}://${encodedUsername}:***@${host}:${port}`);
     } else {
-      // HTTP/HTTPS proxy - auth handled separately via headers
       proxyUrl = `${protocol}://${host}:${port}`;
+      this.log('info', `[SOCKS5-AUTH] Building SOCKS proxy URL without credentials: ${proxyUrl}`);
     }
 
     return proxyUrl;
+  }
+
+  /**
+   * Encodes a proxy credential for use in URL
+   * @private
+   * @param {string} credential - Username or password
+   * @returns {string} Encoded credential
+   */
+  _encodeProxyCredential(credential) {
+    if (!credential) return '';
+    
+    // Standard URL encoding
+    let encoded = encodeURIComponent(credential);
+    
+    // Additional encoding for characters that might cause issues in proxy URLs
+    // Some proxy implementations have trouble with certain characters even when encoded
+    encoded = encoded
+      .replace(/!/g, '%21')
+      .replace(/'/g, '%27')
+      .replace(/\(/g, '%28')
+      .replace(/\)/g, '%29')
+      .replace(/\*/g, '%2A');
+    
+    return encoded;
   }
 
   /**
@@ -407,6 +486,144 @@ class ProxySecurityManager {
     });
 
     this.log('info', `Proxy authentication configured for session: ${sessionId}`);
+  }
+
+  /**
+   * Sets up SOCKS proxy authentication using session login event
+   * @private
+   * @param {Electron.Session} session - Electron session
+   * @param {ProxyConfig} config - Proxy configuration
+   * @param {string} sessionId - Session identifier
+   */
+  _setupSocksAuth(session, config, sessionId) {
+    const { username, password, host, port } = config;
+    
+    // Remove existing login handler if any
+    session.removeAllListeners('login');
+    
+    // Store credentials for this session
+    const proxyHost = host;
+    const proxyPort = port;
+    
+    this.log('info', `[SOCKS5-AUTH] Setting up authentication handler for session: ${sessionId}`);
+    this.log('info', `[SOCKS5-AUTH] Proxy: ${proxyHost}:${proxyPort}`);
+    this.log('info', `[SOCKS5-AUTH] Has credentials: ${!!(username && password)}`);
+    
+    // Set up login event handler for SOCKS authentication
+    // Note: Electron's session 'login' event signature is:
+    // (event, webContents, authenticationResponseDetails, authInfo, callback)
+    // But for session (not app), it's: (event, details, authInfo, callback)
+    session.on('login', (event, details, authInfo, callback) => {
+      this.log('info', `[SOCKS5-AUTH] === LOGIN EVENT RECEIVED ===`);
+      this.log('info', `[SOCKS5-AUTH] Session: ${sessionId}`);
+      this.log('info', `[SOCKS5-AUTH] URL: ${details?.url || 'N/A'}`);
+      this.log('info', `[SOCKS5-AUTH] AuthInfo: ${JSON.stringify(authInfo)}`);
+      this.log('info', `[SOCKS5-AUTH] isProxy: ${authInfo.isProxy}`);
+      this.log('info', `[SOCKS5-AUTH] scheme: ${authInfo.scheme}`);
+      this.log('info', `[SOCKS5-AUTH] host: ${authInfo.host}`);
+      this.log('info', `[SOCKS5-AUTH] port: ${authInfo.port}`);
+      this.log('info', `[SOCKS5-AUTH] realm: ${authInfo.realm}`);
+      
+      // Check if this is a proxy authentication request
+      if (authInfo.isProxy) {
+        this.log('info', `[SOCKS5-AUTH] Proxy authentication requested`);
+        this.log('info', `[SOCKS5-AUTH] Expected: ${proxyHost}:${proxyPort}`);
+        this.log('info', `[SOCKS5-AUTH] Received: ${authInfo.host}:${authInfo.port}`);
+        
+        // Provide credentials - must call event.preventDefault() first
+        event.preventDefault();
+        callback(username, password);
+        
+        this.log('info', `[SOCKS5-AUTH] ✓ Credentials provided for session: ${sessionId}`);
+      } else {
+        // Not a proxy auth request, cancel it (don't provide credentials for non-proxy auth)
+        this.log('info', `[SOCKS5-AUTH] Non-proxy auth request, cancelling`);
+        callback();
+      }
+    });
+
+    this.log('info', `[SOCKS5-AUTH] ✓ Authentication handler registered for session: ${sessionId}`);
+  }
+
+  /**
+   * Test proxy resolution for debugging
+   * @param {Electron.Session} session - Electron session
+   * @param {string} testUrl - URL to test proxy resolution
+   * @returns {Promise<string>} Proxy resolution result
+   */
+  async testProxyResolution(session, testUrl = 'https://web.whatsapp.com/') {
+    try {
+      const result = await session.resolveProxy(testUrl);
+      this.log('info', `[SOCKS5-DEBUG] Proxy resolution for ${testUrl}: ${result}`);
+      return result;
+    } catch (error) {
+      this.log('error', `[SOCKS5-DEBUG] Proxy resolution failed: ${error.message}`);
+      return `ERROR: ${error.message}`;
+    }
+  }
+
+  /**
+   * Perform a comprehensive proxy test using Electron's net module
+   * @param {Electron.Session} session - Electron session
+   * @param {string} testUrl - URL to test
+   * @returns {Promise<{success: boolean, ip?: string, error?: string, latency?: number}>}
+   */
+  async testProxyConnection(session, testUrl = 'https://api.ipify.org?format=json') {
+    const { net } = require('electron');
+    
+    this.log('info', `[SOCKS5-TEST] Testing proxy connection with ${testUrl}`);
+    
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const timeout = setTimeout(() => {
+        this.log('error', `[SOCKS5-TEST] Connection timeout after 10s`);
+        resolve({ success: false, error: 'Connection timeout' });
+      }, 10000);
+
+      try {
+        const request = net.request({
+          url: testUrl,
+          session: session,
+          method: 'GET'
+        });
+
+        let responseData = '';
+
+        request.on('response', (response) => {
+          this.log('info', `[SOCKS5-TEST] Response status: ${response.statusCode}`);
+          
+          response.on('data', (chunk) => {
+            responseData += chunk.toString();
+          });
+
+          response.on('end', () => {
+            clearTimeout(timeout);
+            const latency = Date.now() - startTime;
+            
+            try {
+              const data = JSON.parse(responseData);
+              this.log('info', `[SOCKS5-TEST] ✓ Success! IP: ${data.ip}, Latency: ${latency}ms`);
+              resolve({ success: true, ip: data.ip, latency });
+            } catch (e) {
+              this.log('info', `[SOCKS5-TEST] ✓ Success! Response: ${responseData.substring(0, 100)}, Latency: ${latency}ms`);
+              resolve({ success: true, latency });
+            }
+          });
+        });
+
+        request.on('error', (error) => {
+          clearTimeout(timeout);
+          this.log('error', `[SOCKS5-TEST] ✗ Request error: ${error.message}`);
+          resolve({ success: false, error: error.message });
+        });
+
+        request.end();
+      } catch (error) {
+        clearTimeout(timeout);
+        this.log('error', `[SOCKS5-TEST] ✗ Exception: ${error.message}`);
+        resolve({ success: false, error: error.message });
+      }
+    });
   }
 
   /**

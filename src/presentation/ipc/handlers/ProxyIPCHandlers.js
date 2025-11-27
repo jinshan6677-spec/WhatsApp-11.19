@@ -23,6 +23,11 @@
  * - proxy:reconnection-status - Get reconnection attempt status
  * - proxy:switch-proxy - Smooth proxy switching with rollback support
  * 
+ * Migration Status:
+ * - ✅ Supports both legacy (ipcMain.handle) and new architecture (IPCRouter)
+ * - ✅ Uses ProxyService for security features when available
+ * - ✅ Falls back to ProxyConfigManager for backward compatibility
+ * 
  * @module presentation/ipc/handlers/ProxyIPCHandlers
  * @requires electron
  * @requires ../../application/services/ProxyService
@@ -32,6 +37,7 @@
 'use strict';
 
 const { ipcMain } = require('electron');
+const { EventSchema } = require('../../../core/eventbus/EventSchema');
 
 // Store references for cleanup
 let _proxyConfigManager = null;
@@ -39,6 +45,128 @@ let _proxyDetectionService = null;
 let _proxyService = null;
 let _proxyRepository = null;
 let _eventBus = null;
+let _ipcRouter = null;
+
+/**
+ * List of all proxy IPC channels
+ */
+const EXISTING_CHANNELS = [
+  'proxy:get-all-configs',
+  'proxy:get-config',
+  'proxy:save-config',
+  'proxy:delete-config',
+  'proxy:test-service',
+  'proxy:test-network',
+  'proxy:generate-name',
+  'proxy:validate-config'
+];
+
+const SECURITY_CHANNELS = [
+  'proxy:secure-connect',
+  'proxy:secure-disconnect',
+  'proxy:health-status',
+  'proxy:kill-switch-status',
+  'proxy:reconnect',
+  'proxy:reconnection-status',
+  'proxy:switch-proxy'
+];
+
+const ALL_CHANNELS = [...EXISTING_CHANNELS, ...SECURITY_CHANNELS];
+
+/**
+ * Request schemas for validation
+ */
+const schemas = {
+  getConfig: new EventSchema({
+    type: 'string',
+    required: true
+  }),
+  
+  saveConfig: new EventSchema({
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      enabled: { type: 'boolean' },
+      protocol: { type: 'string' },
+      host: { type: 'string', required: true },
+      port: { type: 'number', required: true }
+    }
+  }),
+  
+  deleteConfig: new EventSchema({
+    type: 'string',
+    required: true
+  }),
+  
+  testService: new EventSchema({
+    type: 'object',
+    properties: {
+      protocol: { type: 'string' },
+      host: { type: 'string', required: true },
+      port: { type: 'number', required: true }
+    }
+  }),
+  
+  validateConfig: new EventSchema({
+    type: 'object',
+    properties: {
+      protocol: { type: 'string' },
+      host: { type: 'string' },
+      port: { type: 'number' }
+    }
+  }),
+  
+  secureConnect: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true },
+      config: { type: 'object', required: true }
+    }
+  }),
+  
+  secureDisconnect: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true }
+    }
+  }),
+  
+  healthStatus: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true }
+    }
+  }),
+  
+  killSwitchStatus: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true }
+    }
+  }),
+  
+  reconnect: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true }
+    }
+  }),
+  
+  reconnectionStatus: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true }
+    }
+  }),
+  
+  switchProxy: new EventSchema({
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', required: true },
+      newConfig: { type: 'object', required: true }
+    }
+  })
+};
 
 /**
  * Creates a structured error response
@@ -797,31 +925,8 @@ function register(dependencies) {
  * Removes all registered IPC handlers and cleans up references
  */
 function unregister() {
-  // Existing handlers (8 total)
-  const existingChannels = [
-    'proxy:get-all-configs',
-    'proxy:get-config',
-    'proxy:save-config',
-    'proxy:delete-config',
-    'proxy:test-service',
-    'proxy:test-network',
-    'proxy:generate-name',
-    'proxy:validate-config'
-  ];
-  
-  // New security handlers (7 total)
-  const securityChannels = [
-    'proxy:secure-connect',
-    'proxy:secure-disconnect',
-    'proxy:health-status',
-    'proxy:kill-switch-status',
-    'proxy:reconnect',
-    'proxy:reconnection-status',
-    'proxy:switch-proxy'
-  ];
-
-  // Remove all handlers
-  [...existingChannels, ...securityChannels].forEach(channel => {
+  // Remove all handlers from ipcMain
+  ALL_CHANNELS.forEach(channel => {
     try {
       ipcMain.removeHandler(channel);
     } catch (error) {
@@ -829,12 +934,24 @@ function unregister() {
     }
   });
   
+  // Unregister from IPCRouter if available
+  if (_ipcRouter) {
+    ALL_CHANNELS.forEach(channel => {
+      try {
+        _ipcRouter.unregister(channel);
+      } catch (error) {
+        // Handler might not be registered, ignore
+      }
+    });
+  }
+  
   // Clean up references
   _proxyConfigManager = null;
   _proxyDetectionService = null;
   _proxyService = null;
   _proxyRepository = null;
   _eventBus = null;
+  _ipcRouter = null;
   
   console.log('[IPC:Proxy] Proxy handlers unregistered (15 total: 8 existing + 7 security)');
 }
@@ -865,9 +982,9 @@ function getChannels() {
       'proxy:switch-proxy': 'Smooth proxy switching with rollback support'
     },
     summary: {
-      existingCount: 8,
-      securityCount: 7,
-      totalCount: 15
+      existingCount: EXISTING_CHANNELS.length,
+      securityCount: SECURITY_CHANNELS.length,
+      totalCount: ALL_CHANNELS.length
     }
   };
 }
@@ -891,14 +1008,694 @@ function getServiceStatus() {
     proxyService: !!_proxyService,
     proxyRepository: !!_proxyRepository,
     eventBus: !!_eventBus,
+    ipcRouter: !!_ipcRouter,
     securityFeaturesEnabled: !!_proxyService
   };
 }
 
+// ==================== IPCRouter Integration ====================
+
+/**
+ * Handler implementations for IPCRouter
+ * These handlers use ProxyService as the primary service
+ */
+const routerHandlers = {
+  /**
+   * Get all proxy configurations
+   */
+  async getAllConfigs(request) {
+    if (_proxyRepository) {
+      const configs = await _proxyRepository.findAll();
+      return createSuccessResponse({
+        configs: configs.map(config => config.toJSON ? config.toJSON() : config),
+        count: configs.length
+      });
+    }
+    
+    if (_proxyConfigManager) {
+      const configs = await _proxyConfigManager.getAllProxyConfigs(true);
+      return createSuccessResponse({
+        configs: configs.map(config => config.toJSON ? config.toJSON() : config),
+        count: configs.length
+      });
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'No proxy service available');
+  },
+
+  /**
+   * Get a single proxy configuration by ID
+   */
+  async getConfig(request) {
+    const id = request.payload;
+    
+    if (_proxyRepository) {
+      const config = await _proxyRepository.findById(id);
+      if (!config) {
+        return createErrorResponse('PROXY_NOT_FOUND', 'Proxy configuration not found', { id });
+      }
+      return createSuccessResponse({
+        config: config.toJSON ? config.toJSON() : config
+      });
+    }
+    
+    if (_proxyConfigManager) {
+      const config = await _proxyConfigManager.getProxyConfig(id, true);
+      if (!config) {
+        return createErrorResponse('PROXY_NOT_FOUND', 'Proxy configuration not found', { id });
+      }
+      return createSuccessResponse({
+        config: config.toJSON ? config.toJSON() : config
+      });
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'No proxy service available');
+  },
+
+  /**
+   * Save/update a proxy configuration
+   */
+  async saveConfig(request) {
+    const config = request.payload;
+    
+    // Validate config using ProxyService if available
+    if (_proxyService) {
+      const validation = _proxyService.validateConfig(config);
+      if (!validation.valid) {
+        return createErrorResponse('VALIDATION_ERROR', 'Invalid proxy configuration', {
+          errors: validation.errors
+        });
+      }
+    }
+    
+    if (_proxyConfigManager) {
+      const result = await _proxyConfigManager.saveProxyConfig(config);
+      
+      if (_eventBus && result.success) {
+        await _eventBus.publish('proxy:config-saved', {
+          proxyId: config.id,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return result.success 
+        ? createSuccessResponse({ config: result.config || config })
+        : createErrorResponse('PROXY_SAVE_FAILED', result.errors?.join(', ') || 'Save failed');
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'No proxy service available');
+  },
+
+  /**
+   * Delete a proxy configuration
+   */
+  async deleteConfig(request) {
+    const id = request.payload;
+    
+    if (_proxyConfigManager) {
+      const result = await _proxyConfigManager.deleteProxyConfig(id);
+      
+      if (_eventBus && result.success) {
+        await _eventBus.publish('proxy:config-deleted', {
+          proxyId: id,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return result.success 
+        ? createSuccessResponse({ deleted: true, id })
+        : createErrorResponse('PROXY_DELETE_FAILED', result.errors?.join(', ') || 'Delete failed', { id });
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'No proxy service available');
+  },
+
+  /**
+   * Test proxy service connectivity (enhanced with exit IP)
+   */
+  async testService(request) {
+    const config = request.payload;
+    
+    // Use ProxyService for enhanced testing
+    if (_proxyService) {
+      const result = await _proxyService.testProxy(config);
+      
+      if (result.success) {
+        return createSuccessResponse({
+          ip: result.ip,
+          ipSource: result.ipSource,
+          latency: result.latency,
+          connectivity: result.connectivity,
+          securityCheck: {
+            ipVerified: !!result.ip,
+            connectivityVerified: result.connectivity?.success || false
+          }
+        });
+      } else {
+        return createErrorResponse('PROXY_TEST_FAILED', result.error, {
+          step: result.step
+        });
+      }
+    }
+    
+    // Fallback to legacy testing
+    if (_proxyDetectionService) {
+      const configValidation = _proxyDetectionService.validateProxyConfig(config);
+      if (!configValidation.valid) {
+        return createErrorResponse('VALIDATION_ERROR', configValidation.errors.join(', '));
+      }
+      
+      const result = await _proxyDetectionService.testProxy(config);
+      return result.success 
+        ? createSuccessResponse(result)
+        : createErrorResponse('PROXY_TEST_FAILED', result.error || 'Test failed');
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'No proxy service available');
+  },
+
+  /**
+   * Test current network status
+   */
+  async testNetwork(request) {
+    if (_proxyDetectionService) {
+      const result = await _proxyDetectionService.getCurrentNetworkInfo();
+      return result.success 
+        ? createSuccessResponse({ networkInfo: result })
+        : createErrorResponse('NETWORK_TEST_FAILED', result.error || 'Network test failed');
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyDetectionService not available');
+  },
+
+  /**
+   * Generate a name for proxy configuration
+   */
+  async generateName(request) {
+    const config = request.payload;
+    
+    if (_proxyConfigManager) {
+      const name = _proxyConfigManager.generateConfigName(config);
+      return createSuccessResponse({ name });
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyConfigManager not available');
+  },
+
+  /**
+   * Validate proxy configuration
+   */
+  async validateConfig(request) {
+    const config = request.payload;
+    
+    if (_proxyService) {
+      const validation = _proxyService.validateConfig(config);
+      return createSuccessResponse({ validation });
+    }
+    
+    if (_proxyConfigManager) {
+      const validation = _proxyConfigManager.validateProxyConfig(config);
+      return createSuccessResponse({ validation });
+    }
+    
+    return createErrorResponse('SERVICE_UNAVAILABLE', 'No proxy service available');
+  },
+
+  // ==================== Security Handlers ====================
+
+  /**
+   * Secure connect with pre-check and IP verification
+   */
+  async secureConnect(request) {
+    const { accountId, config, session } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available', {
+        hint: 'ProxyService must be initialized before using secure connection features'
+      });
+    }
+    
+    console.log(`[IPC:Proxy] Secure connect requested for account: ${accountId}`);
+    const result = await _proxyService.secureConnect(accountId, config, session);
+    
+    // Update connection stats in repository
+    if (_proxyRepository && config.id) {
+      try {
+        await _proxyRepository.addConnectionStats(config.id, {
+          success: result.success,
+          ip: result.ip
+        });
+      } catch (statsError) {
+        console.warn('[IPC:Proxy] Failed to update connection stats:', statsError.message);
+      }
+    }
+    
+    if (_eventBus && result.success) {
+      await _eventBus.publish('proxy:secure-connected', {
+        accountId,
+        proxyId: config.id,
+        ip: result.ip,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return result.success 
+      ? createSuccessResponse({
+          accountId,
+          ip: result.ip,
+          latency: result.latency,
+          proxyId: result.proxyId
+        })
+      : createErrorResponse('SECURE_CONNECT_FAILED', result.error, {
+          step: result.step,
+          accountId
+        });
+  },
+
+  /**
+   * Secure disconnect with cleanup
+   */
+  async secureDisconnect(request) {
+    const { accountId } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available');
+    }
+    
+    console.log(`[IPC:Proxy] Secure disconnect requested for account: ${accountId}`);
+    const result = await _proxyService.secureDisconnect(accountId);
+    
+    if (_eventBus && result.success) {
+      await _eventBus.publish('proxy:secure-disconnected', {
+        accountId,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return result.success 
+      ? createSuccessResponse({ accountId, disconnected: true })
+      : createErrorResponse('SECURE_DISCONNECT_FAILED', result.error, { accountId });
+  },
+
+  /**
+   * Get proxy health monitoring status
+   */
+  async healthStatus(request) {
+    const { accountId } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available');
+    }
+    
+    const stats = _proxyService.getHealthStats(accountId);
+    const healthStatus = _proxyService.healthMonitor?.getHealthStatus(accountId);
+    
+    return createSuccessResponse({
+      accountId,
+      stats: stats || null,
+      status: healthStatus?.status || 'unknown',
+      details: healthStatus?.details || {},
+      isMonitoring: !!stats
+    });
+  },
+
+  /**
+   * Get Kill-Switch activation status
+   */
+  async killSwitchStatus(request) {
+    const { accountId } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available');
+    }
+    
+    const killSwitch = _proxyService.killSwitch;
+    if (!killSwitch) {
+      return createErrorResponse('COMPONENT_UNAVAILABLE', 'KillSwitch component not available');
+    }
+    
+    const state = killSwitch.getState(accountId);
+    const isActive = killSwitch.isActive(accountId);
+    
+    return createSuccessResponse({
+      accountId,
+      active: isActive,
+      state: state?.state || 'unknown',
+      trigger: state?.trigger || null,
+      activatedAt: state?.activatedAt || null,
+      resetRequested: state?.resetRequested || false
+    });
+  },
+
+  /**
+   * Manual reconnection trigger
+   */
+  async reconnect(request) {
+    const { accountId } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available');
+    }
+    
+    console.log(`[IPC:Proxy] Manual reconnect requested for account: ${accountId}`);
+    const result = await _proxyService.manualReconnect(accountId);
+    
+    if (_eventBus) {
+      await _eventBus.publish('proxy:reconnect-attempted', {
+        accountId,
+        success: result.success,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return result.success 
+      ? createSuccessResponse({
+          accountId,
+          ip: result.ip,
+          latency: result.latency,
+          reconnected: true
+        })
+      : createErrorResponse('RECONNECT_FAILED', result.error, { accountId });
+  },
+
+  /**
+   * Get reconnection attempt status
+   */
+  async reconnectionStatus(request) {
+    const { accountId } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available');
+    }
+    
+    const status = _proxyService.getReconnectionStatus(accountId);
+    
+    return createSuccessResponse({
+      accountId,
+      status: status || { state: 'idle', attempts: 0 }
+    });
+  },
+
+  /**
+   * Smooth proxy switching with rollback support
+   */
+  async switchProxy(request) {
+    const { accountId, newConfig } = request.payload;
+    
+    if (!_proxyService) {
+      return createErrorResponse('SERVICE_UNAVAILABLE', 'ProxyService not available');
+    }
+    
+    console.log(`[IPC:Proxy] Proxy switch requested for account: ${accountId}`);
+    
+    // Get current connection for potential rollback
+    const currentConnection = _proxyService.getConnectionStatus(accountId);
+    const oldConfig = currentConnection?.config || null;
+    
+    // First disconnect current proxy
+    await _proxyService.secureDisconnect(accountId);
+    
+    // Then connect with new proxy
+    const result = await _proxyService.secureConnect(accountId, newConfig);
+    
+    if (!result.success && oldConfig) {
+      // Switch failed - attempt rollback to old config
+      console.warn('[IPC:Proxy] Proxy switch failed, attempting rollback');
+      const rollbackResult = await _proxyService.secureConnect(accountId, oldConfig);
+      
+      if (rollbackResult.success) {
+        return createErrorResponse('SWITCH_FAILED_ROLLBACK_SUCCESS', result.error, {
+          accountId,
+          rolledBack: true,
+          rollbackIp: rollbackResult.ip
+        });
+      } else {
+        return createErrorResponse('SWITCH_FAILED_ROLLBACK_FAILED', result.error, {
+          accountId,
+          rolledBack: false,
+          rollbackError: rollbackResult.error
+        });
+      }
+    }
+    
+    if (_eventBus && result.success) {
+      await _eventBus.publish('proxy:switched', {
+        accountId,
+        oldProxyId: oldConfig?.id,
+        newProxyId: newConfig.id,
+        ip: result.ip,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return result.success 
+      ? createSuccessResponse({
+          accountId,
+          ip: result.ip,
+          latency: result.latency,
+          switched: true,
+          previousProxyId: oldConfig?.id
+        })
+      : createErrorResponse('SWITCH_FAILED', result.error, { accountId });
+  }
+};
+
+/**
+ * Wraps a handler with error handling
+ * @param {Function} handler - Handler function
+ * @param {string} name - Handler name for logging
+ * @returns {Function} Wrapped handler
+ */
+function wrapHandler(handler, name) {
+  return async (request, context) => {
+    try {
+      return await handler(request, context);
+    } catch (error) {
+      console.error(`[IPC:Proxy] ${name} error:`, error);
+      return createErrorResponse('HANDLER_ERROR', error.message, { handler: name });
+    }
+  };
+}
+
+/**
+ * Registers proxy IPC handlers with IPCRouter AND ipcMain
+ * This is the new architecture integration method.
+ * 
+ * @param {IPCRouter} router - IPCRouter instance
+ * @param {Object} dependencies - Handler dependencies
+ * @param {ProxyService} dependencies.proxyService - Proxy service instance (required for security features)
+ * @param {ProxyConfigManager} [dependencies.proxyConfigManager] - Legacy proxy config manager
+ * @param {ProxyDetectionService} [dependencies.proxyDetectionService] - Legacy proxy detection service
+ * @param {ProxyRepository} [dependencies.proxyRepository] - Proxy repository for data access
+ * @param {EventBus} [dependencies.eventBus] - Event bus for publishing events
+ */
+function registerWithRouter(router, dependencies) {
+  const { 
+    proxyService, 
+    proxyConfigManager, 
+    proxyDetectionService, 
+    proxyRepository, 
+    eventBus 
+  } = dependencies;
+  
+  // Store references
+  _ipcRouter = router;
+  _proxyService = proxyService || null;
+  _proxyConfigManager = proxyConfigManager || null;
+  _proxyDetectionService = proxyDetectionService || null;
+  _proxyRepository = proxyRepository || null;
+  _eventBus = eventBus || null;
+  
+  console.log('[IPC:Proxy] Registering proxy handlers with IPCRouter:', {
+    hasProxyService: !!proxyService,
+    hasProxyConfigManager: !!proxyConfigManager,
+    hasProxyDetectionService: !!proxyDetectionService,
+    hasProxyRepository: !!proxyRepository,
+    hasEventBus: !!eventBus
+  });
+  
+  // Register existing handlers (8 total)
+  router.register('proxy:get-all-configs', wrapHandler(routerHandlers.getAllConfigs, 'getAllConfigs'), {
+    description: 'Get all proxy configurations',
+    defaultTimeout: 10000
+  });
+  
+  router.register('proxy:get-config', wrapHandler(routerHandlers.getConfig, 'getConfig'), {
+    schema: schemas.getConfig,
+    description: 'Get a single proxy configuration by ID',
+    defaultTimeout: 5000
+  });
+  
+  router.register('proxy:save-config', wrapHandler(routerHandlers.saveConfig, 'saveConfig'), {
+    schema: schemas.saveConfig,
+    description: 'Save/update a proxy configuration',
+    defaultTimeout: 10000
+  });
+  
+  router.register('proxy:delete-config', wrapHandler(routerHandlers.deleteConfig, 'deleteConfig'), {
+    schema: schemas.deleteConfig,
+    description: 'Delete a proxy configuration',
+    defaultTimeout: 5000
+  });
+  
+  router.register('proxy:test-service', wrapHandler(routerHandlers.testService, 'testService'), {
+    schema: schemas.testService,
+    description: 'Test proxy connectivity (enhanced with exit IP and security checks)',
+    defaultTimeout: 30000
+  });
+  
+  router.register('proxy:test-network', wrapHandler(routerHandlers.testNetwork, 'testNetwork'), {
+    description: 'Test current network status',
+    defaultTimeout: 15000
+  });
+  
+  router.register('proxy:generate-name', wrapHandler(routerHandlers.generateName, 'generateName'), {
+    description: 'Generate a name for proxy configuration',
+    defaultTimeout: 5000
+  });
+  
+  router.register('proxy:validate-config', wrapHandler(routerHandlers.validateConfig, 'validateConfig'), {
+    schema: schemas.validateConfig,
+    description: 'Validate proxy configuration',
+    defaultTimeout: 5000
+  });
+  
+  // Register security handlers (7 total)
+  router.register('proxy:secure-connect', wrapHandler(routerHandlers.secureConnect, 'secureConnect'), {
+    schema: schemas.secureConnect,
+    description: 'Secure connection with pre-check and IP verification',
+    defaultTimeout: 60000
+  });
+  
+  router.register('proxy:secure-disconnect', wrapHandler(routerHandlers.secureDisconnect, 'secureDisconnect'), {
+    schema: schemas.secureDisconnect,
+    description: 'Secure disconnection with cleanup',
+    defaultTimeout: 10000
+  });
+  
+  router.register('proxy:health-status', wrapHandler(routerHandlers.healthStatus, 'healthStatus'), {
+    schema: schemas.healthStatus,
+    description: 'Get proxy health monitoring status',
+    defaultTimeout: 5000
+  });
+  
+  router.register('proxy:kill-switch-status', wrapHandler(routerHandlers.killSwitchStatus, 'killSwitchStatus'), {
+    schema: schemas.killSwitchStatus,
+    description: 'Get Kill-Switch activation status',
+    defaultTimeout: 5000
+  });
+  
+  router.register('proxy:reconnect', wrapHandler(routerHandlers.reconnect, 'reconnect'), {
+    schema: schemas.reconnect,
+    description: 'Manual reconnection trigger',
+    defaultTimeout: 60000
+  });
+  
+  router.register('proxy:reconnection-status', wrapHandler(routerHandlers.reconnectionStatus, 'reconnectionStatus'), {
+    schema: schemas.reconnectionStatus,
+    description: 'Get reconnection attempt status',
+    defaultTimeout: 5000
+  });
+  
+  router.register('proxy:switch-proxy', wrapHandler(routerHandlers.switchProxy, 'switchProxy'), {
+    schema: schemas.switchProxy,
+    description: 'Smooth proxy switching with rollback support',
+    defaultTimeout: 120000
+  });
+  
+  console.log('[IPC:Proxy] ✓ Proxy handlers registered with IPCRouter (15 channels)');
+  
+  // ========== CRITICAL: Register with ipcMain ==========
+  // The IPCRouter is an internal router, but we need to connect it to Electron's ipcMain
+  // so that renderer processes can actually invoke these handlers
+  
+  for (const channel of ALL_CHANNELS) {
+    // Remove existing handler if any (to avoid duplicate registration errors)
+    try {
+      ipcMain.removeHandler(channel);
+    } catch (e) {
+      // Ignore - handler might not exist
+    }
+    
+    // Register the handler with ipcMain
+    ipcMain.handle(channel, async (event, ...args) => {
+      // Build request object for IPCRouter
+      const request = {
+        payload: args.length === 1 ? args[0] : args,
+        requestId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      };
+      
+      // Route through IPCRouter
+      const response = await router.handle(channel, request);
+      
+      if (response.success) {
+        return response.data;
+      } else {
+        // Return error response instead of throwing
+        // This allows the renderer to handle errors gracefully
+        return {
+          success: false,
+          error: response.error
+        };
+      }
+    });
+  }
+  
+  console.log(`[IPC:Proxy] ✓ All ${ALL_CHANNELS.length} channels registered with ipcMain`);
+  
+  // Log security status
+  if (proxyService) {
+    console.log('[IPC:Proxy] ✓ Security features enabled (ProxyService available)');
+  } else {
+    console.warn('[IPC:Proxy] ⚠ Security features limited (ProxyService not provided)');
+  }
+}
+
+/**
+ * Unregisters proxy IPC handlers from IPCRouter and ipcMain
+ * @param {IPCRouter} router - IPCRouter instance
+ */
+function unregisterFromRouter(router) {
+  for (const channel of ALL_CHANNELS) {
+    // Unregister from IPCRouter
+    try {
+      router.unregister(channel);
+    } catch (e) {
+      // Ignore - handler might not exist
+    }
+    
+    // Unregister from ipcMain
+    try {
+      ipcMain.removeHandler(channel);
+    } catch (e) {
+      // Ignore - handler might not exist
+    }
+  }
+  
+  _ipcRouter = null;
+  console.log('[IPC:Proxy] Proxy handlers unregistered from IPCRouter and ipcMain');
+}
+
 module.exports = {
+  // Legacy registration (backward compatible)
   register,
   unregister,
+  
+  // New architecture registration (IPCRouter)
+  registerWithRouter,
+  unregisterFromRouter,
+  
+  // Query functions
   getChannels,
   isSecurityEnabled,
-  getServiceStatus
+  getServiceStatus,
+  
+  // Expose handlers and schemas for testing
+  handlers: routerHandlers,
+  schemas,
+  
+  // Channel lists
+  EXISTING_CHANNELS,
+  SECURITY_CHANNELS,
+  ALL_CHANNELS
 };

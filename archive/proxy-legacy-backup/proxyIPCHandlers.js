@@ -1,5 +1,8 @@
 /**
- * IPC Handlers for Proxy Configuration
+ * IPC Handlers for Proxy Configuration (LEGACY BACKUP)
+ * 
+ * 备份日期: 2025-11-27
+ * 原位置: src/ipc/proxyIPCHandlers.js
  * 
  * Handles IPC communication for proxy configuration management and detection
  */
@@ -25,7 +28,7 @@ function registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService) {
    */
   ipcMain.handle('proxy:get-all-configs', async () => {
     try {
-      const configs = await proxyConfigManager.getAllProxyConfigs(true); // 解密密码
+      const configs = await proxyConfigManager.getAllProxyConfigs(true);
       return {
         success: true,
         configs: configs.map(config => config.toJSON ? config.toJSON() : config)
@@ -50,7 +53,7 @@ function registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService) {
         throw new Error('Proxy config ID is required');
       }
 
-      const config = await proxyConfigManager.getProxyConfig(id, true); // 解密密码
+      const config = await proxyConfigManager.getProxyConfig(id, true);
       
       if (!config) {
         return {
@@ -126,7 +129,6 @@ function registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService) {
         throw new Error('Proxy configuration is required');
       }
 
-      // 验证配置
       const validation = proxyDetectionService.validateProxyConfig(config);
       if (!validation.valid) {
         return {
@@ -135,7 +137,6 @@ function registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService) {
         };
       }
 
-      // 测试代理
       const result = await proxyDetectionService.testProxy(config);
       
       return result;

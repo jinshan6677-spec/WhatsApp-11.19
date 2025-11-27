@@ -1,9 +1,6 @@
 'use strict';
 
-const ProxyPreChecker = require('../ProxyPreChecker');
-const ProxyConfig = require('../../../domain/entities/ProxyConfig');
-
-// Mock the proxy agents
+// Mock the proxy agents - must be before require
 jest.mock('socks-proxy-agent', () => ({
   SocksProxyAgent: jest.fn().mockImplementation(() => ({
     protocol: 'socks5:'
@@ -16,23 +13,26 @@ jest.mock('https-proxy-agent', () => ({
   }))
 }));
 
-// Mock http and https modules
+// Create mock functions for http/https
+const mockHttpRequest = jest.fn();
+const mockHttpsRequest = jest.fn();
+
+// Mock http and https modules - must be before require
 jest.mock('http', () => {
-  const originalHttp = jest.requireActual('http');
   return {
-    ...originalHttp,
-    request: jest.fn()
+    request: (...args) => mockHttpRequest(...args)
   };
 });
 
 jest.mock('https', () => {
-  const originalHttps = jest.requireActual('https');
   return {
-    ...originalHttps,
-    request: jest.fn()
+    request: (...args) => mockHttpsRequest(...args)
   };
 });
 
+// Now require the modules after mocks are set up
+const ProxyPreChecker = require('../ProxyPreChecker');
+const ProxyConfig = require('../../../domain/entities/ProxyConfig');
 const http = require('http');
 const https = require('https');
 
@@ -123,11 +123,11 @@ describe('ProxyPreChecker', () => {
   describe('testConnectivity', () => {
     it('should return success for valid proxy config', async () => {
       const mockResponse = createMockResponse(200, { query: '1.2.3.4' });
-      const mockRequest = createMockRequest(mockResponse);
+      const mockReq = createMockRequest(mockResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
       const config = new ProxyConfig({
@@ -159,9 +159,9 @@ describe('ProxyPreChecker', () => {
     });
 
     it('should return failure on connection error', async () => {
-      const mockRequest = createMockRequest(null, true, 'ECONNREFUSED');
+      const mockReq = createMockRequest(null, true, 'ECONNREFUSED');
       
-      http.request.mockImplementation(() => mockRequest);
+      mockHttpRequest.mockImplementation(() => mockReq);
 
       const config = new ProxyConfig({
         protocol: 'socks5',
@@ -178,11 +178,11 @@ describe('ProxyPreChecker', () => {
 
     it('should accept plain object config', async () => {
       const mockResponse = createMockResponse(200, { query: '1.2.3.4' });
-      const mockRequest = createMockRequest(mockResponse);
+      const mockReq = createMockRequest(mockResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
       const result = await checker.testConnectivity({
@@ -199,11 +199,11 @@ describe('ProxyPreChecker', () => {
   describe('measureLatency', () => {
     it('should measure latency with multiple samples', async () => {
       const mockResponse = createMockResponse(200, { query: '1.2.3.4' });
-      const mockRequest = createMockRequest(mockResponse);
+      const mockReq = createMockRequest(mockResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
       const config = new ProxyConfig({
@@ -224,9 +224,9 @@ describe('ProxyPreChecker', () => {
     });
 
     it('should return failure if all samples fail', async () => {
-      const mockRequest = createMockRequest(null, true, 'Connection error');
+      const mockReq = createMockRequest(null, true, 'Connection error');
       
-      http.request.mockImplementation(() => mockRequest);
+      mockHttpRequest.mockImplementation(() => mockReq);
 
       const config = new ProxyConfig({
         protocol: 'socks5',
@@ -243,11 +243,11 @@ describe('ProxyPreChecker', () => {
 
     it('should use default sample count if not specified', async () => {
       const mockResponse = createMockResponse(200, { query: '1.2.3.4' });
-      const mockRequest = createMockRequest(mockResponse);
+      const mockReq = createMockRequest(mockResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
       const config = new ProxyConfig({
@@ -267,16 +267,16 @@ describe('ProxyPreChecker', () => {
   describe('getExitIP', () => {
     it('should return IP from first successful source', async () => {
       const mockResponse = createMockResponse(200, { ip: '203.0.113.1' });
-      const mockRequest = createMockRequest(mockResponse);
+      const mockReq = createMockRequest(mockResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
-      https.request.mockImplementation((options, callback) => {
+      mockHttpsRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
       const config = new ProxyConfig({
@@ -295,17 +295,17 @@ describe('ProxyPreChecker', () => {
 
     it('should try multiple sources on failure', async () => {
       let callCount = 0;
-      const mockRequest = createMockRequest(null, true, 'Connection error');
+      const mockFailReq = createMockRequest(null, true, 'Connection error');
       const mockSuccessResponse = createMockResponse(200, { query: '203.0.113.1' });
-      const mockSuccessRequest = createMockRequest(mockSuccessResponse);
+      const mockSuccessReq = createMockRequest(mockSuccessResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         callCount++;
         if (callCount <= 1) {
-          return mockRequest;
+          return mockFailReq;
         }
         setImmediate(() => callback(mockSuccessResponse));
-        return mockSuccessRequest;
+        return mockSuccessReq;
       });
 
       const config = new ProxyConfig({
@@ -328,10 +328,10 @@ describe('ProxyPreChecker', () => {
     });
 
     it('should return failure if all sources fail', async () => {
-      const mockRequest = createMockRequest(null, true, 'Connection error');
+      const mockFailReq = createMockRequest(null, true, 'Connection error');
       
-      http.request.mockImplementation(() => mockRequest);
-      https.request.mockImplementation(() => mockRequest);
+      mockHttpRequest.mockImplementation(() => mockFailReq);
+      mockHttpsRequest.mockImplementation(() => mockFailReq);
 
       const config = new ProxyConfig({
         protocol: 'socks5',
@@ -350,16 +350,16 @@ describe('ProxyPreChecker', () => {
   describe('performFullCheck', () => {
     it('should perform complete pre-check', async () => {
       const mockResponse = createMockResponse(200, { ip: '203.0.113.1', query: '203.0.113.1' });
-      const mockRequest = createMockRequest(mockResponse);
+      const mockReq = createMockRequest(mockResponse);
       
-      http.request.mockImplementation((options, callback) => {
+      mockHttpRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
-      https.request.mockImplementation((options, callback) => {
+      mockHttpsRequest.mockImplementation((options, callback) => {
         setImmediate(() => callback(mockResponse));
-        return mockRequest;
+        return mockReq;
       });
 
       const config = new ProxyConfig({
@@ -377,9 +377,9 @@ describe('ProxyPreChecker', () => {
     });
 
     it('should fail if connectivity test fails', async () => {
-      const mockRequest = createMockRequest(null, true, 'ECONNREFUSED');
+      const mockFailReq = createMockRequest(null, true, 'ECONNREFUSED');
       
-      http.request.mockImplementation(() => mockRequest);
+      mockHttpRequest.mockImplementation(() => mockFailReq);
 
       const config = new ProxyConfig({
         protocol: 'socks5',
@@ -441,8 +441,6 @@ describe('ProxyPreChecker', () => {
 
   describe('_createProxyAgent', () => {
     it('should create SocksProxyAgent for SOCKS5', () => {
-      const { SocksProxyAgent } = require('socks-proxy-agent');
-      
       const config = new ProxyConfig({
         protocol: 'socks5',
         host: 'proxy.example.com',
@@ -450,14 +448,14 @@ describe('ProxyPreChecker', () => {
         enabled: true
       });
 
-      checker._createProxyAgent(config);
+      const agent = checker._createProxyAgent(config);
       
-      expect(SocksProxyAgent).toHaveBeenCalled();
+      // Verify agent was created (mock returns object with protocol)
+      expect(agent).toBeDefined();
+      expect(agent.protocol).toBe('socks5:');
     });
 
     it('should create HttpsProxyAgent for HTTP/HTTPS', () => {
-      const { HttpsProxyAgent } = require('https-proxy-agent');
-      
       const config = new ProxyConfig({
         protocol: 'http',
         host: 'proxy.example.com',
@@ -465,9 +463,11 @@ describe('ProxyPreChecker', () => {
         enabled: true
       });
 
-      checker._createProxyAgent(config);
+      const agent = checker._createProxyAgent(config);
       
-      expect(HttpsProxyAgent).toHaveBeenCalled();
+      // Verify agent was created (mock returns object with protocol)
+      expect(agent).toBeDefined();
+      expect(agent.protocol).toBe('https:');
     });
   });
 

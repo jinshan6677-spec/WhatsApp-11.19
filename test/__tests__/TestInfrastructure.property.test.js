@@ -269,16 +269,19 @@ describe('Test Infrastructure Property Tests', () => {
               // Create first context and populate it
               const context1 = createTestContext();
               
+              // Track unique keys (setState overwrites duplicate keys)
+              const uniqueKeys = new Set();
               for (const { key, value } of stateChanges) {
                 context1.setState(key, value);
+                uniqueKeys.add(key);
               }
               
               for (const event of events) {
                 context1.recordEvent(event);
               }
               
-              // Verify state was set
-              expect(Object.keys(context1.state).length).toBe(stateChanges.length);
+              // Verify state was set (count unique keys, not total changes)
+              expect(Object.keys(context1.state).length).toBe(uniqueKeys.size);
               expect(context1.events.length).toBe(events.length);
               
               // Create second context (simulating new test)

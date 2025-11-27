@@ -5,6 +5,8 @@
  * 避免使用复杂的相对路径引用
  * 
  * 支持新架构的Repository模式适配器
+ * 
+ * 注意：ProxyConfigManager已被移除，请使用ProxyRepository或ProxyConfigManagerAdapter
  */
 
 // 基础管理器
@@ -14,8 +16,7 @@ const SessionManager = require('../../managers/SessionManager');
 const NotificationManager = require('../../managers/NotificationManager');
 const TrayManager = require('../../managers/TrayManager');
 
-// 增强管理器
-const ProxyConfigManager = require('../../managers/ProxyConfigManager');
+// 增强管理器（ProxyConfigManager已被ProxyRepository替代）
 const MigrationManager = require('../../managers/MigrationManager');
 const ResourceManager = require('../../managers/ResourceManager');
 
@@ -25,6 +26,9 @@ const TranslationIntegration = require('../../managers/TranslationIntegration');
 // 新架构适配器
 const AccountConfigManagerAdapter = require('../../managers/AccountConfigManagerAdapter');
 const ProxyConfigManagerAdapter = require('../../managers/ProxyConfigManagerAdapter');
+
+// 新架构代理模块
+const ProxyRepository = require('../../infrastructure/repositories/ProxyRepository');
 
 // 导出统一接口
 module.exports = {
@@ -36,7 +40,6 @@ module.exports = {
   TrayManager,
   
   // 增强管理器
-  ProxyConfigManager,
   MigrationManager,
   ResourceManager,
   
@@ -47,6 +50,9 @@ module.exports = {
   AccountConfigManagerAdapter,
   ProxyConfigManagerAdapter,
   
+  // 新架构代理模块
+  ProxyRepository,
+  
   // 便捷方法 - 传统模式
   createAccountConfigManager: (options) => new AccountConfigManager(options),
   createInstanceManager: (options) => new InstanceManager(options),
@@ -54,11 +60,11 @@ module.exports = {
   createTranslationIntegration: (options) => new TranslationIntegration(options),
   createNotificationManager: () => new NotificationManager(),
   createTrayManager: () => new TrayManager(),
-  createProxyConfigManager: (options) => new ProxyConfigManager(options),
   createMigrationManager: (options) => new MigrationManager(options),
   createResourceManager: (options) => new ResourceManager(options),
   
   // 便捷方法 - 新架构模式（使用Repository）
   createAccountConfigManagerWithRepository: (options) => new AccountConfigManagerAdapter({ ...options, useRepository: true }),
-  createProxyConfigManagerWithRepository: (options) => new ProxyConfigManagerAdapter({ ...options, useRepository: true })
+  createProxyConfigManagerWithRepository: (options) => new ProxyConfigManagerAdapter({ ...options, useRepository: true }),
+  createProxyRepository: (options) => new ProxyRepository(options)
 };

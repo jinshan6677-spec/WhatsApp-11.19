@@ -15,11 +15,13 @@ class ViewLifecycle {
    * @param {Object} options - Configuration options
    * @param {Function} [options.logger] - Logger function
    * @param {Function} [options.notifyRenderer] - Function to notify renderer
+   * @param {Object} [options.proxyIntegration] - ViewProxyIntegration instance for secure proxy error handling
    */
   constructor(options = {}) {
     this.options = options;
     this.log = options.logger || this._createLogger();
     this.notifyRenderer = options.notifyRenderer || (() => {});
+    this.proxyIntegration = options.proxyIntegration || null;
   }
 
   /**
@@ -97,8 +99,29 @@ class ViewLifecycle {
     });
 
     // Handle load failures
-    view.webContents.on('did-fail-load', async (_event, errorCode, errorDescription, validatedURL) => {
+    view.webContents.on('did-fail-load', async (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      this.log('error', `[SOCKS5-DEBUG] did-fail-load event:`);
+      this.log('error', `[SOCKS5-DEBUG]   Account: ${accountId}`);
+      this.log('error', `[SOCKS5-DEBUG]   Error Code: ${errorCode}`);
+      this.log('error', `[SOCKS5-DEBUG]   Error Description: ${errorDescription}`);
+      this.log('error', `[SOCKS5-DEBUG]   URL: ${validatedURL}`);
+      this.log('error', `[SOCKS5-DEBUG]   Is Main Frame: ${isMainFrame}`);
+      
       await this._handleLoadFailure(accountId, view, viewState, errorCode, errorDescription, validatedURL);
+    });
+
+    // Handle certificate errors
+    view.webContents.on('certificate-error', (event, url, error, certificate, callback) => {
+      this.log('error', `[SOCKS5-DEBUG] Certificate error:`);
+      this.log('error', `[SOCKS5-DEBUG]   Account: ${accountId}`);
+      this.log('error', `[SOCKS5-DEBUG]   URL: ${url}`);
+      this.log('error', `[SOCKS5-DEBUG]   Error: ${error}`);
+      callback(false); // Don't ignore certificate errors
+    });
+
+    // Handle did-stop-loading (fires even if load fails)
+    view.webContents.on('did-stop-loading', () => {
+      this.log('info', `[SOCKS5-DEBUG] did-stop-loading for account ${accountId}`);
     });
 
     // Handle navigation
@@ -197,7 +220,9 @@ class ViewLifecycle {
       '-125': '代理隧道连接失败',
       '-106': '无法连接到代理服务器',
       '-118': '代理认证失败',
-      '-21': '网络访问被拒绝（可能是代理问题）'
+      '-21': '网络访问被拒绝（可能是代理问题）',
+      '-7': '连接超时',
+      '-2': '网络错误'
     };
     
     const isProxyError = proxyErrors[errorCode.toString()];
@@ -207,32 +232,27 @@ class ViewLifecycle {
       this.log('error', `  URL: ${validatedURL}`);
       this.log('error', `  描述: ${errorDescription}`);
       
-      // Handle proxy error with fallback
-      // TODO: 任务22.11将删除此回退逻辑
+      // 🔴 安全关键：使用ViewProxyIntegration.handleProxyError()处理代理错误
+      // 不再回退到直连，而是触发Kill-Switch并启动重连机制
       if (viewState.config && viewState.config.proxy && viewState.config.proxy.enabled) {
-        this.log('warn', `[代理错误] 尝试禁用代理并重新加载...`);
-        
-        try {
-          await viewState.session.setProxy({ proxyRules: '' });
-          viewState.config.proxy.enabled = false;
-          viewState.proxyDisabledDueToError = true;
+        if (this.proxyIntegration) {
+          this.log('info', `[安全代理] 使用安全代理错误处理（不回退直连）...`);
           
-          this.notifyRenderer('proxy-disabled-due-to-error', {
-            accountId,
-            errorCode,
-            errorMessage: isProxyError,
-            willRetry: true
-          });
+          const result = await this.proxyIntegration.handleProxyError(
+            accountId, 
+            viewState, 
+            errorCode, 
+            errorDescription
+          );
           
-          setTimeout(() => {
-            if (!view.webContents.isDestroyed()) {
-              view.webContents.loadURL('https://web.whatsapp.com');
-            }
-          }, 1000);
-          
-          return;
-        } catch (retryError) {
-          this.log('error', `[代理错误] 禁用代理失败: ${retryError.message}`);
+          if (result.handled) {
+            this.log('info', `[安全代理] 代理错误已处理，动作: ${result.action}`);
+            return;
+          }
+        } else {
+          // 如果没有proxyIntegration，记录警告但不回退到直连
+          this.log('warn', `[安全代理] 未配置proxyIntegration，无法处理代理错误`);
+          this.log('warn', `[安全代理] 🔴 拒绝回退到直连，保持错误状态`);
         }
       }
     }
@@ -263,7 +283,8 @@ class ViewLifecycle {
         url: validatedURL,
         isProxyError: !!isProxyError,
         proxyErrorType: isProxyError || null,
-        suggestion: isProxyError ? '代理服务器可能无法访问，建议检查代理设置或使用直连' : null
+        // 🔴 安全关键：不再建议使用直连
+        suggestion: isProxyError ? '代理服务器可能无法访问，请检查代理设置或等待自动重连' : null
       }
     });
     
@@ -296,22 +317,26 @@ class ViewLifecycle {
     
     const hasProxy = viewState.config && viewState.config.proxy && viewState.config.proxy.enabled;
     
-    // TODO: 任务22.11将删除此回退逻辑
+    // 🔴 安全关键：使用ViewProxyIntegration.handleProxyCrash()处理代理崩溃
+    // 不再回退到直连，而是触发Kill-Switch
     if (hasProxy && details.reason === 'crashed') {
-      this.log('warn', `[崩溃] 可能是代理配置导致的崩溃，尝试禁用代理...`);
-      
-      try {
-        await viewState.session.setProxy({ proxyRules: '' });
-        viewState.config.proxy.enabled = false;
-        viewState.proxyDisabledDueToError = true;
+      if (this.proxyIntegration) {
+        this.log('info', `[安全代理] 使用安全代理崩溃处理（不回退直连）...`);
         
-        this.notifyRenderer('proxy-disabled-due-to-crash', {
-          accountId,
-          crashReason: details.reason,
-          willRecreate: true
-        });
-      } catch (error) {
-        this.log('error', `[崩溃] 禁用代理失败: ${error.message}`);
+        const result = await this.proxyIntegration.handleProxyCrash(
+          accountId, 
+          viewState, 
+          details
+        );
+        
+        if (result.handled) {
+          this.log('info', `[安全代理] 代理崩溃已处理，动作: ${result.action}`);
+          // 继续通知渲染进程，但不回退到直连
+        }
+      } else {
+        // 如果没有proxyIntegration，记录警告但不回退到直连
+        this.log('warn', `[安全代理] 未配置proxyIntegration，无法处理代理崩溃`);
+        this.log('warn', `[安全代理] 🔴 拒绝回退到直连，保持错误状态`);
       }
     }
     

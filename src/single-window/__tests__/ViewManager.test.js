@@ -27,6 +27,7 @@ describe('ViewManager', () => {
         }))
       })),
       getSidebarWidth: jest.fn(() => 280),
+      getTranslationPanelWidth: jest.fn(() => 0),
       getStateStore: jest.fn(() => ({
         get: jest.fn(),
         set: jest.fn()

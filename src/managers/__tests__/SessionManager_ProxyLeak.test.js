@@ -4,20 +4,37 @@
  */
 
 const SessionManager = require('../SessionManager');
-const { session } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs').promises;
 
-// Mock Electron session
-jest.mock('electron', () => ({
-    session: {
-        fromPartition: jest.fn()
-    },
-    net: {
-        request: jest.fn()
+// Create mock session object
+const mockSessionInstance = {
+    setProxy: jest.fn().mockResolvedValue(undefined),
+    clearStorageData: jest.fn().mockResolvedValue(undefined),
+    clearCache: jest.fn().mockResolvedValue(undefined),
+    setWebRTCIPHandlingPolicy: jest.fn(),
+    webRequest: {
+        onBeforeSendHeaders: jest.fn()
     }
-}));
+};
+
+// Mock Electron session
+jest.mock('electron', () => {
+    const mockSession = {
+        fromPartition: jest.fn(() => mockSessionInstance)
+    };
+    return {
+        session: mockSession,
+        net: {
+            request: jest.fn()
+        }
+    };
+});
+
+// Get the mocked electron module
+const electron = require('electron');
+const { session } = electron;
 
 describe('SessionManager Proxy Leak Prevention', () => {
     let sessionManager;
@@ -29,22 +46,20 @@ describe('SessionManager Proxy Leak Prevention', () => {
         tempDir = path.join(os.tmpdir(), `test-sessions-leak-${Date.now()}`);
         await fs.mkdir(tempDir, { recursive: true });
 
-        // Create mock session with setWebRTCIPHandlingPolicy
-        mockSession = {
-            setProxy: jest.fn().mockResolvedValue(undefined),
-            clearStorageData: jest.fn().mockResolvedValue(undefined),
-            clearCache: jest.fn().mockResolvedValue(undefined),
-            setWebRTCIPHandlingPolicy: jest.fn(),
-            webRequest: {
-                onBeforeSendHeaders: jest.fn()
-            }
-        };
-
+        // Reset mock session
+        mockSession = mockSessionInstance;
+        mockSession.setProxy.mockClear();
+        mockSession.clearStorageData.mockClear();
+        mockSession.clearCache.mockClear();
+        mockSession.setWebRTCIPHandlingPolicy.mockClear();
+        mockSession.webRequest.onBeforeSendHeaders.mockClear();
+        session.fromPartition.mockClear();
         session.fromPartition.mockReturnValue(mockSession);
 
         // Create SessionManager instance
         sessionManager = new SessionManager({
-            userDataPath: tempDir
+            userDataPath: tempDir,
+            electron: electron
         });
     });
 

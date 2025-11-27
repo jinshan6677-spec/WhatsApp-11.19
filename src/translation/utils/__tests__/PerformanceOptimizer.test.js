@@ -1,6 +1,17 @@
 /**
  * 性能优化器测试
+ * @jest-environment jsdom
  */
+
+// Mock ResizeObserver which is not available in jsdom
+global.ResizeObserver = class ResizeObserver {
+  constructor(callback) {
+    this.callback = callback;
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 
 const { PerformanceOptimizer, VirtualScrollManager } = require('../PerformanceOptimizer');
 

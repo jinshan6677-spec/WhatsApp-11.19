@@ -485,7 +485,7 @@ class ProxyService {
    * @returns {string} JavaScript code to inject
    */
   getIPProtectionScript() {
-    return this.ipProtectionInjector.getInjectionScript();
+    return this.ipProtectionInjector.getProtectionScript();
   }
 
   /**

@@ -144,9 +144,13 @@ describe('Multi-Instance Integration Tests', () => {
       cwd: tempDir
     });
     
+    // Get the mocked electron module
+    const electron = require('electron');
+    
     instanceManager = new InstanceManager({
       userDataPath: tempDir,
-      maxInstances: 10
+      maxInstances: 10,
+      electron: electron  // Inject the mocked electron
     });
   });
 

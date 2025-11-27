@@ -20,6 +20,9 @@ const {
   handleViewCreationFailure
 } = require('../utils/ValidationHelper');
 
+// 新架构代理安全模块
+const ViewProxyIntegration = require('../presentation/windows/view-manager/ViewProxyIntegration');
+
 /**
  * ViewManager class
  */
@@ -92,6 +95,13 @@ class ViewManager {
       maxMemory: options.maxMemoryPerView || 500, // MB
       autoCleanupEnabled: options.autoMemoryCleanup !== false // Default: true
     };
+
+    // 初始化代理安全模块
+    this.proxyIntegration = new ViewProxyIntegration({
+      logger: this.log,
+      notifyRenderer: this._notifyRenderer.bind(this),
+      eventBus: options.eventBus || null
+    });
 
     // Start memory monitoring if enabled
     if (this.memoryLimits.autoCleanupEnabled) {
@@ -356,35 +366,21 @@ class ViewManager {
         this.log('warn', `Session isolation validation warning for ${accountId}: ${isolationValidation.message}`);
       }
 
-      // Configure proxy if provided (with timeout and error handling)
+      // 🔒 安全代理配置（使用新架构，禁止回退直连）
       if (config.proxy && config.proxy.enabled) {
-        try {
-          // 使用超时机制，防止代理配置阻塞
-          await Promise.race([
-            this._configureProxy(accountId, accountSession, config.proxy),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('代理配置超时（3秒）')), 3000)
-            )
-          ]);
-        } catch (proxyError) {
-          // 代理配置失败不应该阻止视图创建
-          this.log('error', `代理配置失败，将使用直连: ${proxyError.message}`);
-          
-          // 清除代理配置，使用直连
-          try {
-            await accountSession.setProxy({ proxyRules: '' });
-            this.log('info', `已清除代理配置，账户 ${accountId} 将使用直连`);
-          } catch (clearError) {
-            this.log('warn', `清除代理配置失败: ${clearError.message}`);
-          }
-          
-          // 通知渲染进程代理失败
-          this._notifyRenderer('proxy-config-failed', {
-            accountId,
-            error: proxyError.message,
-            fallbackToDirect: true
-          });
+        const proxyResult = await this.proxyIntegration.secureConfigureProxy(
+          accountId,
+          accountSession,
+          config.proxy
+        );
+        
+        if (!proxyResult.success) {
+          // 🔴 代理配置失败，不创建视图，不回退到直连
+          this.log('error', `[安全代理] 代理配置失败，拒绝创建视图: ${proxyResult.error}`);
+          throw new Error(`代理配置失败: ${proxyResult.error}`);
         }
+        
+        this.log('info', `[安全代理] 代理配置成功 (IP: ${proxyResult.ip})`);
       }
 
       // Set account ID in environment for preload script
@@ -510,6 +506,18 @@ class ViewManager {
         }
       }
 
+      // 🔒 注入IP保护脚本（在页面加载前）
+      if (config.proxy && config.proxy.enabled) {
+        try {
+          await this.proxyIntegration.injectIPProtection(view.webContents);
+          this.log('info', `[安全代理] IP保护脚本已注入 (账户: ${accountId})`);
+        } catch (ipProtectionError) {
+          this.log('error', `[安全代理] IP保护脚本注入失败: ${ipProtectionError.message}`);
+          // IP保护失败是严重安全问题，应该阻止继续
+          throw new Error(`IP保护脚本注入失败: ${ipProtectionError.message}`);
+        }
+      }
+
       // Load URL if provided, otherwise load WhatsApp Web
       const url = config.url || 'https://web.whatsapp.com';
       
@@ -630,105 +638,9 @@ class ViewManager {
     }
   }
 
-  /**
-   * Configure proxy for account session
-   * @private
-   * @param {string} accountId - Account ID
-   * @param {Electron.Session} accountSession - Account session
-   * @param {Object} proxyConfig - Proxy configuration
-   */
-  async _configureProxy(accountId, accountSession, proxyConfig) {
-    const startTime = Date.now();
-    
-    try {
-      const { protocol, host, port, username, password, bypass } = proxyConfig;
-
-      // 验证必需参数
-      if (!host || !port) {
-        throw new Error('代理主机和端口是必需的');
-      }
-
-      // 验证协议
-      const validProtocols = ['http', 'https', 'socks5', 'socks4'];
-      if (!validProtocols.includes(protocol)) {
-        throw new Error(`不支持的代理协议: ${protocol}。支持的协议: ${validProtocols.join(', ')}`);
-      }
-
-      // 验证端口范围
-      const portNum = parseInt(port);
-      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-        throw new Error(`无效的端口号: ${port}。端口必须在 1-65535 之间`);
-      }
-
-      // Build proxy rules
-      let proxyRules;
-      
-      if (protocol === 'socks5' || protocol === 'socks4') {
-        // SOCKS 代理
-        if (username && password) {
-          // SOCKS with authentication
-          proxyRules = `${protocol}://${username}:${password}@${host}:${port}`;
-        } else {
-          // SOCKS without authentication
-          proxyRules = `${protocol}://${host}:${port}`;
-        }
-      } else {
-        // HTTP/HTTPS 代理
-        proxyRules = `${protocol}://${host}:${port}`;
-      }
-      
-      this.log('info', `[代理配置] 账户 ${accountId}:`);
-      this.log('info', `  协议: ${protocol}`);
-      this.log('info', `  主机: ${host}`);
-      this.log('info', `  端口: ${port}`);
-      this.log('info', `  规则: ${proxyRules.replace(/:([^:@]+)@/, ':***@')}`);
-      this.log('info', `  认证: ${!!(username && password) ? '是' : '否'}`);
-      
-      // 设置代理配置（这个操作应该很快完成）
-      const proxyConfig = {
-        proxyRules,
-        proxyBypassRules: bypass || 'localhost,127.0.0.1,<local>'
-      };
-      
-      await accountSession.setProxy(proxyConfig);
-      
-      const configTime = Date.now() - startTime;
-      this.log('info', `[代理配置] 配置完成，耗时 ${configTime}ms`);
-
-      // Handle proxy authentication ONLY for HTTP/HTTPS proxies
-      // SOCKS authentication is handled in the proxy URL
-      if ((protocol === 'http' || protocol === 'https') && username && password) {
-        this.log('info', `[代理配置] 设置 HTTP 代理认证`);
-        
-        // 移除之前的监听器（如果存在）
-        accountSession.webRequest.onBeforeSendHeaders(null);
-        
-        accountSession.webRequest.onBeforeSendHeaders((details, callback) => {
-          const authHeader = Buffer.from(`${username}:${password}`).toString('base64');
-          details.requestHeaders['Proxy-Authorization'] = `Basic ${authHeader}`;
-          callback({ requestHeaders: details.requestHeaders });
-        });
-      }
-
-      this.log('info', `✓ [代理配置] 账户 ${accountId} 配置成功`);
-      
-      return {
-        success: true,
-        configTime
-      };
-    } catch (error) {
-      const configTime = Date.now() - startTime;
-      this.log('error', `✗ [代理配置] 账户 ${accountId} 配置失败 (${configTime}ms): ${error.message}`);
-      
-      // 提供更详细的错误信息
-      const enhancedError = new Error(`代理配置失败: ${error.message}`);
-      enhancedError.originalError = error;
-      enhancedError.accountId = accountId;
-      enhancedError.configTime = configTime;
-      
-      throw enhancedError;
-    }
-  }
+  // 注意：旧的 _configureProxy 方法已被移除
+  // 代理配置现在由 ViewProxyIntegration.secureConfigureProxy() 处理
+  // 参见任务 27.4 - 更新旧ViewManager使用新代理模块
 
   /**
    * Get default user agent for WhatsApp Web compatibility
@@ -823,56 +735,22 @@ class ViewManager {
         return;
       }
 
-      // 检查是否是代理相关错误
-      const proxyErrors = {
-        '-120': 'SOCKS 代理连接失败',
-        '-130': '代理连接失败',
-        '-125': '代理隧道连接失败',
-        '-106': '无法连接到代理服务器',
-        '-118': '代理认证失败',
-        '-21': '网络访问被拒绝（可能是代理问题）'
-      };
+      // 🔒 使用新架构处理代理错误（禁止回退直连）
+      const proxyErrorResult = await this.proxyIntegration.handleProxyError(
+        accountId,
+        viewState,
+        errorCode,
+        errorDescription
+      );
       
-      const isProxyError = proxyErrors[errorCode.toString()];
-      
-      if (isProxyError) {
-        this.log('error', `[代理错误] 账户 ${accountId}: ${isProxyError} (${errorCode})`);
-        this.log('error', `  URL: ${validatedURL}`);
-        this.log('error', `  描述: ${errorDescription}`);
-        
-        // 如果是代理错误，尝试禁用代理并重试
-        if (viewState.config && viewState.config.proxy && viewState.config.proxy.enabled) {
-          this.log('warn', `[代理错误] 尝试禁用代理并重新加载...`);
-          
-          try {
-            // 清除代理配置
-            await viewState.session.setProxy({ proxyRules: '' });
-            
-            // 标记代理已禁用
-            viewState.config.proxy.enabled = false;
-            viewState.proxyDisabledDueToError = true;
-            
-            // 通知渲染进程
-            this._notifyRenderer('proxy-disabled-due-to-error', {
-              accountId,
-              errorCode,
-              errorMessage: isProxyError,
-              willRetry: true
-            });
-            
-            // 重新加载页面
-            setTimeout(() => {
-              if (!view.webContents.isDestroyed()) {
-                view.webContents.loadURL('https://web.whatsapp.com');
-              }
-            }, 1000);
-            
-            return; // 不继续处理错误，等待重新加载
-          } catch (retryError) {
-            this.log('error', `[代理错误] 禁用代理失败: ${retryError.message}`);
-          }
-        }
+      if (proxyErrorResult.handled) {
+        // 代理错误已由新架构处理（触发Kill-Switch和自动重连）
+        this.log('info', `[安全代理] 代理错误已处理: ${proxyErrorResult.action}`);
+        return; // 不继续处理，等待重连
       }
+      
+      // 非代理错误，继续原有错误处理逻辑
+      const isProxyError = this.proxyIntegration.getProxyErrorDescription(errorCode);
 
       viewState.status = 'error';
       viewState.connectionStatus = 'error';
@@ -899,7 +777,8 @@ class ViewManager {
           url: validatedURL,
           isProxyError: !!isProxyError,
           proxyErrorType: isProxyError || null,
-          suggestion: isProxyError ? '代理服务器可能无法访问，建议检查代理设置或使用直连' : null
+          // 🔴 移除回退直连建议
+          suggestion: isProxyError ? '代理服务器可能无法访问，请检查代理设置或等待自动重连' : null
         }
       });
       
@@ -956,27 +835,18 @@ class ViewManager {
       this.log('error', `  原因: ${details.reason}`);
       this.log('error', `  退出码: ${details.exitCode}`);
       
-      // 检查是否可能是代理导致的崩溃
+      // 🔒 使用新架构处理代理崩溃（禁止回退直连）
       const hasProxy = viewState.config && viewState.config.proxy && viewState.config.proxy.enabled;
       if (hasProxy && details.reason === 'crashed') {
-        this.log('warn', `[崩溃] 可能是代理配置导致的崩溃，尝试禁用代理...`);
+        const crashResult = await this.proxyIntegration.handleProxyCrash(
+          accountId,
+          viewState,
+          details
+        );
         
-        try {
-          // 清除代理配置
-          await viewState.session.setProxy({ proxyRules: '' });
-          viewState.config.proxy.enabled = false;
-          viewState.proxyDisabledDueToError = true;
-          
-          this.log('info', `[崩溃] 已禁用代理，准备重新创建视图...`);
-          
-          // 通知渲染进程
-          this._notifyRenderer('proxy-disabled-due-to-crash', {
-            accountId,
-            crashReason: details.reason,
-            willRecreate: true
-          });
-        } catch (error) {
-          this.log('error', `[崩溃] 禁用代理失败: ${error.message}`);
+        if (crashResult.handled) {
+          this.log('info', `[安全代理] 崩溃已处理: ${crashResult.action}`);
+          // 🔴 不再禁用代理，而是触发Kill-Switch
         }
       }
       
@@ -988,7 +858,9 @@ class ViewManager {
         error: {
           reason: details.reason,
           exitCode: details.exitCode,
-          possibleProxyIssue: hasProxy
+          possibleProxyIssue: hasProxy,
+          // 🔴 标记Kill-Switch状态
+          killSwitchActive: hasProxy ? this.proxyIntegration.isKillSwitchActive(accountId) : false
         }
       });
       
@@ -1828,6 +1700,11 @@ class ViewManager {
         await this.hideView(accountId);
       }
 
+      // 🔒 安全断开代理连接
+      if (this.proxyIntegration) {
+        await this.proxyIntegration.secureDisconnect(accountId);
+      }
+
       // Destroy the BrowserView
       if (viewState.view && !viewState.view.webContents.isDestroyed()) {
         viewState.view.webContents.destroy();
@@ -2395,6 +2272,11 @@ class ViewManager {
     // Clear memory cache
     this.memoryUsageCache.clear();
     this.viewAccessTimes.clear();
+
+    // 🔒 清理代理安全模块资源
+    if (this.proxyIntegration) {
+      this.proxyIntegration.destroy();
+    }
 
     this.activeAccountId = null;
     this.log('info', 'All views destroyed');

@@ -23,6 +23,16 @@ const { PluginContext, createPluginContext } = require('../infrastructure/plugin
 const { IPCRouter } = require('../presentation/ipc/IPCRouter');
 const { ErrorHandler, getGlobalErrorHandler } = require('../core/errors/ErrorHandler');
 
+// 导入代理安全模块（新架构）
+const ProxyService = require('../application/services/ProxyService');
+const ProxySecurityManager = require('../infrastructure/proxy/ProxySecurityManager');
+const KillSwitch = require('../infrastructure/proxy/KillSwitch');
+const ProxyHealthMonitor = require('../infrastructure/proxy/ProxyHealthMonitor');
+const ProxyPreChecker = require('../infrastructure/proxy/ProxyPreChecker');
+const IPLeakDetector = require('../infrastructure/proxy/IPLeakDetector');
+const ProxyReconnectionManager = require('../infrastructure/proxy/ProxyReconnectionManager');
+const IPProtectionInjector = require('../infrastructure/proxy/IPProtectionInjector');
+
 // 导入现有架构组件
 const MainWindow = require('../single-window/MainWindow');
 const ViewManager = require('../single-window/ViewManager');
@@ -62,6 +72,12 @@ class AppBootstrap {
     this.pluginManager = null;
     this.ipcRouter = null;
     this.errorHandler = null;
+    
+    // 代理安全组件（新架构）
+    this.proxyService = null;
+    this.proxySecurityManager = null;
+    this.killSwitch = null;
+    this.proxyHealthMonitor = null;
     
     // 现有组件
     this.managers = {};
@@ -198,7 +214,88 @@ class AppBootstrap {
     this.errorHandler = getGlobalErrorHandler();
     console.log('✓ ErrorHandler initialized');
     
+    // 8. 初始化代理安全组件
+    await this.initializeProxySecurityComponents();
+    
     console.log('Core architecture components initialized successfully');
+  }
+
+  /**
+   * 初始化代理安全组件
+   * @returns {Promise<void>}
+   */
+  async initializeProxySecurityComponents() {
+    console.log('Initializing proxy security components...');
+    
+    // 创建日志函数
+    const proxyLogger = (level, message, ...args) => {
+      const timestamp = new Date().toISOString();
+      const prefix = `[${timestamp}] [ProxySecurity] [${level.toUpperCase()}]`;
+      if (level === 'error') {
+        console.error(prefix, message, ...args);
+      } else if (level === 'warn') {
+        console.warn(prefix, message, ...args);
+      } else {
+        console.log(prefix, message, ...args);
+      }
+    };
+    
+    // 1. 初始化 ProxySecurityManager
+    this.proxySecurityManager = new ProxySecurityManager({
+      logger: proxyLogger,
+      eventBus: this.eventBus,
+      policy: ProxySecurityManager.SecurityPolicy.PROXY_ONLY
+    });
+    console.log('✓ ProxySecurityManager initialized');
+    
+    // 2. 初始化 KillSwitch
+    this.killSwitch = new KillSwitch({
+      logger: proxyLogger,
+      eventBus: this.eventBus,
+      securityManager: this.proxySecurityManager
+    });
+    console.log('✓ KillSwitch initialized');
+    
+    // 3. 初始化辅助组件
+    const preChecker = new ProxyPreChecker({ logger: proxyLogger });
+    const ipLeakDetector = new IPLeakDetector({ 
+      logger: proxyLogger,
+      eventBus: this.eventBus 
+    });
+    const reconnectionManager = new ProxyReconnectionManager({
+      logger: proxyLogger,
+      eventBus: this.eventBus
+    });
+    const ipProtectionInjector = new IPProtectionInjector({
+      logger: proxyLogger
+    });
+    
+    // 4. 初始化 ProxyHealthMonitor
+    this.proxyHealthMonitor = new ProxyHealthMonitor({
+      logger: proxyLogger,
+      eventBus: this.eventBus,
+      killSwitch: this.killSwitch,
+      preChecker: preChecker,
+      ipLeakDetector: ipLeakDetector
+    });
+    console.log('✓ ProxyHealthMonitor initialized');
+    
+    // 5. 初始化 ProxyService（整合所有组件）
+    this.proxyService = new ProxyService({
+      logger: proxyLogger,
+      eventBus: this.eventBus,
+      container: this.container,
+      preChecker: preChecker,
+      ipLeakDetector: ipLeakDetector,
+      securityManager: this.proxySecurityManager,
+      killSwitch: this.killSwitch,
+      healthMonitor: this.proxyHealthMonitor,
+      reconnectionManager: reconnectionManager,
+      ipProtectionInjector: ipProtectionInjector
+    });
+    console.log('✓ ProxyService initialized');
+    
+    console.log('Proxy security components initialized successfully');
   }
 
 
@@ -258,6 +355,13 @@ class AppBootstrap {
       this.container.registerSingleton('ipcRouter', this.ipcRouter, { isInstance: true });
       this.container.registerSingleton('errorHandler', this.errorHandler, { isInstance: true });
       
+      // 注册代理安全组件（新架构）
+      this.container.registerSingleton('proxyService', this.proxyService, { isInstance: true });
+      this.container.registerSingleton('proxySecurityManager', this.proxySecurityManager, { isInstance: true });
+      this.container.registerSingleton('killSwitch', this.killSwitch, { isInstance: true });
+      this.container.registerSingleton('proxyHealthMonitor', this.proxyHealthMonitor, { isInstance: true });
+      console.log('✓ Proxy security components registered to container');
+      
       // 注册配置
       this.container.registerSingleton('config', config, { isInstance: true });
       
@@ -272,18 +376,29 @@ class AppBootstrap {
         });
       });
       
-      // 注册代理配置管理器
+      // 注册代理配置管理器（使用新架构适配器）
       this.container.registerFactory('proxyConfigManager', () => {
-        const { ProxyConfigManager } = require('../core/managers');
-        return new ProxyConfigManager({
-          cwd: app.getPath('userData')
+        const { ProxyConfigManagerAdapter } = require('../core/managers');
+        return new ProxyConfigManagerAdapter({
+          cwd: app.getPath('userData'),
+          useRepository: true
         });
       });
       
-      // 注册代理检测服务
+      // 注册代理Repository（新架构数据访问层）
+      this.container.registerFactory('proxyRepository', () => {
+        const ProxyRepository = require('../infrastructure/repositories/ProxyRepository');
+        return new ProxyRepository({
+          storagePath: app.getPath('userData'),
+          fileName: 'proxies.json'
+        });
+      });
+      console.log('✓ ProxyRepository registered to container');
+      
+      // 注册代理检测服务（使用新架构ProxyPreChecker）
       this.container.registerFactory('proxyDetectionService', () => {
-        const { createProxyDetectionService } = require('../core/services');
-        return createProxyDetectionService();
+        const { createProxyPreChecker } = require('../core/services');
+        return createProxyPreChecker();
       });
       
       // 注册会话管理器
@@ -336,21 +451,22 @@ class AppBootstrap {
     }
     
     try {
-      const { ProxyConfigManager } = require('../core/managers');
-      this.managers.proxyConfigManager = new ProxyConfigManager({
-        cwd: app.getPath('userData')
+      const { ProxyConfigManagerAdapter } = require('../core/managers');
+      this.managers.proxyConfigManager = new ProxyConfigManagerAdapter({
+        cwd: app.getPath('userData'),
+        useRepository: true
       });
-      console.log('✓ ProxyConfigManager initialized (fallback)');
+      console.log('✓ ProxyConfigManagerAdapter initialized (fallback)');
     } catch (error) {
-      console.warn('ProxyConfigManager initialization failed:', error.message);
+      console.warn('ProxyConfigManagerAdapter initialization failed:', error.message);
     }
     
     try {
-      const { createProxyDetectionService } = require('../core/services');
-      this.managers.proxyDetectionService = createProxyDetectionService();
-      console.log('✓ ProxyDetectionService initialized (fallback)');
+      const { createProxyPreChecker } = require('../core/services');
+      this.managers.proxyDetectionService = createProxyPreChecker();
+      console.log('✓ ProxyPreChecker initialized (fallback)');
     } catch (error) {
-      console.warn('ProxyDetectionService initialization failed:', error.message);
+      console.warn('ProxyPreChecker initialization failed:', error.message);
     }
     
     try {
@@ -729,7 +845,28 @@ class AppBootstrap {
         console.log('NotificationManager cleaned up');
       }
 
-      // 8. 清理EventBus
+      // 8. 清理代理安全组件
+      if (this.proxyService) {
+        this.proxyService.destroy();
+        console.log('ProxyService destroyed');
+      }
+      
+      if (this.proxyHealthMonitor) {
+        this.proxyHealthMonitor.destroy();
+        console.log('ProxyHealthMonitor destroyed');
+      }
+      
+      if (this.killSwitch) {
+        this.killSwitch.destroy();
+        console.log('KillSwitch destroyed');
+      }
+      
+      if (this.proxySecurityManager) {
+        this.proxySecurityManager.cleanup();
+        console.log('ProxySecurityManager cleaned up');
+      }
+
+      // 9. 清理EventBus
       if (this.eventBus) {
         this.eventBus.clear();
         console.log('EventBus cleared');
@@ -834,6 +971,38 @@ class AppBootstrap {
   }
 
   /**
+   * 获取ProxyService实例
+   * @returns {ProxyService}
+   */
+  getProxyService() {
+    return this.proxyService;
+  }
+
+  /**
+   * 获取ProxySecurityManager实例
+   * @returns {ProxySecurityManager}
+   */
+  getProxySecurityManager() {
+    return this.proxySecurityManager;
+  }
+
+  /**
+   * 获取KillSwitch实例
+   * @returns {KillSwitch}
+   */
+  getKillSwitch() {
+    return this.killSwitch;
+  }
+
+  /**
+   * 获取ProxyHealthMonitor实例
+   * @returns {ProxyHealthMonitor}
+   */
+  getProxyHealthMonitor() {
+    return this.proxyHealthMonitor;
+  }
+
+  /**
    * 获取应用状态
    * @returns {Object} 应用状态
    */
@@ -857,6 +1026,16 @@ class AppBootstrap {
         errorHandler: !!this.errorHandler,
         pluginCount: this.pluginManager ? this.pluginManager.getAllPlugins().length : 0,
         ipcChannelCount: this.ipcRouter ? this.ipcRouter.getChannelCount() : 0
+      },
+      // 代理安全组件状态
+      proxySecurity: {
+        proxyService: !!this.proxyService,
+        proxySecurityManager: !!this.proxySecurityManager,
+        killSwitch: !!this.killSwitch,
+        proxyHealthMonitor: !!this.proxyHealthMonitor,
+        activeConnections: this.proxyService ? Object.keys(this.proxyService.getAllConnections()).length : 0,
+        activeKillSwitches: this.killSwitch ? this.killSwitch.getActiveKillSwitches().length : 0,
+        monitoredAccounts: this.proxyHealthMonitor ? this.proxyHealthMonitor.getMonitoredAccounts().length : 0
       }
     };
   }

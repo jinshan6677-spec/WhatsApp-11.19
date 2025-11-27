@@ -1082,3 +1082,134 @@
 
 
   - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 27. 代理功能迁移集成（修复任务22未完成的集成问题）
+
+  - [x] 27.1 备份旧的代理代码到archive目录
+
+
+    - 创建 `archive/proxy-legacy-backup/` 目录
+    - 备份 `src/single-window/ViewManager.js` 中的 `_configureProxy()` 方法
+    - 备份 `src/managers/ProxyConfigManager.js`（旧代理配置管理器）
+    - 备份 `src/services/ProxyDetectionService.js`（旧代理检测服务）
+    - 备份 `src/ipc/proxyIPCHandlers.js`（旧代理IPC处理器）
+    - 记录备份文件清单到 `archive/proxy-legacy-backup/README.md`
+    - _Requirements: 12_
+
+
+
+  - [x] 27.2 修复新架构ViewManager中的代理方法调用
+
+
+
+
+
+    - 修改 `src/presentation/windows/view-manager/ViewManager.js`
+    - **问题**：当前调用不存在的方法 `configureProxyWithTimeout()` 和 `handleProxyFailureWithFallback()`
+    - **修复**：改为调用 `ViewProxyIntegration.secureConfigureProxy()`
+    - **修复**：改为调用 `ViewProxyIntegration.handleProxyError()`
+    - 添加 `ViewProxyIntegration.injectIPProtection()` 调用
+    - _Requirements: 12.1, 12.2_
+
+
+  - [x] 27.3 删除旧ViewManager中的回退直连代码
+
+
+
+
+
+
+    - 修改 `src/single-window/ViewManager.js`
+    - **删除特征1**：搜索 `代理配置失败，将使用直连` 注释附近的回退代码
+    - **删除特征2**：搜索 `proxyDisabledDueToError = true` 附近的回退代码
+    - **删除特征3**：搜索 `尝试禁用代理并重新加载` 注释附近的回退代码
+    - **删除模式**：所有 `await session.setProxy({ proxyRules: '' })` 清除代理的代码
+    - **删除模式**：所有 `config.proxy.enabled = false` 禁用代理的代码
+    - 替换为调用新架构的 `ViewProxyIntegration` 模块
+    - _Requirements: 12.1_
+
+  - [x] 27.4 更新旧ViewManager使用新代理模块
+
+
+
+
+
+    - 修改 `src/single-window/ViewManager.js`
+    - 导入 `ViewProxyIntegration` 从新架构位置
+    - 在构造函数中初始化 `this.proxyIntegration = new ViewProxyIntegration()`
+    - 修改 `createView()` 方法使用 `this.proxyIntegration.secureConfigureProxy()`
+    - 修改 `_setupViewEventHandlers()` 使用 `this.proxyIntegration.handleProxyError()`
+    - 在页面加载前调用 `this.proxyIntegration.injectIPProtection()`
+    - _Requirements: 12.1, 12.2_
+
+  - [x] 27.5 初始化代理服务到应用引导器
+
+
+
+
+
+    - 修改 `src/app/bootstrap.js` 或 `src/main-refactored.js`
+    - 导入并初始化 `ProxyService` 从 `src/application/services/ProxyService.js`
+    - 导入并初始化 `ProxySecurityManager` 从 `src/infrastructure/proxy/ProxySecurityManager.js`
+    - 导入并初始化 `KillSwitch` 从 `src/infrastructure/proxy/KillSwitch.js`
+    - 导入并初始化 `ProxyHealthMonitor` 从 `src/infrastructure/proxy/ProxyHealthMonitor.js`
+    - 注册到依赖注入容器
+    - _Requirements: 12, 7.1_
+
+  - [x] 27.6 连接代理IPC处理器到IPCRouter
+
+
+
+
+
+
+
+
+
+
+
+
+    - 修改 `src/presentation/ipc/handlers/ProxyIPCHandlers.js`
+    - 确保使用新的 `ProxyService` 而非旧的 `ProxyConfigManager`
+    - 注册所有15个IPC通道（8个现有 + 7个新增安全IPC）
+    - 在应用启动时注册到 `IPCRouter`
+    - _Requirements: 8.1, 8.2_
+
+  - [x] 27.7 删除旧的代理代码文件
+
+
+
+
+
+    - 删除 `src/managers/ProxyConfigManager.js`（已被 `ProxyRepository` 替代）
+    - 删除 `src/services/ProxyDetectionService.js`（已被 `ProxyPreChecker` 替代）
+    - 删除 `src/ipc/proxyIPCHandlers.js`（已被新架构 `ProxyIPCHandlers.js` 替代）
+    - 更新所有导入这些文件的地方
+    - _Requirements: 12_
+
+  - [x] 27.8 验证代理功能完整性
+
+
+
+
+
+    - 测试代理配置保存和加载
+    - 测试代理连接和断开
+    - 测试代理预检测和IP验证
+    - 测试WebRTC阻止（运行 `browser-ip-check.js` 验证）
+    - 测试Kill-Switch触发和重连
+    - 测试代理错误处理（不回退直连）
+    - _Requirements: 12.1, 12.2, 12.3_
+
+- [x] 28. Checkpoint - 确保代理迁移后功能正常
+
+
+
+
+
+
+
+  - Ensure all tests pass, ask the user if questions arise.
+  - 运行 `browser-ip-check.js` 验证IP保护
+  - 验证代理IP与预期出口IP一致
+  - 验证WebRTC泄露被阻止

@@ -2,15 +2,9 @@
  * MainWindow tests
  */
 
-const MainWindow = require('../MainWindow');
-const { BrowserWindow } = require('electron');
-const path = require('path');
-const os = require('os');
-const fs = require('fs').promises;
-
-// Mock electron modules
-jest.mock('electron', () => ({
-  BrowserWindow: jest.fn().mockImplementation(() => ({
+// Mock electron modules - must be before require
+jest.mock('electron', () => {
+  const mockBrowserWindow = jest.fn().mockImplementation(() => ({
     loadFile: jest.fn(),
     getBounds: jest.fn(() => ({ x: 100, y: 100, width: 1400, height: 900 })),
     setBounds: jest.fn(),
@@ -28,19 +22,40 @@ jest.mock('electron', () => ({
       send: jest.fn(),
       on: jest.fn()
     }
-  })),
-  screen: {
-    getAllDisplays: jest.fn(() => [
-      {
+  }));
+  
+  return {
+    BrowserWindow: mockBrowserWindow,
+    screen: {
+      getAllDisplays: jest.fn(() => [
+        {
+          bounds: { x: 0, y: 0, width: 1920, height: 1080 }
+        }
+      ]),
+      getPrimaryDisplay: jest.fn(() => ({
+        workAreaSize: { width: 1920, height: 1080 },
         bounds: { x: 0, y: 0, width: 1920, height: 1080 }
-      }
-    ]),
-    getPrimaryDisplay: jest.fn(() => ({
-      workAreaSize: { width: 1920, height: 1080 },
-      bounds: { x: 0, y: 0, width: 1920, height: 1080 }
-    }))
-  }
-}));
+      }))
+    }
+  };
+});
+
+// Mock electron-store with actual storage
+jest.mock('electron-store', () => {
+  return jest.fn().mockImplementation(() => {
+    const store = {};
+    return {
+      get: jest.fn((key, defaultValue) => store[key] !== undefined ? store[key] : defaultValue),
+      set: jest.fn((key, value) => { store[key] = value; })
+    };
+  });
+});
+
+const MainWindow = require('../MainWindow');
+const { BrowserWindow } = require('electron');
+const path = require('path');
+const os = require('os');
+const fs = require('fs').promises;
 
 describe('MainWindow', () => {
   let mainWindow;

@@ -1,0 +1,248 @@
+﻿
+馃И Starting test suite...
+
+node.exe : FAIL src/single-window/__
+tests__/StatePersistence.test.js
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/node.ex
+e" "D:\Users\txy39\AppData\Roaming\ 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSp 
+   ecified: (FAIL src/single...ist  
+  ence.test.js:String) [], Remote   
+ Exception
+    + FullyQualifiedErrorId : Nativ 
+   eCommandError
+ 
+  State Persistence
+    Active Account ID Persistence
+      脳 should save active account I
+D when showing view (13 ms)
+      脳 should clear active account 
+ID when hiding active view (3 ms)
+      鈭?should get saved active acco
+unt ID (6 ms)
+      鈭?should return null if no sav
+ed active account ID (3 ms)
+    Active Account Restoration
+      脳 should restore active accoun
+t if it exists (5 ms)
+      鈭?should fail if saved account
+ does not exist (3 ms)
+      鈭?should fail if no saved acco
+unt (3 ms)
+      鈭?should handle empty account 
+list (3 ms)
+    Sidebar Width Persistence
+      鈭?MainWindow should get saved 
+sidebar width (3 ms)
+      鈭?MainWindow should set sideba
+r width (6 ms)
+    State Store Access
+      鈭?should have access to state 
+store (2 ms)
+      鈭?should get state store from 
+MainWindow (3 ms)
+    Error Handling
+      脳 should handle state store er
+rors gracefully when saving (3 ms)
+      鈭?should handle state store er
+rors gracefully when loading (2 ms)
+
+  鈼?State Persistence 鈥?Active Accou
+nt ID Persistence 鈥?should save acti
+ve account ID when showing view
+
+    TypeError: accountSession.webReq
+uest.onHeadersReceived is not a func
+tion
+
+    [0m [90m 388 |[39m       
+     [90m 389 |[39m       [90m// 
+Remove CSP to allow script injection
+ for translation[39m
+    [31m[1m>[22m[39m[90m 390 |
+[39m       accountSession[33m.[39m
+webRequest[33m.[39monHeadersReceiv
+ed((details[33m,[39m callback) [3
+3m=>[39m {
+     [90m     |[39m               
+                  [31m[1m^[22m[3
+9m
+     [90m 391 |[39m         [36mi
+f[39m (details[33m.[39murl[33m.
+[39mincludes([32m'web.whatsapp.com'
+[39m)) {
+     [90m 392 |[39m           [36
+mconst[39m headers [33m=[39m deta
+ils[33m.[39mresponseHeaders[33m;
+[39m
+     [90m 393 |[39m           [0m
+
+      at ViewManager.createView (src
+/single-window/ViewManager.js:390:33
+)
+      at Object.<anonymous> (src/sin
+gle-window/__tests__/StatePersistenc
+e.test.js:77:7)
+
+  鈼?State Persistence 鈥?Active Accou
+nt ID Persistence 鈥?should clear act
+ive account ID when hiding active vi
+ew
+
+    TypeError: accountSession.webReq
+uest.onHeadersReceived is not a func
+tion
+
+    [0m [90m 388 |[39m       
+     [90m 389 |[39m       [90m// 
+Remove CSP to allow script injection
+ for translation[39m
+    [31m[1m>[22m[39m[90m 390 |
+[39m       accountSession[33m.[39m
+webRequest[33m.[39monHeadersReceiv
+ed((details[33m,[39m callback) [3
+3m=>[39m {
+     [90m     |[39m               
+                  [31m[1m^[22m[3
+9m
+     [90m 391 |[39m         [36mi
+f[39m (details[33m.[39murl[33m.
+[39mincludes([32m'web.whatsapp.com'
+[39m)) {
+     [90m 392 |[39m           [36
+mconst[39m headers [33m=[39m deta
+ils[33m.[39mresponseHeaders[33m;
+[39m
+     [90m 393 |[39m           [0m
+
+      at ViewManager.createView (src
+/single-window/ViewManager.js:390:33
+)
+      at Object.<anonymous> (src/sin
+gle-window/__tests__/StatePersistenc
+e.test.js:102:7)
+
+  鈼?State Persistence 鈥?Active Accou
+nt Restoration 鈥?should restore acti
+ve account if it exists
+
+    expect(received).toBe(expected) 
+// Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 154 |[39m       [36
+mconst[39m result [33m=[39m [36m
+await[39m viewManager[33m.[39mres
+toreActiveAccount([[32m'account-1'
+[39m[33m,[39m [32m'account-2'[39
+m])[33m;[39m
+     [90m 155 |[39m
+    [31m[1m>[22m[39m[90m 156 |
+[39m       expect(result[33m.[39ms
+uccess)[33m.[39mtoBe([36mtrue[39
+m)[33m;[39m
+     [90m     |[39m               
+               [31m[1m^[22m[39m
+     [90m 157 |[39m       expect(r
+esult[33m.[39maccountId)[33m.[39
+mtoBe([32m'account-1'[39m)[33m;[
+39m
+     [90m 158 |[39m     })[33m;[
+39m
+     [90m 159 |[39m[0m
+
+      at Object.<anonymous> (src/sin
+gle-window/__tests__/StatePersistenc
+e.test.js:156:30)
+
+  鈼?State Persistence 鈥?Error Handli
+ng 鈥?should handle state store error
+s gracefully when saving
+
+    TypeError: accountSession.webReq
+uest.onHeadersReceived is not a func
+tion
+
+    [0m [90m 388 |[39m       
+     [90m 389 |[39m       [90m// 
+Remove CSP to allow script injection
+ for translation[39m
+    [31m[1m>[22m[39m[90m 390 |
+[39m       accountSession[33m.[39m
+webRequest[33m.[39monHeadersReceiv
+ed((details[33m,[39m callback) [3
+3m=>[39m {
+     [90m     |[39m               
+                  [31m[1m^[22m[3
+9m
+     [90m 391 |[39m         [36mi
+f[39m (details[33m.[39murl[33m.
+[39mincludes([32m'web.whatsapp.com'
+[39m)) {
+     [90m 392 |[39m           [36
+mconst[39m headers [33m=[39m deta
+ils[33m.[39mresponseHeaders[33m;
+[39m
+     [90m 393 |[39m           [0m
+
+      at ViewManager.createView (src
+/single-window/ViewManager.js:390:33
+)
+      at Object.<anonymous> (src/sin
+gle-window/__tests__/StatePersistenc
+e.test.js:242:7)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 10 passed, 14
+ total
+Snapshots:   0 total
+Time:        0.869 s, estimated 1 s
+Ran all test suites matching /src\\s
+ingle-window\\__tests__\\Sta/i.
+
+鉁?Test suite completed in 0.89s
+
+
+Jest has detected the following 1 op
+en handle potentially keeping Jest f
+rom exiting:
+
+  鈼? Timeout
+
+    [0m [90m 3429 |[39m     [36m
+this[39m[33m.[39mlog([32m'info'
+[39m[33m,[39m [32m`Starting memor
+y monitoring (interval: ${interval}m
+s)`[39m)[33m;[39m
+     [90m 3430 |[39m
+    [31m[1m>[22m[39m[90m 3431 |
+[39m     [36mthis[39m[33m.[39mm
+emoryMonitorInterval [33m=[39m set
+Interval([36masync[39m () [33m=>
+[39m {
+     [90m      |[39m              
+                    [31m[1m^[22m
+[39m
+     [90m 3432 |[39m       [36mtr
+y[39m {
+     [90m 3433 |[39m         [36m
+await[39m [36mthis[39m[33m.[39m
+_checkMemoryUsage()[33m;[39m
+     [90m 3434 |[39m       } [36m
+catch[39m (error) {[0m
+
+      at ViewManager._startMemoryMon
+itoring (src/single-window/ViewManag
+er.js:3431:34)
+      at new ViewManager (src/single
+-window/ViewManager.js:108:12)
+      at Object.<anonymous> (src/sin
+gle-window/__tests__/StatePersistenc
+e.test.js:56:19)
+

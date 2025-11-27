@@ -1,5 +1,8 @@
 /**
- * ProxyDetectionService - 代理检测服务
+ * ProxyDetectionService - 代理检测服务 (LEGACY BACKUP)
+ * 
+ * 备份日期: 2025-11-27
+ * 原位置: src/services/ProxyDetectionService.js
  * 
  * 负责测试代理连接和查询网络信息
  */
@@ -134,13 +137,10 @@ class ProxyDetectionService {
    * @returns {Promise<Object>} IP 信息
    */
   async _fetchIPInfoWithSocks(proxyUrl) {
-    // 注意：需要安装 socks-proxy-agent 包
-    // 如果没有安装，这里会抛出错误
     try {
       const agent = new SocksProxyAgent(proxyUrl);
       return await this._fetchIPInfo(this.ipApiEndpoints[0], { agent });
     } catch (error) {
-      // 如果 socks-proxy-agent 未安装，返回友好错误
       if (error.message.includes('Cannot find module')) {
         throw new Error('SOCKS5 代理支持需要安装 socks-proxy-agent 包');
       }
@@ -189,7 +189,6 @@ class ProxyDetectionService {
         timeout: 10000
       };
       
-      // 如果有代理选项，添加代理配置
       if (options.proxy) {
         requestOptions.agent = new http.Agent({
           proxy: options.proxy
@@ -239,7 +238,6 @@ class ProxyDetectionService {
   parseIPInfo(response) {
     console.log('[ProxyDetectionService] 解析 IP 信息:', JSON.stringify(response));
     
-    // 支持多种 API 的响应格式
     const result = {
       ip: response.ip || response.query || 'N/A',
       location: response.city || response.regionName || response.region || 'Unknown',

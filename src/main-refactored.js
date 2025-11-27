@@ -13,11 +13,14 @@ const { initializeApp } = require('./app/bootstrap');
 
 // 导入IPC处理器
 const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandlers: unregisterSingleWindowIPCHandlers } = require('./single-window/ipcHandlers');
-const { registerProxyIPCHandlers, unregisterProxyIPCHandlers } = require('./ipc/proxyIPCHandlers');
 
 // 导入新架构的IPC处理器
 const TranslationServiceIPCHandlers = require('./presentation/ipc/handlers/TranslationServiceIPCHandlers');
+const ProxyIPCHandlers = require('./presentation/ipc/handlers/ProxyIPCHandlers');
 const translationService = require('./translation/translationService');
+
+// 导入代理Repository（新架构）
+const ProxyRepository = require('./infrastructure/repositories/ProxyRepository');
 
 // 导入迁移管理器
 const MigrationManager = require('./managers/MigrationManager');
@@ -86,6 +89,10 @@ async function registerAllIPCHandlers() {
     const proxyConfigManager = appBootstrap.getManager('proxyConfigManager');
     const proxyDetectionService = appBootstrap.getManager('proxyDetectionService');
     const ipcRouter = appBootstrap.getIPCRouter();
+    const eventBus = appBootstrap.getEventBus();
+    
+    // 获取新架构代理安全组件
+    const proxyService = appBootstrap.getProxyService();
 
     // 注册单窗口架构IPC处理器
     registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
@@ -98,9 +105,36 @@ async function registerAllIPCHandlers() {
       console.log('[INFO] 翻译服务IPC处理器注册完成 (IPCRouter - 13 channels)');
     }
 
-    // 注册代理IPC处理器
-    registerProxyIPCHandlers(proxyConfigManager, proxyDetectionService);
-    console.log('[INFO] 代理IPC处理器注册完成');
+    // 注册代理IPC处理器 (new IPCRouter architecture with ProxyService)
+    // 初始化ProxyRepository用于数据访问
+    const proxyRepository = new ProxyRepository({
+      storagePath: app.getPath('userData'),
+      fileName: 'proxies.json'
+    });
+    
+    if (ipcRouter && proxyService) {
+      ProxyIPCHandlers.registerWithRouter(ipcRouter, {
+        proxyService,
+        proxyConfigManager,
+        proxyDetectionService,
+        proxyRepository,
+        eventBus
+      });
+      console.log('[INFO] 代理IPC处理器注册完成 (IPCRouter - 15 channels: 8 existing + 7 security)');
+      console.log('[INFO] ✓ 代理安全功能已启用 (ProxyService available)');
+      console.log('[INFO] ✓ ProxyRepository已集成用于数据访问');
+    } else if (proxyConfigManager && proxyDetectionService) {
+      // Fallback to legacy registration if ProxyService not available
+      ProxyIPCHandlers.register({
+        proxyConfigManager,
+        proxyDetectionService,
+        proxyService: null,
+        proxyRepository,
+        eventBus
+      });
+      console.log('[INFO] 代理IPC处理器注册完成 (legacy ipcMain - 8 channels)');
+      console.log('[INFO] ⚠ 代理安全功能受限 (ProxyService not available)');
+    }
 
     console.log('[INFO] 所有IPC处理器注册完成');
   } catch (error) {
@@ -133,8 +167,14 @@ function unregisterAllIPCHandlers() {
   }
 
   try {
-    unregisterProxyIPCHandlers();
-    console.log('[INFO] 代理IPC处理器已注销');
+    const ipcRouter = appBootstrap.getIPCRouter();
+    if (ipcRouter) {
+      ProxyIPCHandlers.unregisterFromRouter(ipcRouter);
+      console.log('[INFO] 代理IPC处理器已注销 (IPCRouter - 15 channels)');
+    } else {
+      ProxyIPCHandlers.unregister();
+      console.log('[INFO] 代理IPC处理器已注销 (legacy)');
+    }
   } catch (error) {
     console.error('[ERROR] 注销代理IPC处理器时出错:', error);
   }

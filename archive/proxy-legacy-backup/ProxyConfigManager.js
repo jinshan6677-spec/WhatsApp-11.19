@@ -1,5 +1,8 @@
 /**
- * ProxyConfigManager - 代理配置管理器
+ * ProxyConfigManager - 代理配置管理器 (LEGACY BACKUP)
+ * 
+ * 备份日期: 2025-11-27
+ * 原位置: src/managers/ProxyConfigManager.js
  * 
  * 负责代理配置列表的加载、保存、删除和验证
  * 使用 electron-store 进行持久化存储

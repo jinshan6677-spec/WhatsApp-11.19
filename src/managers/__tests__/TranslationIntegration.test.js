@@ -3,16 +3,23 @@
  * 测试翻译配置管理和脚本注入
  */
 
-const TranslationIntegration = require('../TranslationIntegration');
-const fs = require('fs').promises;
-const path = require('path');
+// Create mock readFile function - must be defined before jest.mock
+let mockReadFile = jest.fn();
 
-// Mock fs 模块
-jest.mock('fs', () => ({
-  promises: {
-    readFile: jest.fn()
-  }
-}));
+// Mock fs 模块 - Jest hoists this to the top
+jest.mock('fs', () => {
+  return {
+    promises: {
+      readFile: jest.fn().mockImplementation((...args) => mockReadFile(...args))
+    }
+  };
+});
+
+// Get the mocked fs module
+const fs = require('fs');
+
+const TranslationIntegration = require('../TranslationIntegration');
+const path = require('path');
 
 describe('TranslationIntegration', () => {
   let translationIntegration;
@@ -20,6 +27,11 @@ describe('TranslationIntegration', () => {
   let mockView;
 
   beforeEach(() => {
+    // Reset mock
+    mockReadFile.mockReset();
+    fs.promises.readFile.mockReset();
+    fs.promises.readFile.mockImplementation((...args) => mockReadFile(...args));
+    
     // 创建 mock webContents
     mockWebContents = {
       executeJavaScript: jest.fn().mockResolvedValue(undefined),
@@ -33,8 +45,28 @@ describe('TranslationIntegration', () => {
       webContents: mockWebContents
     };
 
-    // Mock 脚本文件读取
-    fs.readFile.mockImplementation((filePath) => {
+    // Mock 脚本文件读取 - match the actual module loading pattern
+    mockReadFile.mockImplementation((filePath) => {
+      // Match the new modular script loading pattern
+      if (filePath.includes('ContentScriptCore.js')) {
+        return Promise.resolve('// ContentScriptCore module');
+      }
+      if (filePath.includes('TranslationUI.js')) {
+        return Promise.resolve('// TranslationUI module');
+      }
+      if (filePath.includes('MessageTranslator.js')) {
+        return Promise.resolve('// MessageTranslator module');
+      }
+      if (filePath.includes('InputBoxTranslator.js')) {
+        return Promise.resolve('// InputBoxTranslator module');
+      }
+      if (filePath.includes('DOMObserver.js')) {
+        return Promise.resolve('// DOMObserver module');
+      }
+      if (filePath.includes('index.js')) {
+        return Promise.resolve('// index module');
+      }
+      // Legacy paths for backward compatibility
       if (filePath.includes('contentScriptWithOptimizer.js')) {
         return Promise.resolve('// Optimizer script');
       }
@@ -55,12 +87,13 @@ describe('TranslationIntegration', () => {
     test('应该成功初始化并加载脚本', async () => {
       await translationIntegration.initialize();
 
-      expect(translationIntegration.scriptCache.optimizer).toBe('// Optimizer script');
-      expect(translationIntegration.scriptCache.contentScript).toBe('// Content script');
+      // The new implementation loads multiple modules into contentScript
+      expect(translationIntegration.scriptCache.contentScript).toContain('ContentScriptCore');
+      expect(translationIntegration.scriptCache.contentScript).toContain('TranslationUI');
     });
 
     test('应该处理脚本加载失败', async () => {
-      fs.readFile.mockRejectedValue(new Error('读取失败'));
+      mockReadFile.mockRejectedValue(new Error('读取失败'));
 
       await expect(translationIntegration.initialize()).rejects.toThrow();
     });
@@ -360,12 +393,26 @@ describe('TranslationIntegration', () => {
     test('应该重新加载脚本', async () => {
       await translationIntegration.initialize();
 
-      fs.readFile.mockImplementation((filePath) => {
-        if (filePath.includes('contentScriptWithOptimizer.js')) {
-          return Promise.resolve('// Updated optimizer');
+      // 清除之前的 mock 并设置新的返回值
+      mockReadFile.mockReset();
+      mockReadFile.mockImplementation((filePath) => {
+        if (filePath.includes('ContentScriptCore.js')) {
+          return Promise.resolve('// UPDATED_MARKER ContentScriptCore');
         }
-        if (filePath.includes('contentScript.js')) {
-          return Promise.resolve('// Updated content script');
+        if (filePath.includes('TranslationUI.js')) {
+          return Promise.resolve('// UPDATED_MARKER TranslationUI');
+        }
+        if (filePath.includes('MessageTranslator.js')) {
+          return Promise.resolve('// UPDATED_MARKER MessageTranslator');
+        }
+        if (filePath.includes('InputBoxTranslator.js')) {
+          return Promise.resolve('// UPDATED_MARKER InputBoxTranslator');
+        }
+        if (filePath.includes('DOMObserver.js')) {
+          return Promise.resolve('// UPDATED_MARKER DOMObserver');
+        }
+        if (filePath.includes('index.js')) {
+          return Promise.resolve('// UPDATED_MARKER index');
         }
         return Promise.reject(new Error('File not found'));
       });
@@ -373,15 +420,24 @@ describe('TranslationIntegration', () => {
       const result = await translationIntegration.reloadScripts();
 
       expect(result.success).toBe(true);
-      expect(translationIntegration.scriptCache.optimizer).toBe('// Updated optimizer');
+      // 检查脚本缓存是否包含更新后的标记
+      expect(translationIntegration.scriptCache.contentScript).toContain('UPDATED_MARKER');
     });
 
     test('应该处理重新加载失败', async () => {
-      await translationIntegration.initialize();
+      // 创建新实例以避免缓存问题
+      const freshIntegration = new TranslationIntegration();
+      
+      // 先初始化
+      await freshIntegration.initialize();
+      
+      // 然后设置 mock 为失败
+      mockReadFile.mockReset();
+      mockReadFile.mockImplementation(() => {
+        return Promise.reject(new Error('读取失败'));
+      });
 
-      fs.readFile.mockRejectedValue(new Error('读取失败'));
-
-      const result = await translationIntegration.reloadScripts();
+      const result = await freshIntegration.reloadScripts();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();

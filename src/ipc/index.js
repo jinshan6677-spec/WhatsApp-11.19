@@ -1,38 +1,29 @@
 /**
  * IPC Module - Unified IPC handler exports
  * 
- * Provides both legacy ipcMain handlers and new IPCRouter-based handlers.
+ * Provides IPCRouter-based handlers and IPC Bridge.
+ * 
+ * Note: Legacy proxy IPC handlers have been removed.
+ * Use the new architecture handlers in src/presentation/ipc/handlers/ProxyIPCHandlers.js
  * 
  * @module ipc
  */
 
 'use strict';
 
-// Legacy IPC handlers (direct ipcMain usage)
-const { 
-  registerProxyIPCHandlers, 
-  unregisterProxyIPCHandlers 
-} = require('./proxyIPCHandlers');
-
-// New IPCRouter-based handlers
-const { 
-  registerProxyIPCHandlersWithRouter, 
-  unregisterProxyIPCHandlersFromRouter,
-  ProxySchemas 
-} = require('./proxyIPCHandlersRouter');
-
 // IPC Bridge for connecting IPCRouter to ipcMain
 const { IPCBridge, createIPCBridge } = require('./IPCBridge');
 
+// New architecture proxy IPC handlers
+const ProxyIPCHandlers = require('../presentation/ipc/handlers/ProxyIPCHandlers');
+
 module.exports = {
-  // Legacy handlers
-  registerProxyIPCHandlers,
-  unregisterProxyIPCHandlers,
-  
-  // New IPCRouter-based handlers
-  registerProxyIPCHandlersWithRouter,
-  unregisterProxyIPCHandlersFromRouter,
-  ProxySchemas,
+  // New architecture proxy handlers
+  ProxyIPCHandlers,
+  registerProxyIPCHandlers: ProxyIPCHandlers.register,
+  unregisterProxyIPCHandlers: ProxyIPCHandlers.unregister,
+  registerProxyIPCHandlersWithRouter: ProxyIPCHandlers.registerWithRouter,
+  unregisterProxyIPCHandlersFromRouter: ProxyIPCHandlers.unregisterFromRouter,
   
   // IPC Bridge
   IPCBridge,

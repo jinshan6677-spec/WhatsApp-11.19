@@ -76,15 +76,27 @@ function registerAllHandlers(dependencies) {
   SystemIPCHandlers.register({ viewManager, mainWindow });
   TranslationIPCHandlers.register({ viewManager, mainWindow, translationIntegration });
   
-  // Register proxy handlers if dependencies are provided
-  if (proxyConfigManager && proxyDetectionService) {
+  // Register proxy handlers - prefer IPCRouter with ProxyService for new architecture
+  if (ipcRouter && proxyService) {
+    // New architecture: Use IPCRouter with ProxyService for full security features
+    ProxyIPCHandlers.registerWithRouter(ipcRouter, {
+      proxyService,
+      proxyConfigManager,
+      proxyDetectionService,
+      proxyRepository,
+      eventBus
+    });
+    console.log('[IPC] Proxy handlers registered with IPCRouter (15 channels: 8 existing + 7 security)');
+  } else if (proxyConfigManager && proxyDetectionService) {
+    // Legacy fallback: Use ipcMain.handle directly
     ProxyIPCHandlers.register({ 
       proxyConfigManager, 
       proxyDetectionService,
-      proxyService,      // New: ProxyService for security features
-      proxyRepository,   // New: ProxyRepository for data access
-      eventBus           // New: EventBus for event publishing
+      proxyService,      // Optional: ProxyService for security features
+      proxyRepository,   // Optional: ProxyRepository for data access
+      eventBus           // Optional: EventBus for event publishing
     });
+    console.log('[IPC] Proxy handlers registered with legacy ipcMain (backward compatible)');
   }
 
   // Register translation service handlers with IPCRouter if provided
@@ -99,9 +111,9 @@ function registerAllHandlers(dependencies) {
   
   // Log proxy security status
   if (proxyService) {
-    console.log('[IPC] Proxy security features enabled (7 new IPC channels)');
+    console.log('[IPC] ✓ Proxy security features enabled (ProxyService available)');
   } else {
-    console.log('[IPC] Proxy security features disabled (ProxyService not provided)');
+    console.log('[IPC] ⚠ Proxy security features limited (ProxyService not provided)');
   }
 }
 

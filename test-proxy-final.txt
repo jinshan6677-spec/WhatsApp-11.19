@@ -1,0 +1,476 @@
+﻿
+馃И Starting test suite...
+
+node.exe : FAIL src/infrastructure/p
+roxy/__tests__/ProxyHealthMonitor.te
+st.js
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/node.ex
+e" "D:\Users\txy39\AppData\Roaming\ 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSp 
+   ecified: (FAIL src/infras...Mon  
+  itor.test.js:String) [], Remote   
+ Exception
+    + FullyQualifiedErrorId : Nativ 
+   eCommandError
+ 
+  ProxyHealthMonitor
+    constructor
+      鈭?should create instance with 
+default options (18 ms)
+      鈭?should accept custom options
+ (6 ms)
+      鈭?should accept custom logger 
+(8 ms)
+    startMonitoring
+      鈭?should start monitoring for 
+an account (8 ms)
+      鈭?should return false for miss
+ing accountId (5 ms)
+      鈭?should return false for miss
+ing config (5 ms)
+      鈭?should stop existing monitor
+ing before starting new (5 ms)
+      鈭?should accept plain object c
+onfig (6 ms)
+    stopMonitoring
+      鈭?should stop monitoring for a
+n account (6 ms)
+      鈭?should return false for non-
+monitored account (4 ms)
+    checkHealth
+      鈭?should perform health check 
+for monitored account (7 ms)
+      鈭?should return error for non-
+monitored account (6 ms)
+      脳 should handle health check f
+ailure (10 ms)
+    getStats
+      鈭?should return stats for moni
+tored account (4 ms)
+      鈭?should return null for non-m
+onitored account (4 ms)
+    getHealthStatus
+      鈭?should return healthy status
+ (5 ms)
+      鈭?should return unknown for no
+n-monitored account (5 ms)
+      脳 should return unhealthy afte
+r consecutive failures (4 ms)
+    verifyIPPeriodically
+      鈭?should verify IP matches exp
+ected (4 ms)
+      鈭?should skip verification if 
+no initial IP (3 ms)
+      鈭?should detect IP change and 
+trigger Kill-Switch (6 ms)
+    Kill-Switch triggering
+      鈭?should trigger Kill-Switch a
+fter consecutive failures (9 ms)
+    Query methods
+      鈭?should get monitored account
+s (4 ms)
+      鈭?should check if account is b
+eing monitored (4 ms)
+      鈭?should get all stats (4 ms)
+    resetFailureCounter
+      脳 should reset failure counter
+ (3 ms)
+    updateInitialIP
+      鈭?should update initial IP (3 
+ms)
+    stopAll
+      鈭?should stop all monitoring (
+4 ms)
+    destroy
+      鈭?should clean up all resource
+s (4 ms)
+    Defaults and Constants
+      鈭?should export default values
+ (5 ms)
+      鈭?should export health status 
+enum (6 ms)
+
+  鈼?ProxyHealthMonitor 鈥?checkHealth
+ 鈥?should handle health check failur
+e
+
+    expect(received).toBe(expected) 
+// Object.is equality
+
+    Expected: 1
+    Received: 2
+
+    [0m [90m 217 |[39m       expe
+ct(result[33m.[39mhealthy)[33m.[
+39mtoBe([36mfalse[39m)[33m;[39m
+     [90m 218 |[39m       expect(r
+esult[33m.[39merror)[33m.[39mtoB
+e([32m'Connection timeout'[39m)[3
+3m;[39m
+    [31m[1m>[22m[39m[90m 219 |
+[39m       expect(result[33m.[39mc
+onsecutiveFailures)[33m.[39mtoBe(
+[35m1[39m)[33m;[39m
+     [90m     |[39m               
+                           [31m[1m
+^[22m[39m
+     [90m 220 |[39m     })[33m;[
+39m
+     [90m 221 |[39m   })[33m;[39
+m
+     [90m 222 |[39m[0m
+
+      at Object.<anonymous> (src/inf
+rastructure/proxy/__tests__/ProxyHea
+lthMonitor.test.js:219:42)
+
+  鈼?ProxyHealthMonitor 鈥?getHealthSt
+atus 鈥?should return unhealthy after
+ consecutive failures
+
+    expect(received).toBe(expected) 
+// Object.is equality
+
+    Expected: 3
+    Received: 4
+
+    [0m [90m 292 |[39m       
+     [90m 293 |[39m       expect(s
+tatus[33m.[39mstatus)[33m.[39mto
+Be([33mProxyHealthMonitor[39m[33m
+.[39m[33mHealthStatus[39m[33m.[
+39m[33mUNHEALTHY[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 294 |
+[39m       expect(status[33m.[39md
+etails[33m.[39mconsecutiveFailures
+)[33m.[39mtoBe([35m3[39m)[33m;
+[39m
+     [90m     |[39m               
+                                   
+[31m[1m^[22m[39m
+     [90m 295 |[39m     })[33m;[
+39m
+     [90m 296 |[39m   })[33m;[39
+m
+     [90m 297 |[39m[0m
+
+      at Object.<anonymous> (src/inf
+rastructure/proxy/__tests__/ProxyHea
+lthMonitor.test.js:294:50)
+
+  鈼?ProxyHealthMonitor 鈥?resetFailur
+eCounter 鈥?should reset failure coun
+ter
+
+    expect(received).toBe(expected) 
+// Object.is equality
+
+    Expected: 2
+    Received: 3
+
+    [0m [90m 470 |[39m       
+     [90m 471 |[39m       [36mlet
+[39m status [33m=[39m monitor[33
+m.[39mgetHealthStatus([32m'account
+-1'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 472 |
+[39m       expect(status[33m.[39md
+etails[33m.[39mconsecutiveFailures
+)[33m.[39mtoBe([35m2[39m)[33m;
+[39m
+     [90m     |[39m               
+                                   
+[31m[1m^[22m[39m
+     [90m 473 |[39m       
+     [90m 474 |[39m       [90m// 
+Reset counter[39m
+     [90m 475 |[39m       monitor
+[33m.[39mresetFailureCounter([32m'
+account-1'[39m)[33m;[39m[0m
+
+      at Object.<anonymous> (src/inf
+rastructure/proxy/__tests__/ProxyHea
+lthMonitor.test.js:472:50)
+
+PASS src/infrastructure/proxy/__test
+s__/ProxyPreChecker.test.js
+  ProxyPreChecker
+    constructor
+      鈭?should create instance with 
+default options (4 ms)
+      鈭?should accept custom options
+ (3 ms)
+      鈭?should accept custom logger 
+(2 ms)
+      鈭?should have default IP endpo
+ints (3 ms)
+    testConnectivity
+      鈭?should return success for va
+lid proxy config (4 ms)
+      鈭?should return failure for in
+valid config (1 ms)
+      鈭?should return failure on con
+nection error (6 ms)
+      鈭?should accept plain object c
+onfig (11 ms)
+    measureLatency
+      鈭?should measure latency with 
+multiple samples (233 ms)
+      鈭?should return failure if all
+ samples fail (2 ms)
+      鈭?should use default sample co
+unt if not specified (214 ms)
+    getExitIP
+      鈭?should return IP from first 
+successful source (3 ms)
+      鈭?should try multiple sources 
+on failure (6 ms)
+      鈭?should return failure if all
+ sources fail (5 ms)
+    performFullCheck
+      鈭?should perform complete pre-
+check (218 ms)
+      鈭?should fail if connectivity 
+test fails (2 ms)
+    _isValidIP
+      鈭?should validate IPv4 address
+es (2 ms)
+      鈭?should reject invalid IPv4 a
+ddresses (2 ms)
+      鈭?should reject null and undef
+ined (2 ms)
+    _formatError
+      鈭?should format timeout errors
+ (1 ms)
+      鈭?should format connection ref
+used errors (1 ms)
+      鈭?should format host not found
+ errors (1 ms)
+      鈭?should return original messa
+ge for unknown errors (2 ms)
+    _createProxyAgent
+      鈭?should create SocksProxyAgen
+t for SOCKS5 (3 ms)
+      鈭?should create HttpsProxyAgen
+t for HTTP/HTTPS (3 ms)
+    Defaults
+      鈭?should export default values
+ (3 ms)
+    IPEndpoints
+      鈭?should export IP endpoints (
+3 ms)
+
+PASS src/infrastructure/proxy/__test
+s__/ProxySecurity.property.test.js
+  Proxy Security Property Tests
+    Property 47: Proxy Failure Never
+ Falls Back to Direct
+      鈭?connection failure should tr
+igger kill-switch, not direct connec
+tion (39 ms)
+      鈭?before-open failure should p
+revent view creation (28 ms)
+    Property 48: WebRTC Always Disab
+led
+      鈭?WebRTC blocking script shoul
+d disable all WebRTC APIs (3 ms)
+      鈭?IP protection injector shoul
+d include WebRTC blocking (4 ms)
+      鈭?injection should succeed on 
+mock webContents (3 ms)
+    Property 49: DNS Leak Prevention
+      鈭?DNS leak prevention script s
+hould block prefetch and DoH (2 ms)
+      鈭?DoH endpoints should be in b
+lock list (5 ms)
+    Property 50: Kill-Switch Activat
+ion on Proxy Loss
+      鈭?kill-switch should activate 
+on any trigger reason (17 ms)
+      鈭?kill-switch should emit acti
+vation event (10 ms)
+      鈭?kill-switch should require u
+ser confirmation to reset (15 ms)
+    Property 51: IP Verification Bef
+ore Connection
+      鈭?connection should fail if IP
+ verification fails (27 ms)
+      鈭?connection should succeed if
+ IP verification passes (17 ms)
+    Property 52: Proxy Health Check 
+Accuracy
+      鈭?health status should be heal
+thy or unknown initially (191 ms)
+      鈭?monitoring should track stat
+s correctly (117 ms)
+    Property 53: Consecutive Failure
+ Detection
+      鈭?kill-switch should trigger a
+fter threshold failures (12 ms)
+      鈭?failure counter should reset
+ on success (112 ms)
+    Property 54: Reconnection Mechan
+ism
+      鈭?reconnection should use conf
+igured delays (3 ms)
+      鈭?default delays should be 2s,
+ 3s, 5s (2 ms)
+      鈭?reconnection state should tr
+ack attempts correctly (12 ms)
+    Property 55: View Preservation D
+uring Failure
+      鈭?during-session failure shoul
+d emit session_failure event (21 ms)
+      鈭?kill-switch activation shoul
+d preserve session state (12 ms)
+    Property 56: Connection Blocking
+ Before View Creation
+      鈭?pre-check failure should emi
+t connection_blocked event (14 ms)
+      鈭?invalid config should preven
+t connection (15 ms)
+      鈭?disabled proxy should preven
+t connection (12 ms)
+
+PASS src/infrastructure/proxy/__test
+s__/ProxySecurityManager.test.js
+  ProxySecurityManager
+    constructor
+      鈭?should create instance with 
+default options (6 ms)
+      鈭?should accept custom policy 
+(3 ms)
+      鈭?should accept custom logger 
+(3 ms)
+    enforceProxyOnly
+      鈭?should enforce proxy-only mo
+de for a session (4 ms)
+      鈭?should throw error if sessio
+n is null (7 ms)
+      鈭?should set up request interc
+eptor (3 ms)
+      鈭?should emit event when enfor
+ced (3 ms)
+      鈭?should generate session ID i
+f not provided (3 ms)
+    blockDirectConnections
+      鈭?should block all direct conn
+ections (4 ms)
+      鈭?should throw error if sessio
+n is null (3 ms)
+      鈭?should emit blocked event (3
+ ms)
+    configureProxyRules
+      鈭?should configure proxy rules
+ for SOCKS5 (5 ms)
+      鈭?should configure proxy rules
+ for HTTP with auth (6 ms)
+      鈭?should configure SOCKS5 with
+ auth in URL (3 ms)
+      鈭?should throw error for inval
+id config (4 ms)
+      鈭?should throw error for disab
+led proxy (3 ms)
+      鈭?should block connections on 
+configuration failure (4 ms)
+      鈭?should accept plain object c
+onfig (2 ms)
+    setupRequestInterceptor
+      鈭?should set up request interc
+eptor (2 ms)
+      鈭?should handle session withou
+t webRequest (1 ms)
+      鈭?should block WebRTC requests
+ (4 ms)
+      鈭?should allow normal requests
+ (3 ms)
+    getBlockedRequests
+      鈭?should return blocked reques
+ts log (3 ms)
+      鈭?should respect limit paramet
+er (3 ms)
+    clearBlockedRequests
+      鈭?should clear blocked request
+s log (2 ms)
+    getEnforcedSessions
+      鈭?should return all enforced s
+essions (6 ms)
+    releaseEnforcement
+      鈭?should release enforcement f
+or a session (3 ms)
+      鈭?should return false for non-
+existent session (2 ms)
+      鈭?should emit released event (
+3 ms)
+    setPolicy
+      鈭?should change security polic
+y (3 ms)
+      鈭?should throw error for inval
+id policy (5 ms)
+    cleanup
+      鈭?should clean up all resource
+s (4 ms)
+
+PASS src/infrastructure/proxy/__test
+s__/IPLeakDetector.test.js
+  IPLeakDetector
+    constructor
+      鈭?should create instance with 
+default options (2 ms)
+      鈭?should create instance with 
+custom options (1 ms)
+    verifyExitIP
+      鈭?should return error for miss
+ing expected IP (3 ms)
+      鈭?should return error for inva
+lid expected IP type (5 ms)
+    Expected IP Management
+      鈭?should set and get expected 
+IP (4 ms)
+      鈭?should return null for unkno
+wn account (2 ms)
+      鈭?should clear expected IP (2 
+ms)
+      鈭?should get all expected IPs 
+(2 ms)
+    Detection History
+      鈭?should get empty history ini
+tially (5 ms)
+      鈭?should clear history (2 ms)
+      鈭?should limit history size (2
+ ms)
+    IP Validation
+      鈭?should validate valid IPv4 a
+ddresses (3 ms)
+      鈭?should reject invalid IPv4 a
+ddresses (4 ms)
+      鈭?should reject null and undef
+ined (4 ms)
+    IP Normalization
+      鈭?should normalize IP addresse
+s (5 ms)
+      鈭?should handle null/undefined
+ (4 ms)
+    Constants
+      鈭?should export LeakType const
+ants (4 ms)
+      鈭?should export Defaults (4 ms
+)
+      鈭?should export IPSources (3 m
+s)
+
+Test Suites: 1 failed, 4 passed, 5 t
+otal
+Tests:       3 failed, 130 passed, 1
+33 total
+Snapshots:   0 total
+Time:        3.131 s
+Ran all test suites matching /src\\i
+nfrastructure\\proxy\\__tests__/i.
+
+鉁?Test suite completed in 3.16s
+
