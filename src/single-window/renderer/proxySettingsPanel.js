@@ -505,6 +505,36 @@
               </div>
             </div>
             
+            <!-- 代理中继状态 -->
+            <div class="settings-section" id="relayStatusSection">
+              <h3>🔄 代理中继状态</h3>
+              
+              <div id="relayStatusInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span>状态:</span>
+                  <span id="relayStatusText" style="font-weight: 600; color: #6b7280;">未启动</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span>本地端口:</span>
+                  <span id="relayLocalPort">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span>出口 IP:</span>
+                  <span id="relayExitIP">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>启动时间:</span>
+                  <span id="relayStartTime">-</span>
+                </div>
+              </div>
+              
+              <div class="button-group" style="margin-top: 12px;">
+                <button id="startRelayBtn" class="setting-button primary">▶ 启动中继</button>
+                <button id="stopRelayBtn" class="setting-button secondary" disabled>⏹ 停止中继</button>
+                <button id="refreshRelayBtn" class="setting-button secondary">🔄 刷新状态</button>
+              </div>
+            </div>
+            
             <!-- 帮助信息 -->
             <div class="settings-section">
               <h3>💡 使用说明</h3>
@@ -589,6 +619,19 @@
 
       this.panel.querySelector('#resetProxyBtn')?.addEventListener('click', () => {
         this.resetSettings();
+      });
+
+      // 代理中继控制
+      this.panel.querySelector('#startRelayBtn')?.addEventListener('click', () => {
+        this.startProxyRelay();
+      });
+
+      this.panel.querySelector('#stopRelayBtn')?.addEventListener('click', () => {
+        this.stopProxyRelay();
+      });
+
+      this.panel.querySelector('#refreshRelayBtn')?.addEventListener('click', () => {
+        this.refreshRelayStatus();
       });
     }
 
@@ -1090,6 +1133,204 @@
         console.error('[ProxySettingsPanel] generateProxyConfig error:', error);
         this.showMessage('保存失败：' + error.message, 'error');
       }
+    }
+
+    // ============================================================================
+    // 代理中继功能
+    // ============================================================================
+
+    /**
+     * 启动代理中继
+     */
+    async startProxyRelay() {
+      try {
+        if (!this.accountId) {
+          throw new Error('请先选择账号');
+        }
+
+        if (!window.proxyRelayAPI) {
+          throw new Error('proxyRelayAPI 未初始化');
+        }
+
+        const proxyConfig = this.collectConfigFromUI();
+        
+        if (!proxyConfig.enabled) {
+          throw new Error('请先启用代理');
+        }
+
+        if (!proxyConfig.host || !proxyConfig.port) {
+          throw new Error('请填写代理主机和端口');
+        }
+
+        // 显示加载状态
+        const btn = this.panel.querySelector('#startRelayBtn');
+        btn.disabled = true;
+        btn.textContent = '启动中...';
+
+        const response = await window.proxyRelayAPI.start(this.accountId, {
+          protocol: proxyConfig.protocol,
+          host: proxyConfig.host,
+          port: proxyConfig.port,
+          username: proxyConfig.username,
+          password: proxyConfig.password
+        });
+
+        btn.disabled = false;
+        btn.textContent = '▶ 启动中继';
+
+        if (response.success) {
+          this.showMessage('代理中继已启动', 'success');
+          await this.refreshRelayStatus();
+        } else {
+          throw new Error(response.error?.message || '启动失败');
+        }
+      } catch (error) {
+        console.error('[ProxySettingsPanel] startProxyRelay error:', error);
+        const btn = this.panel.querySelector('#startRelayBtn');
+        btn.disabled = false;
+        btn.textContent = '▶ 启动中继';
+        this.showMessage('启动失败：' + error.message, 'error');
+      }
+    }
+
+    /**
+     * 停止代理中继
+     */
+    async stopProxyRelay() {
+      try {
+        if (!this.accountId) {
+          throw new Error('请先选择账号');
+        }
+
+        if (!window.proxyRelayAPI) {
+          throw new Error('proxyRelayAPI 未初始化');
+        }
+
+        // 显示加载状态
+        const btn = this.panel.querySelector('#stopRelayBtn');
+        btn.disabled = true;
+        btn.textContent = '停止中...';
+
+        const response = await window.proxyRelayAPI.stop(this.accountId);
+
+        btn.disabled = false;
+        btn.textContent = '⏹ 停止中继';
+
+        if (response.success) {
+          this.showMessage('代理中继已停止', 'success');
+          await this.refreshRelayStatus();
+        } else {
+          throw new Error(response.error?.message || '停止失败');
+        }
+      } catch (error) {
+        console.error('[ProxySettingsPanel] stopProxyRelay error:', error);
+        const btn = this.panel.querySelector('#stopRelayBtn');
+        btn.disabled = false;
+        btn.textContent = '⏹ 停止中继';
+        this.showMessage('停止失败：' + error.message, 'error');
+      }
+    }
+
+    /**
+     * 刷新代理中继状态
+     */
+    async refreshRelayStatus() {
+      try {
+        if (!this.accountId) {
+          this.updateRelayStatusUI(null);
+          return;
+        }
+
+        if (!window.proxyRelayAPI) {
+          console.warn('[ProxySettingsPanel] proxyRelayAPI not available');
+          return;
+        }
+
+        const response = await window.proxyRelayAPI.getStatus(this.accountId);
+        
+        if (response.success) {
+          this.updateRelayStatusUI(response.status);
+        } else {
+          this.updateRelayStatusUI(null);
+        }
+      } catch (error) {
+        console.error('[ProxySettingsPanel] refreshRelayStatus error:', error);
+        this.updateRelayStatusUI(null);
+      }
+    }
+
+    /**
+     * 更新代理中继状态 UI
+     */
+    updateRelayStatusUI(status) {
+      const statusText = this.panel.querySelector('#relayStatusText');
+      const localPort = this.panel.querySelector('#relayLocalPort');
+      const exitIP = this.panel.querySelector('#relayExitIP');
+      const startTime = this.panel.querySelector('#relayStartTime');
+      const startBtn = this.panel.querySelector('#startRelayBtn');
+      const stopBtn = this.panel.querySelector('#stopRelayBtn');
+
+      if (!status) {
+        // 未启动状态
+        if (statusText) {
+          statusText.textContent = '未启动';
+          statusText.style.color = '#6b7280';
+        }
+        if (localPort) localPort.textContent = '-';
+        if (exitIP) exitIP.textContent = '-';
+        if (startTime) startTime.textContent = '-';
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+        return;
+      }
+
+      const isRunning = status.status === 'running';
+
+      if (statusText) {
+        if (isRunning) {
+          statusText.textContent = '运行中';
+          statusText.style.color = '#10b981';
+        } else if (status.status === 'error') {
+          statusText.textContent = '错误';
+          statusText.style.color = '#ef4444';
+        } else {
+          statusText.textContent = status.status || '未知';
+          statusText.style.color = '#f59e0b';
+        }
+      }
+
+      if (localPort) {
+        localPort.textContent = status.localPort ? `127.0.0.1:${status.localPort}` : '-';
+      }
+
+      if (exitIP) {
+        exitIP.textContent = status.exitIP || '-';
+      }
+
+      if (startTime && status.startedAt) {
+        const date = new Date(status.startedAt);
+        startTime.textContent = date.toLocaleString('zh-CN');
+      } else if (startTime) {
+        startTime.textContent = '-';
+      }
+
+      if (startBtn) startBtn.disabled = isRunning;
+      if (stopBtn) stopBtn.disabled = !isRunning;
+    }
+
+    /**
+     * 设置账号时刷新中继状态
+     */
+    async setAccount(accountId) {
+      this.accountId = accountId;
+      if (!accountId) {
+        this.config = cloneDefaultConfig();
+        this.setPlaceholderVisible(true);
+        return;
+      }
+      this.setPlaceholderVisible(false);
+      await this.loadSettings();
+      await this.refreshRelayStatus();
     }
   }
 

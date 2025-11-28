@@ -1,0 +1,83 @@
+﻿
+馃И Starting test suite...
+
+node.exe : FAIL test/property/proxy-relay-
+service.property.test.ts
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/node.exe" "D:
+\Users\txy39\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifie 
+   d: (FAIL test/prope...roperty.test.ts  
+  :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComma 
+   ndError
+ 
+  鈼?Test suite failed to run
+
+    [96msrc/infrastructure/proxy/ProxyRel
+ayServer.ts[0m:[93m172[0m:[93m66[0m -
+ [91merror[0m[90m TS1064: [0mThe retur
+n type of an async function or method must
+ be the global Promise<T> type. Did you me
+an to write 'Promise<void>'?
+
+    [7m172[0m   private async handleSock
+sConnection(clientSocket: net.Socket): voi
+d {
+    [7m   [0m [91m                     
+                                          
+  ~~~~[0m
+    [96msrc/infrastructure/proxy/ProxyRel
+ayServer.ts[0m:[93m330[0m:[93m35[0m -
+ [91merror[0m[90m TS2345: [0mArgument 
+of type 'Duplex' is not assignable to para
+meter of type 'Socket'.
+      Type 'Duplex' is missing the followi
+ng properties from type 'Socket': destroyS
+oon, connect, resetAndDestroy, setTimeout,
+ and 15 more.
+
+    [7m330[0m       this.handleHttpConne
+ct(req, clientSocket, head);
+    [7m   [0m [91m                     
+             ~~~~~~~~~~~~[0m
+    [96msrc/infrastructure/proxy/ProxyRel
+ayServer.ts[0m:[93m354[0m:[93m103[0m 
+- [91merror[0m[90m TS1064: [0mThe retu
+rn type of an async function or method mus
+t be the global Promise<T> type. Did you m
+ean to write 'Promise<void>'?
+
+    [7m354[0m   private async handleHttp
+Connect(req: http.IncomingMessage, clientS
+ocket: net.Socket, head: Buffer): void {
+    [7m   [0m [91m                     
+                                          
+                                       ~~~
+~[0m
+    [96msrc/infrastructure/proxy/ProxyRel
+ayServer.ts[0m:[93m388[0m:[93m89[0m -
+ [91merror[0m[90m TS1064: [0mThe retur
+n type of an async function or method must
+ be the global Promise<T> type. Did you me
+an to write 'Promise<void>'?
+
+    [7m388[0m   private async handleHttp
+Request(req: http.IncomingMessage, res: ht
+tp.ServerResponse): void {
+    [7m   [0m [91m                     
+                                          
+                         ~~~~[0m
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        2.125 s
+Ran all test suites matching /test\\proper
+ty\\proxy-relay-service.property.test.ts/i
+.
+
+鉁?Test suite completed in 2.15s
+

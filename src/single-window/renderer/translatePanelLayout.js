@@ -9,6 +9,11 @@
   const translateSettingsHost = document.getElementById('translate-settings-host');
   const translatePanelBody = document.getElementById('translate-panel-body');
   
+  // Fingerprint settings
+  const fingerprintPlaceholderEl = document.getElementById('fingerprint-panel-placeholder');
+  const fingerprintSettingsHost = document.getElementById('fingerprint-settings-host');
+  const fingerprintPanelBody = document.getElementById('fingerprint-panel-body');
+  
   // Proxy settings
   const proxyPlaceholderEl = document.getElementById('proxy-panel-placeholder');
   const proxySettingsHost = document.getElementById('proxy-settings-host');
@@ -33,6 +38,18 @@
     getActiveChatInfo: fetchActiveChatInfo,
     applyConfigToView
   });
+
+  // Initialize fingerprint settings panel if available
+  let fingerprintSettingsPanel = null;
+  if (typeof FingerprintSettingsPanel !== 'undefined') {
+    fingerprintSettingsPanel = new FingerprintSettingsPanel({
+      host: fingerprintSettingsHost,
+      placeholderEl: fingerprintPlaceholderEl,
+      onCollapse: () => toggleSection('fingerprint')
+    });
+  } else {
+    console.warn('[translatePanelLayout] FingerprintSettingsPanel not available');
+  }
 
   const proxySettingsPanel = new ProxySettingsPanel({
     host: proxySettingsHost,
@@ -62,14 +79,23 @@
     notifyMain();
 
     await translateSettingsPanel.init();
+    if (fingerprintSettingsPanel) {
+      await fingerprintSettingsPanel.init();
+    }
     await proxySettingsPanel.init();
 
     const activeAccountId = await getActiveAccountId();
     if (activeAccountId) {
       await translateSettingsPanel.setAccount(activeAccountId);
+      if (fingerprintSettingsPanel) {
+        await fingerprintSettingsPanel.setAccount(activeAccountId);
+      }
       await proxySettingsPanel.setAccount(activeAccountId);
     } else {
       translateSettingsPanel.setAccount(null);
+      if (fingerprintSettingsPanel) {
+        fingerprintSettingsPanel.setAccount(null);
+      }
       proxySettingsPanel.setAccount(null);
     }
 
@@ -136,13 +162,11 @@
     });
 
     // Show/hide panel bodies
-    if (targetPanel === 'translate') {
-      translatePanelBody.style.display = 'block';
-      proxyPanelBody.style.display = 'none';
-    } else if (targetPanel === 'proxy') {
-      translatePanelBody.style.display = 'none';
-      proxyPanelBody.style.display = 'block';
+    translatePanelBody.style.display = targetPanel === 'translate' ? 'block' : 'none';
+    if (fingerprintPanelBody) {
+      fingerprintPanelBody.style.display = targetPanel === 'fingerprint' ? 'block' : 'none';
     }
+    proxyPanelBody.style.display = targetPanel === 'proxy' ? 'block' : 'none';
   }
 
   function setState(state) {
@@ -217,6 +241,9 @@
     window.electronAPI.on('view-manager:view-switched', (data) => {
       if (data?.toAccountId) {
         translateSettingsPanel.setAccount(data.toAccountId);
+        if (fingerprintSettingsPanel) {
+          fingerprintSettingsPanel.setAccount(data.toAccountId);
+        }
         proxySettingsPanel.setAccount(data.toAccountId);
       }
     });
@@ -224,6 +251,9 @@
     window.electronAPI.on('account:active-changed', (data) => {
       if (data?.accountId) {
         translateSettingsPanel.setAccount(data.accountId);
+        if (fingerprintSettingsPanel) {
+          fingerprintSettingsPanel.setAccount(data.accountId);
+        }
         proxySettingsPanel.setAccount(data.accountId);
       }
     });

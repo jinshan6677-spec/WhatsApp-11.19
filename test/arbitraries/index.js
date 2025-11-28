@@ -230,10 +230,9 @@ const translationConfigArbitrary = fc.record({
 /**
  * Event name arbitrary
  */
-const eventNameArbitrary = fc.stringOf(
-  fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz.:_-'.split('')),
-  { minLength: 1, maxLength: 50 }
-);
+const eventNameArbitrary = fc.string({ minLength: 1, maxLength: 50 })
+  .map(s => s.replace(/[^a-z.:_-]/g, 'a'))
+  .filter(s => s.length > 0);
 
 /**
  * Event payload arbitrary
@@ -283,10 +282,9 @@ const semverArbitrary = fc.tuple(
 /**
  * Plugin name arbitrary
  */
-const pluginNameArbitrary = fc.stringOf(
-  fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789-_'.split('')),
-  { minLength: 1, maxLength: 50 }
-);
+const pluginNameArbitrary = fc.string({ minLength: 1, maxLength: 50 })
+  .map(s => s.replace(/[^a-z0-9_-]/g, 'a'))
+  .filter(s => s.length > 0);
 
 /**
  * Valid plugin arbitrary
@@ -317,10 +315,9 @@ const pluginArbitrary = fc.record({
 /**
  * IPC channel name arbitrary
  */
-const ipcChannelArbitrary = fc.stringOf(
-  fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz:-_'.split('')),
-  { minLength: 1, maxLength: 50 }
-);
+const ipcChannelArbitrary = fc.string({ minLength: 1, maxLength: 50 })
+  .map(s => s.replace(/[^a-z:_-]/g, 'a'))
+  .filter(s => s.length > 0);
 
 /**
  * IPC request arbitrary
@@ -442,10 +439,9 @@ const appConfigArbitrary = fc.record({
 /**
  * Error code arbitrary
  */
-const errorCodeArbitrary = fc.stringOf(
-  fc.constantFrom(...'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'.split('')),
-  { minLength: 3, maxLength: 30 }
-);
+const errorCodeArbitrary = fc.string({ minLength: 3, maxLength: 30 })
+  .map(s => s.toUpperCase().replace(/[^A-Z_]/g, 'A'))
+  .filter(s => s.length >= 3);
 
 /**
  * Error context arbitrary

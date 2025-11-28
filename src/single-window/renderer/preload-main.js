@@ -850,3 +850,287 @@ contextBridge.exposeInMainWorld('proxyAPI', {
    */
   validateConfig: (config) => ipcRenderer.invoke('proxy:validate-config', config)
 });
+
+
+// ============================================================================
+// Fingerprint Configuration API
+// ============================================================================
+
+// Expose fingerprint API to renderer
+contextBridge.exposeInMainWorld('fingerprintAPI', {
+  /**
+   * Get fingerprint configuration for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with fingerprint data
+   */
+  get: (accountId) => ipcRenderer.invoke('fingerprint:get', accountId),
+
+  /**
+   * Create fingerprint configuration
+   * @param {string} accountId - Account ID
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Result with created fingerprint
+   */
+  create: (accountId, config) => ipcRenderer.invoke('fingerprint:create', accountId, config),
+
+  /**
+   * Update fingerprint configuration
+   * @param {string} accountId - Account ID
+   * @param {Object} config - Fingerprint configuration updates
+   * @returns {Promise<Object>} Result with updated fingerprint
+   */
+  update: (accountId, config) => ipcRenderer.invoke('fingerprint:update', accountId, config),
+
+  /**
+   * Delete fingerprint configuration
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  delete: (accountId) => ipcRenderer.invoke('fingerprint:delete', accountId),
+
+  /**
+   * Generate random fingerprint
+   * @param {Object} [options] - Generation options
+   * @returns {Promise<Object>} Result with generated fingerprint
+   */
+  generateRandom: (options) => ipcRenderer.invoke('fingerprint:generate-random', options),
+
+  /**
+   * Validate fingerprint configuration
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Validation result
+   */
+  validate: (config) => ipcRenderer.invoke('fingerprint:validate', config),
+
+  /**
+   * Get all fingerprint templates
+   * @returns {Promise<Object>} Result with templates array
+   */
+  getTemplates: () => ipcRenderer.invoke('fingerprint:get-templates'),
+
+  /**
+   * Save fingerprint as template
+   * @param {string} name - Template name
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Result with success status
+   */
+  saveTemplate: (name, config) => ipcRenderer.invoke('fingerprint:save-template', name, config),
+
+  /**
+   * Load fingerprint template
+   * @param {string} name - Template name
+   * @returns {Promise<Object>} Result with template data
+   */
+  loadTemplate: (name) => ipcRenderer.invoke('fingerprint:load-template', name),
+
+  /**
+   * Delete fingerprint template
+   * @param {string} name - Template name
+   * @returns {Promise<Object>} Result with success status
+   */
+  deleteTemplate: (name) => ipcRenderer.invoke('fingerprint:delete-template', name),
+
+  /**
+   * Apply fingerprint to multiple accounts
+   * @param {string[]} accountIds - Array of account IDs
+   * @param {string} templateName - Template name to apply
+   * @returns {Promise<Object>} Batch result
+   */
+  applyBatch: (accountIds, templateName) => ipcRenderer.invoke('fingerprint:apply-batch', accountIds, templateName),
+
+  /**
+   * Detect fingerprint issues
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Detection result
+   */
+  detect: (config) => ipcRenderer.invoke('fingerprint:detect', config),
+
+  /**
+   * Auto-fix fingerprint issues
+   * @param {Object} config - Fingerprint configuration
+   * @param {Array} risks - Identified risks
+   * @returns {Promise<Object>} Result with fixed fingerprint
+   */
+  autoFix: (config, risks) => ipcRenderer.invoke('fingerprint:auto-fix', config, risks),
+
+  /**
+   * Get fingerprint library entries
+   * @param {Object} [filter] - Filter options
+   * @returns {Promise<Object>} Result with library entries
+   */
+  getLibrary: (filter) => ipcRenderer.invoke('fingerprint:get-library', filter),
+
+  /**
+   * Get fingerprint version history
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with history
+   */
+  getHistory: (accountId) => ipcRenderer.invoke('fingerprint:get-history', accountId),
+
+  /**
+   * Restore fingerprint to previous version
+   * @param {string} accountId - Account ID
+   * @param {string} versionId - Version ID to restore
+   * @returns {Promise<Object>} Result with restored fingerprint
+   */
+  restoreVersion: (accountId, versionId) => ipcRenderer.invoke('fingerprint:restore-version', accountId, versionId),
+
+  /**
+   * Get fingerprint randomization strategy
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with strategy
+   */
+  getStrategy: (accountId) => ipcRenderer.invoke('fingerprint:get-strategy', accountId),
+
+  /**
+   * Set fingerprint randomization strategy
+   * @param {string} accountId - Account ID
+   * @param {Object} strategy - Strategy configuration
+   * @returns {Promise<Object>} Result with success status
+   */
+  setStrategy: (accountId, strategy) => ipcRenderer.invoke('fingerprint:set-strategy', accountId, strategy)
+});
+
+// ============================================================================
+// Proxy Relay API
+// ============================================================================
+
+// Expose proxy relay API to renderer
+contextBridge.exposeInMainWorld('proxyRelayAPI', {
+  /**
+   * Start proxy relay for an account
+   * @param {string} accountId - Account ID
+   * @param {Object} proxyConfig - Proxy configuration
+   * @returns {Promise<Object>} Result with relay info
+   */
+  start: (accountId, proxyConfig) => ipcRenderer.invoke('proxy-relay:start', accountId, proxyConfig),
+
+  /**
+   * Stop proxy relay for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  stop: (accountId) => ipcRenderer.invoke('proxy-relay:stop', accountId),
+
+  /**
+   * Get relay status for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with status
+   */
+  getStatus: (accountId) => ipcRenderer.invoke('proxy-relay:status', accountId),
+
+  /**
+   * Test proxy connectivity
+   * @param {Object} proxyConfig - Proxy configuration
+   * @returns {Promise<Object>} Test result
+   */
+  test: (proxyConfig) => ipcRenderer.invoke('proxy-relay:test', proxyConfig),
+
+  /**
+   * Get exit IP for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with exit IP
+   */
+  getExitIP: (accountId) => ipcRenderer.invoke('proxy-relay:get-exit-ip', accountId),
+
+  /**
+   * Hot reload proxy configuration
+   * @param {string} accountId - Account ID
+   * @param {Object} newConfig - New proxy configuration
+   * @returns {Promise<Object>} Result with success status
+   */
+  reload: (accountId, newConfig) => ipcRenderer.invoke('proxy-relay:reload', accountId, newConfig),
+
+  /**
+   * Get status of all relays
+   * @returns {Promise<Object>} Result with all relay statuses
+   */
+  getAllStatus: () => ipcRenderer.invoke('proxy-relay:get-all-status'),
+
+  /**
+   * Perform health check on relay
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Health check result
+   */
+  healthCheck: (accountId) => ipcRenderer.invoke('proxy-relay:health-check', accountId),
+
+  /**
+   * Get relay statistics
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with statistics
+   */
+  getStats: (accountId) => ipcRenderer.invoke('proxy-relay:get-stats', accountId),
+
+  /**
+   * Get smart match suggestions based on IP
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with suggestions
+   */
+  smartMatch: (accountId) => ipcRenderer.invoke('proxy-relay:smart-match', accountId)
+});
+
+// ============================================================================
+// Detection API
+// ============================================================================
+
+// Expose detection API to renderer
+contextBridge.exposeInMainWorld('detectionAPI', {
+  /**
+   * Run full fingerprint detection
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Detection result
+   */
+  runFull: (config) => ipcRenderer.invoke('detection:run-full', config),
+
+  /**
+   * Run quick fingerprint check
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Quick check result
+   */
+  runQuick: (config) => ipcRenderer.invoke('detection:run-quick', config),
+
+  /**
+   * Get identified risks
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Result with risks
+   */
+  getRisks: (config) => ipcRenderer.invoke('detection:get-risks', config),
+
+  /**
+   * Get fix suggestions for risks
+   * @param {Array} risks - Identified risks
+   * @returns {Promise<Object>} Result with suggestions
+   */
+  getSuggestions: (risks) => ipcRenderer.invoke('detection:get-suggestions', risks),
+
+  /**
+   * Auto-fix identified issues
+   * @param {Object} config - Fingerprint configuration
+   * @param {Array} risks - Identified risks
+   * @returns {Promise<Object>} Result with fixed fingerprint
+   */
+  autoFix: (config, risks) => ipcRenderer.invoke('detection:auto-fix', config, risks),
+
+  /**
+   * Get fingerprint score
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Result with score
+   */
+  getScore: (config) => ipcRenderer.invoke('detection:get-score', config),
+
+  /**
+   * Validate fingerprint consistency
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Validation result
+   */
+  validateConsistency: (config) => ipcRenderer.invoke('detection:validate-consistency', config),
+
+  /**
+   * Get detailed detection report
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Result with report
+   */
+  getReport: (config) => ipcRenderer.invoke('detection:get-report', config)
+});
+
+console.log('[Preload] Fingerprint, Proxy Relay, and Detection APIs exposed to renderer');

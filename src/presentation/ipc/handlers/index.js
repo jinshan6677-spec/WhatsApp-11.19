@@ -11,8 +11,11 @@
  * - TranslationIPCHandlers: Translation panel, chat info (5 handlers)
  * - TranslationServiceIPCHandlers: Translation service IPC (13 handlers) - ✅ MIGRATED to IPCRouter
  * - ProxyIPCHandlers: Proxy configuration management (8 existing + 7 security = 15 handlers)
+ * - FingerprintHandlers: Fingerprint configuration management (18 handlers)
+ * - ProxyRelayHandlers: Proxy relay service management (10 handlers)
+ * - DetectionHandlers: Fingerprint detection and validation (8 handlers)
  * 
- * Total: ~86 IPC handlers organized by domain
+ * Total: ~122 IPC handlers organized by domain
  * 
  * Migration Status:
  * - ✅ TranslationServiceIPCHandlers: Fully migrated to IPCRouter with request validation
@@ -30,6 +33,29 @@ const ProxyIPCHandlers = require('./ProxyIPCHandlers');
 const TranslationIPCHandlers = require('./TranslationIPCHandlers');
 const TranslationServiceIPCHandlers = require('./TranslationServiceIPCHandlers');
 
+// New fingerprint-related handlers (TypeScript)
+let FingerprintHandlers = null;
+let ProxyRelayHandlers = null;
+let DetectionHandlers = null;
+
+try {
+  FingerprintHandlers = require('./FingerprintHandlers');
+} catch (e) {
+  console.warn('[IPC] FingerprintHandlers not available (TypeScript compilation may be needed)');
+}
+
+try {
+  ProxyRelayHandlers = require('./ProxyRelayHandlers');
+} catch (e) {
+  console.warn('[IPC] ProxyRelayHandlers not available (TypeScript compilation may be needed)');
+}
+
+try {
+  DetectionHandlers = require('./DetectionHandlers');
+} catch (e) {
+  console.warn('[IPC] DetectionHandlers not available (TypeScript compilation may be needed)');
+}
+
 /**
  * Register all IPC handlers for single-window architecture
  * @param {Object} dependencies - Handler dependencies
@@ -44,6 +70,10 @@ const TranslationServiceIPCHandlers = require('./TranslationServiceIPCHandlers')
  * @param {EventBus} [dependencies.eventBus] - Event bus for publishing events
  * @param {IPCRouter} [dependencies.ipcRouter] - IPCRouter instance for new architecture handlers
  * @param {Object} [dependencies.translationService] - Translation service instance
+ * @param {Object} [dependencies.fingerprintService] - Fingerprint service instance
+ * @param {Object} [dependencies.fingerprintDetectionService] - Fingerprint detection service instance
+ * @param {Object} [dependencies.fingerprintValidator] - Fingerprint validator instance
+ * @param {Object} [dependencies.proxyRelayService] - Proxy relay service instance
  */
 function registerAllHandlers(dependencies) {
   const { 
@@ -57,7 +87,11 @@ function registerAllHandlers(dependencies) {
     proxyRepository,
     eventBus,
     ipcRouter,
-    translationService
+    translationService,
+    fingerprintService,
+    fingerprintDetectionService,
+    fingerprintValidator,
+    proxyRelayService
   } = dependencies;
 
   if (!accountManager) {
@@ -107,6 +141,33 @@ function registerAllHandlers(dependencies) {
     console.log('[IPC] Translation service available but IPCRouter not provided - using legacy handlers');
   }
 
+  // Register fingerprint handlers if service is available
+  if (FingerprintHandlers && fingerprintService) {
+    FingerprintHandlers.register({
+      fingerprintService,
+      fingerprintDetectionService,
+      fingerprintValidator
+    });
+    console.log('[IPC] Fingerprint handlers registered (18 channels)');
+  }
+
+  // Register proxy relay handlers if service is available
+  if (ProxyRelayHandlers && proxyRelayService) {
+    ProxyRelayHandlers.register({
+      proxyRelayService
+    });
+    console.log('[IPC] Proxy relay handlers registered (10 channels)');
+  }
+
+  // Register detection handlers
+  if (DetectionHandlers) {
+    DetectionHandlers.register({
+      detectionService: fingerprintDetectionService,
+      validator: fingerprintValidator
+    });
+    console.log('[IPC] Detection handlers registered (8 channels)');
+  }
+
   console.log('[IPC] All domain handlers registered');
   
   // Log proxy security status
@@ -114,6 +175,13 @@ function registerAllHandlers(dependencies) {
     console.log('[IPC] ✓ Proxy security features enabled (ProxyService available)');
   } else {
     console.log('[IPC] ⚠ Proxy security features limited (ProxyService not provided)');
+  }
+
+  // Log fingerprint status
+  if (fingerprintService) {
+    console.log('[IPC] ✓ Fingerprint management enabled (FingerprintService available)');
+  } else {
+    console.log('[IPC] ⚠ Fingerprint management not available');
   }
 }
 
@@ -126,6 +194,17 @@ function unregisterAllHandlers() {
   SystemIPCHandlers.unregister();
   TranslationIPCHandlers.unregister();
   ProxyIPCHandlers.unregister();
+
+  // Unregister fingerprint-related handlers
+  if (FingerprintHandlers) {
+    FingerprintHandlers.unregister();
+  }
+  if (ProxyRelayHandlers) {
+    ProxyRelayHandlers.unregister();
+  }
+  if (DetectionHandlers) {
+    DetectionHandlers.unregister();
+  }
 
   console.log('[IPC] All domain handlers unregistered');
 }
@@ -143,14 +222,20 @@ function getHandlerStats() {
       view: 'ViewIPCHandlers - View management, session, monitoring (25 handlers)',
       system: 'SystemIPCHandlers - Sidebar, window resize, layout (3 handlers)',
       translation: 'TranslationIPCHandlers - Translation panel, chat info (5 handlers)',
-      proxy: `ProxyIPCHandlers - Proxy configuration and security (${proxyChannels.summary.totalCount} handlers)`
+      proxy: `ProxyIPCHandlers - Proxy configuration and security (${proxyChannels.summary.totalCount} handlers)`,
+      fingerprint: 'FingerprintHandlers - Fingerprint configuration management (18 handlers)',
+      proxyRelay: 'ProxyRelayHandlers - Proxy relay service management (10 handlers)',
+      detection: 'DetectionHandlers - Fingerprint detection and validation (8 handlers)'
     },
-    totalModules: 5,
+    totalModules: 8,
     proxyDetails: {
       existing: proxyChannels.summary.existingCount,
       security: proxyChannels.summary.securityCount,
       securityEnabled: ProxyIPCHandlers.isSecurityEnabled()
-    }
+    },
+    fingerprintAvailable: !!FingerprintHandlers,
+    proxyRelayAvailable: !!ProxyRelayHandlers,
+    detectionAvailable: !!DetectionHandlers
   };
 }
 
@@ -166,5 +251,10 @@ module.exports = {
   SystemIPCHandlers,
   ProxyIPCHandlers,
   TranslationIPCHandlers,
-  TranslationServiceIPCHandlers
+  TranslationServiceIPCHandlers,
+  
+  // New fingerprint-related handlers (may be null if TypeScript not compiled)
+  FingerprintHandlers,
+  ProxyRelayHandlers,
+  DetectionHandlers
 };

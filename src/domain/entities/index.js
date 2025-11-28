@@ -6,12 +6,23 @@ const TranslationConfig = require('./TranslationConfig');
 const ProxyConnectionStatus = require('./ProxyConnectionStatus');
 const ProxyHealthStats = require('./ProxyHealthStats');
 
+// TypeScript entities (will be compiled to JS)
+let FingerprintProfile, ProxyRelay;
+try {
+  FingerprintProfile = require('./FingerprintProfile').FingerprintProfile;
+  ProxyRelay = require('./ProxyRelay').ProxyRelay;
+} catch (e) {
+  // TypeScript files not yet compiled
+}
+
 module.exports = {
   Account,
   ProxyConfig,
   TranslationConfig,
   ProxyConnectionStatus,
   ProxyHealthStats,
+  FingerprintProfile,
+  ProxyRelay,
   
   // Re-export enums for convenience
   AccountStatus: Account.Status,
