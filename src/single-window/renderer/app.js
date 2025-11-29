@@ -9,8 +9,10 @@
   // State
   let isResizing = false;
   let sidebarWidth = 300; // Default width
+  let lastIpcSendTime = 0;
   const MIN_SIDEBAR_WIDTH = 200;
   const MAX_SIDEBAR_WIDTH = 500;
+  const IPC_THROTTLE_DELAY = 16; // ~60fps throttle for IPC calls
 
   // DOM elements
   const sidebar = document.getElementById('sidebar');
@@ -84,9 +86,13 @@
     sidebar.style.width = `${width}px`;
     document.documentElement.style.setProperty('--sidebar-width', `${width}px`);
     
-    // Notify main process about the new width for BrowserView bounds calculation
-    if (window.electronAPI) {
+    // Throttle IPC calls during resize for better performance
+    const now = Date.now();
+    const shouldSend = isResizing ? (now - lastIpcSendTime >= IPC_THROTTLE_DELAY) : true;
+    
+    if (window.electronAPI && shouldSend) {
       window.electronAPI.send('sidebar-resized', width);
+      lastIpcSendTime = now;
     }
   }
 
@@ -250,28 +256,28 @@
       showNotification('切换账号失败', 'error');
     });
 
-    // Handle window resize events from main process
-    window.electronAPI.on('window-resized', (data) => {
-      console.log('Window resized:', data.bounds);
-      // The main process will handle view bounds recalculation
-      // This is just for logging/debugging
-    });
-
-    // Handle translation panel state changes
-    window.electronAPI.on('translation-panel:state-changed', (data) => {
-      console.log('Translation panel state changed:', data);
-      // Update the translate settings panel if it exists
-      if (window.TranslateSettingsPanel && typeof window.translateSettingsPanel !== 'undefined') {
-        window.translateSettingsPanel.updateForPanelState(data.state);
-      } else if (window.translatePanelLayout && typeof window.translatePanelLayout !== 'undefined') {
-        // If we have a reference to the translate settings panel through the layout system
-        // We'll handle this in the translatePanelLayout.js file
-      }
-    });
-  }
-
-  /**
-   * Show visual feedback during account switching
+    // Handle window resize events from main process
+    window.electronAPI.on('window-resized', (data) => {
+      console.log('Window resized:', data.bounds);
+      // The main process will handle view bounds recalculation
+      // This is just for logging/debugging
+    });
+
+    // Handle translation panel state changes
+    window.electronAPI.on('translation-panel:state-changed', (data) => {
+      console.log('Translation panel state changed:', data);
+      // Update the translate settings panel if it exists
+      if (window.TranslateSettingsPanel && typeof window.translateSettingsPanel !== 'undefined') {
+        window.translateSettingsPanel.updateForPanelState(data.state);
+      } else if (window.translatePanelLayout && typeof window.translatePanelLayout !== 'undefined') {
+        // If we have a reference to the translate settings panel through the layout system
+        // We'll handle this in the translatePanelLayout.js file
+      }
+    });
+  }
+
+  /**
+   * Show visual feedback during account switching
    */
   function showSwitchingFeedback(accountId) {
     // Add a subtle loading overlay to the view container

@@ -92,6 +92,40 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
     }
   });
 
+  // Handle translation panel resize (expand/collapse)
+  ipcMain.on('translation-panel-resized', (event, payload) => {
+    try {
+      if (!payload || typeof payload !== 'object') {
+        console.warn('[IPC] Invalid translation panel resize payload:', payload);
+        return;
+      }
+
+      const { state, width, widths } = payload;
+      
+      // Update the main window's translation panel layout
+      if (state && widths) {
+        mainWindow.setTranslationPanelLayout({ state, widths });
+        console.log(`[IPC] Translation panel layout updated: state=${state}, width=${width}`);
+        
+        // Invalidate bounds cache to force recalculation with new panel width
+        if (viewManager.boundsManager && typeof viewManager.boundsManager.invalidateCache === 'function') {
+          viewManager.boundsManager.invalidateCache();
+          console.log('[IPC] View bounds cache invalidated due to translation panel resize');
+        }
+        
+        // Trigger view resize to apply new bounds
+        const currentSidebarWidth = mainWindow.getSidebarWidth();
+        viewManager.resizeViews(currentSidebarWidth, { immediate: true });
+        console.log(`[IPC] Views resized after translation panel change (sidebar: ${currentSidebarWidth}px)`);
+        
+      } else {
+        console.warn('[IPC] Missing required payload fields for translation panel resize:', payload);
+      }
+    } catch (error) {
+      console.error('[IPC] Failed to handle translation panel resize:', error);
+    }
+  });
+
   // Register translation:get-active-chat handler
   ipcMain.handle('translation:get-active-chat', async (event) => {
     try {
@@ -219,6 +253,9 @@ function unregisterIPCHandlers() {
   ipcMain.removeHandler('translation:apply-config');
   ipcMain.removeHandler('translation:get-active-chat');
   ipcMain.removeHandler('get-translation-panel-layout');
+  
+  // Remove translation panel resize listener
+  ipcMain.removeAllListeners('translation-panel-resized');
   
   console.log('[IPC] Single-window handlers unregistered');
 }

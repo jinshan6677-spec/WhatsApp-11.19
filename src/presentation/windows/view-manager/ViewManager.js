@@ -275,9 +275,16 @@ class ViewManager {
   }
 
   resizeViews(sidebarWidth, options = {}) {
+    // Get current sidebar width for delta calculation
+    const currentSidebarWidth = this.mainWindow.getSidebarWidth();
+    const resizeOptions = {
+      ...options,
+      lastWidth: currentSidebarWidth
+    };
+    
     // Update resizeDebounceTimer for backward compatibility
     this.resizeDebounceTimer = this.resizeHandler.resizeDebounceTimer;
-    this.resizeHandler.resizeViews(this.views, sidebarWidth, options);
+    this.resizeHandler.resizeViews(this.views, sidebarWidth, resizeOptions);
     this.resizeDebounceTimer = this.resizeHandler.resizeDebounceTimer;
   }
 

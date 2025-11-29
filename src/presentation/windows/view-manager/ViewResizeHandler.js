@@ -24,7 +24,8 @@ class ViewResizeHandler {
 
     this.boundsManager = boundsManager;
     this.options = {
-      debounceDelay: options.debounceDelay || 100,
+      debounceDelay: options.debounceDelay || 16, // ~60fps for better real-time experience
+      immediateResizeThreshold: options.immediateResizeThreshold || 50, // Skip debouncing for small changes
       ...options
     };
 
@@ -55,11 +56,12 @@ class ViewResizeHandler {
   }
 
   /**
-   * Resize all views with debouncing
+   * Resize all views with optimized debouncing
    * @param {Map} views - Map of accountId to viewState
    * @param {number} sidebarWidth - New sidebar width in pixels
    * @param {Object} [options] - Resize options
    * @param {boolean} [options.immediate] - Skip debouncing and resize immediately
+   * @param {number} [options.lastWidth] - Previous width for delta calculation
    */
   resizeViews(views, sidebarWidth, options = {}) {
     // Clear existing debounce timer
@@ -68,13 +70,16 @@ class ViewResizeHandler {
       this.resizeDebounceTimer = null;
     }
 
-    // If immediate resize requested, perform it now
-    if (options.immediate) {
+    // Calculate width change delta
+    const widthDelta = options.lastWidth ? Math.abs(sidebarWidth - options.lastWidth) : 0;
+    
+    // If immediate resize requested or small change, perform it now
+    if (options.immediate || widthDelta <= this.options.immediateResizeThreshold) {
       this._performResize(views, sidebarWidth);
       return;
     }
 
-    // Otherwise, debounce the resize operation
+    // Otherwise, debounce the resize operation with reduced delay
     this.resizeDebounceTimer = setTimeout(() => {
       this._performResize(views, sidebarWidth);
       this.resizeDebounceTimer = null;

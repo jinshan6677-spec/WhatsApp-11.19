@@ -126,7 +126,7 @@ class ViewBoundsManager {
       this.boundsCache.lastWindowBounds &&
       this.boundsCache.lastWindowBounds.width === windowBounds.width &&
       this.boundsCache.lastWindowBounds.height === windowBounds.height &&
-      cacheAge < 1000 // Cache valid for 1 second
+      cacheAge < 200 // Cache valid for 200ms for better real-time experience
     );
   }
 
