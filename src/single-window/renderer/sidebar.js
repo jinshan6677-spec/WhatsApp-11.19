@@ -101,6 +101,9 @@
         mergeRunningStatuses(statusResult.statuses);
       }
 
+      // Get login status for all accounts (important for logged-in accounts)
+      await refreshLoginStatusesForAllAccounts();
+
       await renderAccountList();
     } catch (error) {
       console.error('Failed to load accounts:', error);
@@ -118,6 +121,125 @@
         account.runningStatus = statusInfo.status;
         account.isRunning = !!statusInfo.isRunning;
       }
+    });
+  }
+
+  /**
+   * 刷新所有账号的登录状态
+   */
+  async function refreshLoginStatusesForAllAccounts() {
+    if (!window.electronAPI) return;
+
+    for (const account of accounts) {
+      try {
+        // 获取账号的登录状态
+        const loginResult = await window.electronAPI.getLoginStatus(account.id);
+        if (loginResult && loginResult.success) {
+          account.loginStatus = loginResult.isLoggedIn;
+          account.hasQRCode = loginResult.hasQRCode;
+          account.loginInfo = loginResult.loginInfo;
+          console.log(`[Sidebar] Refreshed login status for account ${account.id}:`, {
+            isLoggedIn: loginResult.isLoggedIn,
+            hasQRCode: loginResult.hasQRCode
+          });
+        }
+      } catch (error) {
+        console.warn(`[Sidebar] Failed to get login status for account ${account.id}:`, error);
+        // 设置默认值
+        account.loginStatus = false;
+        account.hasQRCode = false;
+      }
+    }
+  }
+
+  /**
+   * 同步单个账号状态与运行状态，确保状态一致性
+   * 优化状态优先级：登录状态 > 运行状态 > 默认状态
+   */
+  function syncAccountStatusWithRunningStatus(account) {
+    if (!account) return;
+    
+    const runningStatus = account.runningStatus || 'not_started';
+    const currentStatus = account.status || 'offline';
+    const loginStatus = account.loginStatus;
+    const hasQRCode = account.hasQRCode;
+    const connectionDetails = account.connectionDetails || {};
+    
+    // 根据状态优先级确定正确的显示状态
+    let correctStatus = currentStatus;
+    let statusReason = '';
+    
+    // 第一优先级：明确的登录状态
+    if (loginStatus === true) {
+      // 已登录的账号应该显示在线，无论运行状态如何
+      correctStatus = 'online';
+      statusReason = 'logged in';
+      
+      // 同时确保运行状态也是connected，这样按钮才能正确显示
+      if (runningStatus === 'loading' || runningStatus === 'not_started') {
+        account.runningStatus = 'connected';
+        account.isRunning = true;
+        console.log(`[Sidebar] Updated running status for logged-in account ${account.id} to 'connected'`);
+      }
+    } else if (loginStatus === false) {
+      // 明确未登录的账号
+      if (hasQRCode) {
+        correctStatus = 'offline';
+        statusReason = 'logged out with QR';
+      } else {
+        correctStatus = 'offline';
+        statusReason = 'logged out';
+      }
+    } 
+    // 第二优先级：明确的连接状态
+    else if (connectionDetails.needsQRScan === true) {
+      correctStatus = 'offline';
+      statusReason = 'needs QR scan';
+    } else if (connectionDetails.isLoggedIn === true) {
+      correctStatus = 'online';
+      statusReason = 'connection details show logged in';
+    }
+    // 第三优先级：运行状态
+    else {
+      switch (runningStatus) {
+        case 'connected':
+          correctStatus = 'online';
+          statusReason = 'running status connected';
+          break;
+        case 'loading':
+          correctStatus = 'loading';
+          statusReason = 'running status loading';
+          break;
+        case 'error':
+          correctStatus = 'error';
+          statusReason = 'running status error';
+          break;
+        case 'not_started':
+          correctStatus = 'offline';
+          statusReason = 'running status not started';
+          break;
+        default:
+          correctStatus = 'offline';
+          statusReason = 'unknown running status';
+      }
+    }
+    
+    // 只有在状态不一致时才更新
+    if (currentStatus !== correctStatus) {
+      console.log(`[Sidebar] Syncing account ${account.id} status from '${currentStatus}' to '${correctStatus}' (${statusReason}, running: ${runningStatus}, loggedIn: ${loginStatus}, hasQR: ${hasQRCode})`);
+      account.status = correctStatus;
+      
+      // 立即更新UI中的状态，确保状态同步
+      updateAccountStatus(account.id, correctStatus);
+    }
+  }
+
+  /**
+   * 同步所有账号状态与运行状态，确保状态一致性
+   */
+  function syncAccountStatusesWithRunningStatus() {
+    accounts.forEach((account) => {
+      syncAccountStatusWithRunningStatus(account);
     });
   }
 
@@ -166,6 +288,8 @@
         const statusResult = await window.electronAPI.getAllAccountStatuses();
         if (statusResult && statusResult.success && statusResult.statuses) {
           mergeRunningStatuses(statusResult.statuses);
+          // 同步账号状态与运行状态
+          syncAccountStatusesWithRunningStatus();
         }
       } catch (error) {
         console.error('Failed to get account statuses:', error);
@@ -187,6 +311,22 @@
     });
 
     accountList.appendChild(fragment);
+    
+    // DOM更新完成后，确保所有账号状态正确显示
+    // 这对于页面刷新和排序后的状态恢复特别重要
+    setTimeout(() => {
+      sortedAccounts.forEach((account) => {
+        // 确保账号状态与运行状态同步
+        syncAccountStatusWithRunningStatus(account);
+        
+        // 如果账号已登录，确保显示在线状态
+        if (account.loginStatus === true) {
+          updateAccountStatus(account.id, 'online');
+        }
+      });
+      
+      console.log(`[Sidebar] Status recovery completed for ${sortedAccounts.length} accounts`);
+    }, 100); // 短暂延迟确保DOM完全更新
   }
 
   /**
@@ -259,6 +399,13 @@
     // Quick Actions (Hover only)
     const actions = document.createElement('div');
     actions.className = 'account-actions';
+    
+    // 确保已登录账号的运行状态正确
+    if (account.loginStatus === true && (account.runningStatus === 'loading' || account.runningStatus === 'not_started')) {
+      account.runningStatus = 'connected';
+      account.isRunning = true;
+    }
+    
     renderQuickActions(account, actions);
 
     // Assemble
@@ -760,6 +907,9 @@
     account.runningStatus = runningStatus;
     account.isRunning = runningStatus !== 'not_started' && runningStatus !== 'error';
 
+    // 同步更新显示状态，确保一致性
+    syncAccountStatusWithRunningStatus(account);
+
     if (!accountList) return;
 
     const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
@@ -821,20 +971,7 @@
     updateAccountStatus(accountId, status);
   }
 
-  function updateAccountStatus(accountId, status) {
-      const account = accounts.find(acc => acc.id === accountId);
-      if (account) {
-          account.status = status;
-      }
-      
-      const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-      if (item) {
-          const statusDot = item.querySelector('.status-dot');
-          if (statusDot) {
-              renderStatusDot(account, statusDot);
-          }
-      }
-  }
+  
 
   /**
    * Handle view loading event
@@ -912,11 +1049,26 @@
     }
 
     if (isLoggedIn) {
+      // 已登录账号，确保运行状态也是connected
+      if (account) {
+        account.runningStatus = 'connected';
+        account.isRunning = true;
+      }
       updateAccountStatus(accountId, 'online');
     } else if (hasQRCode) {
       updateAccountStatus(accountId, 'offline');
     } else {
-      updateAccountStatus(accountId, account && account.status ? account.status : 'loading');
+      // 基于运行状态决定显示状态，而不是可能过时的account.status
+      const runningStatus = account ? account.runningStatus : 'not_started';
+      if (runningStatus === 'connected') {
+        updateAccountStatus(accountId, 'online');
+      } else if (runningStatus === 'loading') {
+        updateAccountStatus(accountId, 'loading');
+      } else if (runningStatus === 'error') {
+        updateAccountStatus(accountId, 'error');
+      } else {
+        updateAccountStatus(accountId, 'offline');
+      }
     }
   }
 
@@ -1007,20 +1159,73 @@
    */
   function updateAccountStatus(accountId, status) {
     const account = accounts.find((acc) => acc.id === accountId);
-    if (account) {
-      account.status = status;
+    if (!account) {
+      console.warn(`[Sidebar] Account ${accountId} not found when updating status to '${status}'`);
+      return;
+    }
+
+    // 验证状态值的有效性
+    const validStatuses = ['online', 'offline', 'loading', 'error'];
+    if (!validStatuses.includes(status)) {
+      console.error(`[Sidebar] Invalid status '${status}' for account ${accountId}. Valid statuses: ${validStatuses.join(', ')}`);
+      return;
+    }
+
+    // 优化状态更新逻辑 - 优先考虑登录状态
+    const loginStatus = account.loginStatus;
+    const hasQRCode = account.hasQRCode;
+    const currentRunningStatus = account.runningStatus || 'not_started';
+    
+    // 如果账号已登录，优先显示在线状态，即使运行状态不匹配
+    if (loginStatus === true && status === 'online') {
+      // 已登录账号可以设置为在线， regardless of running status
+      console.log(`[Sidebar] Setting online status for logged-in account ${accountId}`);
+    }
+    // 如果账号有二维码或明确未登录，允许设置为离线
+    else if ((loginStatus === false || hasQRCode) && status === 'offline') {
+      // 未登录账号可以设置为离线
+      console.log(`[Sidebar] Setting offline status for non-logged-in account ${accountId}`);
+    }
+    // 对于loading状态，只在没有明确登录状态时才检查运行状态
+    else if (status === 'loading' && loginStatus !== true && loginStatus !== false) {
+      // 只有在登录状态不明确时才检查运行状态
+      if (currentRunningStatus !== 'loading') {
+        console.log(`[Sidebar] Status mismatch for account ${accountId}: requested '${status}' but running status is '${currentRunningStatus}'. Will sync status.`);
+        // 不跳过更新，而是同步状态
+        syncAccountStatusWithRunningStatus(account);
+        return;
+      }
+    }
+    // 对于error状态，允许设置
+    else if (status === 'error') {
+      // 错误状态总是允许设置
+      console.log(`[Sidebar] Setting error status for account ${accountId}`);
+    }
+
+    const oldStatus = account.status;
+    account.status = status;
+
+    // 只有状态真正改变时才记录日志
+    if (oldStatus !== status) {
+      console.log(`[Sidebar] Account ${accountId} status changed from '${oldStatus}' to '${status}'`);
     }
 
     if (!accountList) return;
 
     const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
-    if (!item) return;
+    if (!item) {
+      console.warn(`[Sidebar] Account item for ${accountId} not found in DOM when updating status`);
+      return;
+    }
 
-    const statusElement = item.querySelector('.account-status');
-    if (!statusElement || !account) return;
-
-    renderAccountStatusForAccount(account, statusElement);
+    // 更新头像上的状态点，而不是创建额外的状态元素
+    const statusDot = item.querySelector('.status-dot');
+    if (statusDot) {
+      renderStatusDot(account, statusDot);
+    }
   }
+
+  
 
   /**
    * Get account name by ID
@@ -1102,6 +1307,8 @@
     renderAccountList,
     setActiveAccount,
     getAccounts: () => accounts,
-    getActiveAccountId: () => activeAccountId
+    getActiveAccountId: () => activeAccountId,
+    renderQuickActions,
+    syncAccountStatusesWithRunningStatus
   };
 })();

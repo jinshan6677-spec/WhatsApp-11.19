@@ -367,6 +367,39 @@
 
         // Show success feedback
         showReorderFeedback(targetItem, '已重新排序');
+        
+        // 确保排序后状态正确恢复
+        setTimeout(() => {
+          // 先重新加载账号数据，确保DOM是最新的
+          if (window.sidebar && window.sidebar.loadAccounts) {
+            window.sidebar.loadAccounts().then(() => {
+              // DOM更新完成后，再同步状态和按钮
+              setTimeout(() => {
+                // 手动同步所有账号的运行状态
+                if (window.sidebar && window.sidebar.getAccounts) {
+                  const accounts = window.sidebar.getAccounts();
+                  accounts.forEach(account => {
+                    // 确保已登录账号的运行状态正确
+                    if (account.loginStatus === true && (account.runningStatus === 'loading' || account.runningStatus === 'not_started')) {
+                      account.runningStatus = 'connected';
+                      account.isRunning = true;
+                      
+                      // 更新该账号的按钮显示
+                      const item = document.querySelector(`[data-account-id="${account.id}"]`);
+                      if (item) {
+                        const actions = item.querySelector('.account-actions');
+                        if (actions && window.sidebar.renderQuickActions) {
+                          window.sidebar.renderQuickActions(account, actions);
+                        }
+                      }
+                    }
+                  });
+                  console.log('[UIEnhancements] Status and button recovery after reordering completed');
+                }
+              }, 100);
+            });
+          }
+        }, 100);
       }
     } catch (error) {
       console.error('Failed to reorder accounts:', error);
