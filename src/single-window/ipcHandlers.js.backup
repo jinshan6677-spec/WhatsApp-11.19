@@ -127,31 +127,52 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
   });
 
   // Register translation:get-active-chat handler
-  // Register translation:get-active-chat handler
   ipcMain.handle('translation:get-active-chat', async (event) => {
-    // Get the active account's view
-    const activeAccountId = viewManager.getActiveAccountId();
-    if (!activeAccountId) {
-      return { success: false, error: 'No active account' };
+    try {
+      // Get the active account's view
+      const activeAccountId = viewManager.getActiveAccountId();
+      if (!activeAccountId) {
+        return { success: false, error: 'No active account' };
+      }
+
+      const view = viewManager.getView(activeAccountId);
+      if (!view || !view.webContents) {
+        return { success: false, error: 'View not found for active account' };
+
+      // Get active chat info from the WhatsApp page (按照旧版本b108fe28的方式)
+      const chatInfo = await view.webContents.executeJavaScript(\
+        (function() {
+          try {
+            const contactId = window.WhatsAppTranslation?.getCurrentContactId?.() || null;
+            let contactName = contactId;
+            
+            // 尝试从页面头部获取显示名称
+            try {
+              const header = document.querySelector('[data-testid="conversation-info-header"]') ||
+                             document.querySelector('#main header span[dir="auto"]');
+              if (header && header.textContent) {
+                contactName = header.textContent.trim();
+              }
+            } catch (innerError) {
+              console.warn('[Translation] Failed to read conversation header:', innerError);
+            }
+            
+            return { contactId, contactName };
+          } catch (error) {
+            console.error('[IPC] Error getting active chat info:', error);
+            return { contactId: null, contactName: null, error: error?.message || String(error) };
+          }
+        })()
+      \);
+
+      return {
+        success: true,
+        data: chatInfo
+      };
+    } catch (error) {
+      console.error('[IPC] translation:get-active-chat error:', error);
+      return { success: false, error: error.message };
     }
-
-    const view = viewManager.getView(activeAccountId);
-    if (!view || !view.webContents) {
-      return { success: false, error: 'View not found for active account' };
-    }
-
-    // Get active chat info from the WhatsApp page (按照旧版本b108fe28的简单方式)
-    const chatInfo = await view.webContents.executeJavaScript(`
-      (function() {
-        const contactId = window.WhatsAppTranslation?.getCurrentContactId?.() || null;
-        return { contactId, contactName: contactId };
-      })()
-    `);
-
-    return {
-      success: true,
-      data: chatInfo
-    };
   });
 
   console.log('[IPC] Single-window handlers registered');
