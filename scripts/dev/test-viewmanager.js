@@ -1,6 +1,6 @@
 // 测试ViewManager加载
 try {
-  const ViewManager = require('./src/single-window/ViewManager');
+  const { ViewManager } = require('../../src/presentation/windows/view-manager');
   console.log('✅ ViewManager loaded successfully');
   console.log('✅ ViewManager is a class:', typeof ViewManager === 'function');
 } catch (error) {
@@ -10,7 +10,7 @@ try {
 
 // 测试UI模块导出
 try {
-  const { ViewManager: UIManager } = require('./src/ui/main-window');
+  const { ViewManager: UIManager } = require('../../src/ui/main-window');
   console.log('✅ UI ViewManager export loaded successfully');
   console.log('✅ UI ViewManager is same class:', UIManager === ViewManager);
 } catch (error) {

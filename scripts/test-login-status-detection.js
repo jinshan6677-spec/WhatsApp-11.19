@@ -15,7 +15,7 @@ const path = require('path');
 const AccountConfigManager = require('../src/managers/AccountConfigManager');
 const SessionManager = require('../src/managers/SessionManager');
 const MainWindow = require('../src/single-window/MainWindow');
-const ViewManager = require('../src/single-window/ViewManager');
+const { ViewManager } = require('../src/presentation/windows/view-manager');
 
 let mainWindow;
 let viewManager;

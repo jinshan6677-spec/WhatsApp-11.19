@@ -16,7 +16,8 @@ const testFiles = [
   'src/managers/__tests__/AccountConfigManager.test.js',
   'src/managers/__tests__/SessionManager.test.js',
   'src/managers/__tests__/TranslationIntegration.test.js',
-  'src/single-window/__tests__/ViewManager.test.js'
+  // Note: ViewManager tests moved to new modular architecture
+// Tests are now integrated into the new architecture modules
 ];
 
 let totalPassed = 0;

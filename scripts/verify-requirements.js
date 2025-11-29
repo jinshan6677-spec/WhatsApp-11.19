@@ -185,33 +185,33 @@ function verifyRequirements() {
     checkCodeContains('src/managers/SessionManager.js', 'proxy') &&
     checkCodeContains('src/managers/SessionManager.js', 'setProxy');
   
-  // Requirement 5: WebView Management and Switching
+  // Requirement 5: WebView Management and Switching (新模块化架构)
   requirements['Requirement 5: WebView Management and Switching'][0].verified = 
-    checkFileExists('src/single-window/ViewManager.js') &&
-    checkCodeContains('src/single-window/ViewManager.js', 'createView');
+    checkFileExists('src/presentation/windows/view-manager/ViewManager.js') &&
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'createView');
   requirements['Requirement 5: WebView Management and Switching'][1].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'web.whatsapp.com');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'web.whatsapp.com');
   requirements['Requirement 5: WebView Management and Switching'][2].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'showView') &&
-    checkCodeContains('src/single-window/ViewManager.js', 'hideView');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'showView') &&
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'hideView');
   requirements['Requirement 5: WebView Management and Switching'][3].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'hideView') &&
-    !checkCodeContains('src/single-window/ViewManager.js', 'destroy');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'hideView') &&
+    !checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'destroy');
   requirements['Requirement 5: WebView Management and Switching'][4].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'views') &&
-    checkCodeContains('src/single-window/ViewManager.js', 'Map');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'views') &&
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'Map');
   
-  // Requirement 6: WhatsApp Web Integration
+  // Requirement 6: WhatsApp Web Integration (新模块化架构)
   requirements['Requirement 6: WhatsApp Web Integration'][0].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'web.whatsapp.com');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'web.whatsapp.com');
   requirements['Requirement 6: WhatsApp Web Integration'][1].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'loadURL');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'loadURL');
   requirements['Requirement 6: WhatsApp Web Integration'][2].verified = 
     checkCodeContains('src/managers/SessionManager.js', 'partition');
   requirements['Requirement 6: WhatsApp Web Integration'][3].verified = 
     checkCodeContains('src/managers/SessionManager.js', 'partition');
   requirements['Requirement 6: WhatsApp Web Integration'][4].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'hideView');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'hideView');
   
   // Requirement 7: Per-Account Translation Integration
   requirements['Requirement 7: Per-Account Translation Integration'][0].verified = 
@@ -243,17 +243,17 @@ function verifyRequirements() {
     checkCodeContains('src/managers/SessionManager.js', 'validateProxy') ||
     checkCodeContains('src/utils/ValidationHelper.js', 'validateProxy');
   
-  // Requirement 9: Account Status Monitoring
+  // Requirement 9: Account Status Monitoring (新模块化架构)
   requirements['Requirement 9: Account Status Monitoring'][0].verified = 
     checkCodeContains('src/single-window/renderer/sidebar.js', 'status');
   requirements['Requirement 9: Account Status Monitoring'][1].verified = 
     checkCodeContains('src/single-window/ipcHandlers.js', 'status') ||
-    checkCodeContains('src/single-window/ViewManager.js', 'status');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'status');
   requirements['Requirement 9: Account Status Monitoring'][2].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'offline') ||
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'offline') ||
     checkCodeContains('src/single-window/ipcHandlers.js', 'offline');
   requirements['Requirement 9: Account Status Monitoring'][3].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'error') ||
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'error') ||
     checkCodeContains('src/utils/ErrorHandler.js', 'error');
   requirements['Requirement 9: Account Status Monitoring'][4].verified = 
     checkCodeContains('src/single-window/renderer/sidebar.js', 'updateStatus') ||
@@ -273,13 +273,13 @@ function verifyRequirements() {
     checkCodeContains('src/utils/RecoveryManager.js', 'recover') ||
     checkFileExists('src/utils/RecoveryManager.js');
   
-  // Requirement 11: UI Responsiveness and Layout
+  // Requirement 11: UI Responsiveness and Layout (新模块化架构)
   requirements['Requirement 11: UI Responsiveness and Layout'][0].verified = 
     checkCodeContains('src/single-window/renderer/app.js', 'resize') ||
     checkCodeContains('src/single-window/renderer/styles.css', 'resize');
   requirements['Requirement 11: UI Responsiveness and Layout'][1].verified = 
-    checkCodeContains('src/single-window/ViewManager.js', 'resizeViews') ||
-    checkCodeContains('src/single-window/ViewManager.js', 'setBounds');
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'resizeViews') ||
+    checkCodeContains('src/presentation/windows/view-manager/ViewBoundsManager.js', 'setBounds');
   requirements['Requirement 11: UI Responsiveness and Layout'][2].verified = 
     checkCodeContains('src/single-window/renderer/app.js', 'sidebarWidth') ||
     checkCodeContains('src/single-window/MainWindow.js', 'sidebarWidth');
@@ -287,7 +287,7 @@ function verifyRequirements() {
     checkCodeContains('src/single-window/renderer/styles.css', 'min-width');
   requirements['Requirement 11: UI Responsiveness and Layout'][4].verified = 
     checkCodeContains('src/single-window/renderer/styles.css', 'flex') ||
-    checkCodeContains('src/single-window/ViewManager.js', 'setBounds');
+    checkCodeContains('src/presentation/windows/view-manager/ViewBoundsManager.js', 'setBounds');
   
   // Requirement 12: Migration from Multi-Window Architecture
   requirements['Requirement 12: Migration from Multi-Window Architecture'][0].verified = 

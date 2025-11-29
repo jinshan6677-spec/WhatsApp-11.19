@@ -110,7 +110,7 @@ function testSessionManagerPartitions() {
 function testViewManagerIsolation() {
   log('\n2. Verifying ViewManager session isolation...', 'blue');
   
-  const viewManagerPath = path.join(__dirname, '..', 'src', 'single-window', 'ViewManager.js');
+  const viewManagerPath = path.join(__dirname, '..', 'src', 'presentation', 'windows', 'view-manager', 'ViewManager.js');
   
   checkFileContains(
     viewManagerPath,
@@ -149,7 +149,7 @@ function testViewManagerIsolation() {
 function testSessionValidation() {
   log('\n3. Verifying session validation implementation...', 'blue');
   
-  const viewManagerPath = path.join(__dirname, '..', 'src', 'single-window', 'ViewManager.js');
+  const viewManagerPath = path.join(__dirname, '..', 'src', 'presentation', 'windows', 'view-manager', 'ViewManager.js');
   
   checkFileContains(
     viewManagerPath,
@@ -285,7 +285,7 @@ function testIsolationVerification() {
     'SessionManager has session isolation verification'
   );
   
-  const viewManagerPath = path.join(__dirname, '..', 'src', 'single-window', 'ViewManager.js');
+  const viewManagerPath = path.join(__dirname, '..', 'src', 'presentation', 'windows', 'view-manager', 'ViewManager.js');
   
   checkFileContains(
     viewManagerPath,

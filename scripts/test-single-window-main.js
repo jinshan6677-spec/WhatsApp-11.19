@@ -126,7 +126,7 @@ try {
   console.log('\nTest 6: Checking required component files...');
   const requiredFiles = [
     'src/single-window/MainWindow.js',
-    'src/single-window/ViewManager.js',
+    'src/presentation/windows/view-manager/ViewManager.js',
     'src/single-window/ipcHandlers.js',
     'src/single-window/migration/MigrationManager.js',
     'src/single-window/migration/MigrationDialog.js',

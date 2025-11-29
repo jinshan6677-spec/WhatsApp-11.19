@@ -231,7 +231,7 @@ async function testViewManager(mainWindow, sessionManager, accounts) {
   log('Testing view manager...', 'test');
   
   try {
-    const ViewManager = require('../src/single-window/ViewManager');
+    const { ViewManager } = require('../src/presentation/windows/view-manager');
     const viewManager = new ViewManager(mainWindow, sessionManager);
     
     if (accounts.length === 0) {

@@ -35,7 +35,8 @@ const IPProtectionInjector = require('../infrastructure/proxy/IPProtectionInject
 
 // 导入现有架构组件
 const MainWindow = require('../single-window/MainWindow');
-const ViewManager = require('../single-window/ViewManager');
+// 使用新的模块化ViewManager架构
+const { ViewManager } = require('../presentation/windows/view-manager');
 const NotificationManager = require('../managers/NotificationManager');
 const TrayManager = require('../managers/TrayManager');
 
@@ -606,17 +607,26 @@ class AppBootstrap {
 
 
   /**
-   * 初始化ViewManager
+   * 初始化ViewManager (新模块化架构)
    * @returns {Promise<void>}
    */
   async initializeViewManager() {
     try {
+      // 使用新的模块化ViewManager架构
       this.viewManager = new ViewManager(this.mainWindow, this.managers.sessionManager, {
         defaultSidebarWidth: 280,
         translationIntegration: this.managers.translationIntegration,
-        accountManager: this.managers.accountConfigManager
+        accountManager: this.managers.accountConfigManager,
+        // 新架构支持的额外配置
+        debounceDelay: 100,
+        lazyLoadViews: true,
+        maxConcurrentViews: 10,
+        viewPoolSize: 2,
+        memoryWarningThreshold: 300,
+        maxMemoryPerView: 500,
+        autoMemoryCleanup: true
       });
-      console.log('✓ ViewManager initialized');
+      console.log('✓ ViewManager initialized (new modular architecture)');
     } catch (error) {
       throw new Error(`Failed to initialize ViewManager: ${error.message}`);
     }

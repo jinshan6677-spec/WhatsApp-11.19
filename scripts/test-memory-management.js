@@ -68,7 +68,7 @@ require.cache[require.resolve('electron')] = {
 };
 
 // Load modules
-const ViewManager = require('../src/single-window/ViewManager');
+const { ViewManager } = require('../src/presentation/windows/view-manager');
 
 // Mock MainWindow
 class MockMainWindow {

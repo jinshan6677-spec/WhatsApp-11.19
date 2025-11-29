@@ -32,7 +32,7 @@ console.log('✓ Added cleanup for periodic check intervals when view is destroy
 console.log();
 
 console.log('Files Modified:');
-console.log('- src/single-window/ViewManager.js');
+console.log('- src/presentation/windows/view-manager/ViewManager.js');
 console.log('  * Added delay in did-finish-load event handler');
 console.log('  * Added periodic login status detection');
 console.log('  * Added interval cleanup in destroyView method');

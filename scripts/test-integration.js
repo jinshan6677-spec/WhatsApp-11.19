@@ -18,7 +18,7 @@ const fs = require('fs').promises;
 // Import components
 const AccountConfigManager = require('../src/managers/AccountConfigManager');
 const SessionManager = require('../src/managers/SessionManager');
-const ViewManager = require('../src/single-window/ViewManager');
+const { ViewManager } = require('../src/presentation/windows/view-manager');
 const TranslationIntegration = require('../src/managers/TranslationIntegration');
 const MainWindow = require('../src/single-window/MainWindow');
 

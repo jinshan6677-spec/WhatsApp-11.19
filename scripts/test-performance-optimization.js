@@ -99,7 +99,7 @@ Module.prototype.require = function(id) {
 };
 
 // Import modules after mocking
-const ViewManager = require('../src/single-window/ViewManager');
+const { ViewManager } = require('../src/presentation/windows/view-manager');
 const PerformanceOptimizer = require('../src/utils/PerformanceOptimizer');
 
 /**
