@@ -17,7 +17,6 @@
 // Lazy load modules to avoid circular dependencies
 let _ViewFactory, _ViewLifecycle, _ViewBoundsManager, _ViewResizeHandler;
 let _ViewMemoryManager, _ViewPerformanceOptimizer, _ViewTranslationIntegration;
-let _ViewFingerprintIntegration;
 let _ViewManager;
 
 function getViewFactory() {
@@ -56,10 +55,7 @@ function getViewTranslationIntegration() {
   return _ViewTranslationIntegration;
 }
 
-function getViewFingerprintIntegration() {
-  if (!_ViewFingerprintIntegration) _ViewFingerprintIntegration = require('./ViewFingerprintIntegration').default;
-  return _ViewFingerprintIntegration;
-}
+ 
 
 function getViewManager() {
   if (!_ViewManager) _ViewManager = require('./ViewManager');
@@ -79,7 +75,7 @@ module.exports = {
   get ViewMemoryManager() { return getViewMemoryManager(); },
   get ViewPerformanceOptimizer() { return getViewPerformanceOptimizer(); },
   get ViewTranslationIntegration() { return getViewTranslationIntegration(); },
-  get ViewFingerprintIntegration() { return getViewFingerprintIntegration(); },
+  
   
   // 工厂方法
   createViewManager: (mainWindow, sessionManager, options = {}) => {

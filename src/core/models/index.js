@@ -18,7 +18,4 @@ module.exports = {
   
   // 验证方法
   validateAccountConfig: (config) => AccountConfig.validate(config),
-  
-  // 静态方法
-  AccountConfig
 };

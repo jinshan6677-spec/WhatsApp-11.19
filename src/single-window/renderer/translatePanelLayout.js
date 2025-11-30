@@ -9,11 +9,6 @@
   const translateSettingsHost = document.getElementById('translate-settings-host');
   const translatePanelBody = document.getElementById('translate-panel-body');
   
-  // Fingerprint settings
-  const fingerprintPlaceholderEl = document.getElementById('fingerprint-panel-placeholder');
-  const fingerprintSettingsHost = document.getElementById('fingerprint-settings-host');
-  const fingerprintPanelBody = document.getElementById('fingerprint-panel-body');
-  
   
   // Menu buttons
   const menuButtons = panel.querySelectorAll('.panel-menu-btn[data-panel]');
@@ -35,17 +30,7 @@
     applyConfigToView
   });
 
-  // Initialize fingerprint settings panel if available
-  let fingerprintSettingsPanel = null;
-  if (typeof FingerprintSettingsPanel !== 'undefined') {
-    fingerprintSettingsPanel = new FingerprintSettingsPanel({
-      host: fingerprintSettingsHost,
-      placeholderEl: fingerprintPlaceholderEl,
-      onCollapse: () => toggleSection('fingerprint')
-    });
-  } else {
-    console.warn('[translatePanelLayout] FingerprintSettingsPanel not available');
-  }
+  
 
 
   init();
@@ -70,23 +55,12 @@
     notifyMain();
 
     await translateSettingsPanel.init();
-    if (fingerprintSettingsPanel) {
-      await fingerprintSettingsPanel.init();
-    }
 
     const activeAccountId = await getActiveAccountId();
     if (activeAccountId) {
       await translateSettingsPanel.setAccount(activeAccountId);
-      if (fingerprintSettingsPanel) {
-        await fingerprintSettingsPanel.setAccount(activeAccountId);
-      }
-      
     } else {
       translateSettingsPanel.setAccount(null);
-      if (fingerprintSettingsPanel) {
-        fingerprintSettingsPanel.setAccount(null);
-      }
-      
     }
 
     bindSectionToggles();
@@ -151,11 +125,7 @@
       }
     });
 
-    // Show/hide panel bodies
     translatePanelBody.style.display = targetPanel === 'translate' ? 'block' : 'none';
-    if (fingerprintPanelBody) {
-      fingerprintPanelBody.style.display = targetPanel === 'fingerprint' ? 'block' : 'none';
-    }
   }
 
   function setState(state) {
@@ -230,20 +200,12 @@
     window.electronAPI.on('view-manager:view-switched', (data) => {
       if (data?.toAccountId) {
         translateSettingsPanel.setAccount(data.toAccountId);
-        if (fingerprintSettingsPanel) {
-          fingerprintSettingsPanel.setAccount(data.toAccountId);
-        }
-        
       }
     });
 
     window.electronAPI.on('account:active-changed', (data) => {
       if (data?.accountId) {
         translateSettingsPanel.setAccount(data.accountId);
-        if (fingerprintSettingsPanel) {
-          fingerprintSettingsPanel.setAccount(data.accountId);
-        }
-        
       }
     });
 

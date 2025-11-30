@@ -63,6 +63,9 @@ function getAllKeys(obj, prefix = '') {
   let keys = [];
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      if (key === '__proto__' || key === 'prototype' || key === 'constructor') {
+        continue;
+      }
       const fullKey = prefix ? `${prefix}.${key}` : key;
       keys.push(fullKey);
       if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {

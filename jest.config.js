@@ -18,10 +18,7 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.js',
     '**/*.test.js',
-    '**/*.property.test.js',
-    '**/__tests__/**/*.ts',
-    '**/*.test.ts',
-    '**/*.property.test.ts'
+    '**/*.property.test.js'
   ],
   
   // Files to ignore
@@ -57,17 +54,10 @@ module.exports = {
   moduleDirectories: ['node_modules', 'src'],
   
   // Transform settings
-  transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true
-      }
-    }]
-  },
+  transform: {},
   
   // Module file extensions
-  moduleFileExtensions: ['js', 'ts', 'json'],
+  moduleFileExtensions: ['js', 'json'],
   
   // Timeout for tests (increased for property tests)
   testTimeout: 30000,

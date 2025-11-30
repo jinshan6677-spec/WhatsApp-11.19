@@ -47,8 +47,7 @@
 6. **ViewMemoryManager.js** - 内存管理
 7. **ViewPerformanceOptimizer.js** - 性能优化
 9. **ViewTranslationIntegration.js** - 翻译集成
-10. **ViewFingerprintIntegration.js** - 指纹集成
-11. **index.js** - 统一导出和懒加载
+10. **index.js** - 统一导出和懒加载
 
 ### 技术优势
 - **职责分离**：每个模块专注单一功能
@@ -97,8 +96,7 @@ src/presentation/windows/view-manager/
 ├── ViewResizeHandler.js
 ├── ViewMemoryManager.js
 ├── ViewPerformanceOptimizer.js
-├── ViewTranslationIntegration.js
-└── ViewFingerprintIntegration.ts
+└── ViewTranslationIntegration.js
 ```
 
 ## 🎉 迁移成果
