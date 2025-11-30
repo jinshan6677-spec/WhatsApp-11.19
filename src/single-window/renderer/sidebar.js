@@ -171,15 +171,23 @@
     
     // 第一优先级：明确的登录状态
     if (loginStatus === true) {
-      // 已登录的账号应该显示在线，无论运行状态如何
-      correctStatus = 'online';
-      statusReason = 'logged in';
-      
-      // 同时确保运行状态也是connected，这样按钮才能正确显示
-      if (runningStatus === 'loading' || runningStatus === 'not_started') {
-        account.runningStatus = 'connected';
-        account.isRunning = true;
-        console.log(`[Sidebar] Updated running status for logged-in account ${account.id} to 'connected'`);
+      // 仅当账号视图正在运行时，才将显示状态设为在线并修正运行状态
+      if (account.isRunning) {
+        correctStatus = 'online';
+        statusReason = 'logged in';
+        if (runningStatus === 'loading') {
+          account.runningStatus = 'connected';
+          account.isRunning = true;
+          console.log(`[Sidebar] Updated running status for logged-in account ${account.id} to 'connected'`);
+        }
+      } else {
+        // 视图已关闭时，不应强制切换为运行中，保持离线与可“打开”按钮
+        correctStatus = 'offline';
+        statusReason = 'logged in (view closed)';
+        if (runningStatus !== 'not_started') {
+          account.runningStatus = 'not_started';
+          account.isRunning = false;
+        }
       }
     } else if (loginStatus === false) {
       // 明确未登录的账号
@@ -1264,6 +1272,13 @@
    */
   function handleAccountClosed(data) {
     const { accountId } = data;
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (account) {
+      account.loginStatus = false;
+      account.hasQRCode = false;
+      account.connectionStatus = 'offline';
+      account.status = 'offline';
+    }
     updateAccountRunningStatus(accountId, 'not_started');
   }
 

@@ -31,6 +31,8 @@ const InputBoxTranslation = {
       if (config.advanced.blockChinese) {
         this.setupChineseBlock();
       }
+
+      this.setupSendClose();
     } else {
       console.warn('[InputBoxTranslation] Input box not found, retrying...');
       setTimeout(() => this.init(config), 2000);
@@ -302,6 +304,26 @@ const InputBoxTranslation = {
       }, true);
 
       console.log('[InputBoxTranslation] Chinese block enabled');
+    }
+  },
+
+  setupSendClose() {
+    const sendButton = document.querySelector('[data-testid="send"]') ||
+                      document.querySelector('[data-icon="send"]');
+    const closeFn = () => {
+      if (this.realtimePreview) {
+        this.realtimePreview.style.display = 'none';
+      }
+      clearTimeout(this.realtimeTimeout);
+    };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        closeFn();
+      }
+    }, true);
+    if (sendButton) {
+      sendButton.addEventListener('mousedown', () => closeFn(), true);
+      sendButton.addEventListener('click', () => closeFn(), true);
     }
   },
 

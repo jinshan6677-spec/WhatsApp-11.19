@@ -220,7 +220,9 @@ class DOMObserver {
 
         // Show alert
         const ui = new TranslationUI(this.core);
-        ui.showChineseBlockAlert();
+        if (!document.querySelector('.wa-chinese-block-alert')) {
+          ui.showChineseBlockAlert();
+        }
 
         console.log(`[Translation] Blocked Chinese message send via ${source}`);
         return true;
@@ -287,15 +289,15 @@ class DOMObserver {
 
       if (sendButton) {
         if (hasChinese) {
-          // Disable send button
-          sendButton.style.pointerEvents = 'none';
-          sendButton.style.opacity = '0.5';
+          // Visual hint only; keep pointer events so click handlers can show alert
+          sendButton.style.opacity = '0.6';
+          sendButton.style.cursor = 'not-allowed';
           sendButton.setAttribute('data-chinese-blocked', 'true');
         } else {
-          // Restore send button
+          // Restore visuals
           if (sendButton.getAttribute('data-chinese-blocked') === 'true') {
-            sendButton.style.pointerEvents = '';
             sendButton.style.opacity = '';
+            sendButton.style.cursor = '';
             sendButton.removeAttribute('data-chinese-blocked');
           }
         }

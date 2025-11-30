@@ -14,6 +14,9 @@ class InputBoxTranslator {
     this.buttonMonitor = null;
     this.buttonCheckInterval = null;
     this.messageSentObserver = null;
+    this._sendKeydownHandler = null;
+    this._sendClickHandler = null;
+    this._sendMouseDownHandler = null;
   }
 
   /**
@@ -53,6 +56,8 @@ class InputBoxTranslator {
     } else {
       this.cleanupRealtimeTranslation();
     }
+
+    this.setupSendCloseHandlers();
   }
 
   /**
@@ -959,6 +964,94 @@ class InputBoxTranslator {
     this._realtimeInitialized = false;
   }
 
+  setupSendCloseHandlers() {
+    if (this._sendKeydownHandler) {
+      document.removeEventListener('keydown', this._sendKeydownHandler, true);
+    }
+    if (this._sendClickHandler) {
+      document.removeEventListener('click', this._sendClickHandler, true);
+    }
+    if (this._sendMouseDownHandler) {
+      document.removeEventListener('mousedown', this._sendMouseDownHandler, true);
+    }
+
+    const getInputBox = () => {
+      return document.querySelector('#main footer [contenteditable="true"]') ||
+        document.querySelector('footer [contenteditable="true"]') ||
+        document.querySelector('[data-testid="conversation-compose-box-input"]') ||
+        document.querySelector('#main footer div[contenteditable="true"]') ||
+        document.querySelector('div[contenteditable="true"][data-tab="10"]') ||
+        document.querySelector('div[contenteditable="true"][role="textbox"]');
+    };
+
+    this._sendKeydownHandler = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        setTimeout(() => {
+          this.ui.hideRealtimePreview();
+          this.ui.removeRealtimePreview();
+          this.ui.removeReverseTranslation();
+        }, 0);
+      }
+    };
+    document.addEventListener('keydown', this._sendKeydownHandler, true);
+
+    this._sendMouseDownHandler = (e) => {
+      const target = e.target;
+      const sendButton = target.closest('[data-testid="send"]') ||
+        target.closest('button[aria-label*="发送"]') ||
+        target.closest('button[aria-label*="Send"]') ||
+        target.closest('span[data-icon="send"]')?.parentElement;
+      if (sendButton) {
+        setTimeout(() => {
+          this.ui.hideRealtimePreview();
+          this.ui.removeRealtimePreview();
+          this.ui.removeReverseTranslation();
+        }, 0);
+      }
+    };
+    document.addEventListener('mousedown', this._sendMouseDownHandler, true);
+
+    this._sendClickHandler = (e) => {
+      const target = e.target;
+      const sendButton = target.closest('[data-testid="send"]') ||
+        target.closest('button[aria-label*="发送"]') ||
+        target.closest('button[aria-label*="Send"]') ||
+        target.closest('span[data-icon="send"]')?.parentElement;
+      if (sendButton) {
+        setTimeout(() => {
+          this.ui.hideRealtimePreview();
+          this.ui.removeRealtimePreview();
+          this.ui.removeReverseTranslation();
+        }, 0);
+      }
+    };
+    document.addEventListener('click', this._sendClickHandler, true);
+
+    if (this.messageSentObserver) {
+      this.messageSentObserver.disconnect();
+    }
+    const main = document.querySelector('#main');
+    if (main) {
+      this.messageSentObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1) {
+              const isOut = node.classList && node.classList.contains('message-out');
+              const outChildren = node.querySelectorAll && node.querySelectorAll('.message-out').length > 0;
+              if (isOut || outChildren) {
+                this.ui.hideRealtimePreview();
+                this.ui.removeRealtimePreview();
+                this.ui.removeReverseTranslation();
+                return;
+              }
+            }
+          }
+        }
+      });
+      this.messageSentObserver.observe(main, { childList: true, subtree: true });
+    }
+  }
+
   /**
    * Cleanup resources
    */
@@ -978,6 +1071,19 @@ class InputBoxTranslator {
     if (this.messageSentObserver) {
       this.messageSentObserver.disconnect();
       this.messageSentObserver = null;
+    }
+
+    if (this._sendKeydownHandler) {
+      document.removeEventListener('keydown', this._sendKeydownHandler, true);
+      this._sendKeydownHandler = null;
+    }
+    if (this._sendClickHandler) {
+      document.removeEventListener('click', this._sendClickHandler, true);
+      this._sendClickHandler = null;
+    }
+    if (this._sendMouseDownHandler) {
+      document.removeEventListener('mousedown', this._sendMouseDownHandler, true);
+      this._sendMouseDownHandler = null;
     }
 
     const button = document.getElementById('wa-translate-btn');
