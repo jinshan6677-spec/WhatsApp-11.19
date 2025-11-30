@@ -1,6 +1,6 @@
 /**
  * AccountConfig 模型测试
- * 专注于代理和翻译配置验证逻辑
+ * 专注于翻译配置验证逻辑
  */
 
 const AccountConfig = require('../AccountConfig');
@@ -18,7 +18,6 @@ describe('AccountConfig', () => {
       expect(account.lastActiveAt).toBeInstanceOf(Date);
       expect(account.autoStart).toBe(false);
       expect(account.sessionDir).toBeDefined();
-      expect(account.proxy).toBeDefined();
       expect(account.translation).toBeDefined();
       expect(account.notifications).toBeDefined();
       expect(account.window).toBeUndefined();
@@ -30,12 +29,6 @@ describe('AccountConfig', () => {
         note: 'Test note',
         order: 5,
         autoStart: true,
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
       };
       
       const account = new AccountConfig(config);
@@ -44,8 +37,6 @@ describe('AccountConfig', () => {
       expect(account.note).toBe('Test note');
       expect(account.order).toBe(5);
       expect(account.autoStart).toBe(true);
-      expect(account.proxy.enabled).toBe(true);
-      expect(account.proxy.host).toBe('127.0.0.1');
     });
 
     test('should handle backward compatibility with window config', () => {
@@ -66,145 +57,7 @@ describe('AccountConfig', () => {
     });
   });
 
-  describe('proxy configuration validation', () => {
-    test('should validate valid proxy configuration', () => {
-      const account = new AccountConfig({
-        name: 'Valid Proxy',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(true);
-      expect(validation.errors).toEqual([]);
-    });
-
-    test('should reject invalid proxy protocol', () => {
-      const account = new AccountConfig({
-        name: 'Invalid Protocol',
-        proxy: {
-          enabled: true,
-          protocol: 'invalid',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(false);
-      expect(validation.errors).toContain('Invalid proxy protocol. Must be socks5, http, or https');
-    });
-
-    test('should reject empty proxy host', () => {
-      const account = new AccountConfig({
-        name: 'Empty Host',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '',
-          port: 1080
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(false);
-      expect(validation.errors).toContain('Proxy host is required when proxy is enabled');
-    });
-
-    test('should reject invalid proxy port (too low)', () => {
-      const account = new AccountConfig({
-        name: 'Invalid Port',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 0
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(false);
-      expect(validation.errors).toContain('Invalid proxy port. Must be between 1 and 65535');
-    });
-
-    test('should reject invalid proxy port (too high)', () => {
-      const account = new AccountConfig({
-        name: 'Invalid Port',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 99999
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(false);
-      expect(validation.errors).toContain('Invalid proxy port. Must be between 1 and 65535');
-    });
-
-    test('should accept all valid proxy protocols', () => {
-      const protocols = ['socks5', 'http', 'https'];
-      
-      protocols.forEach(protocol => {
-        const account = new AccountConfig({
-          name: `${protocol} Proxy`,
-          proxy: {
-            enabled: true,
-            protocol: protocol,
-            host: '127.0.0.1',
-            port: 1080
-          }
-        });
-        
-        const validation = account.validate();
-        expect(validation.valid).toBe(true);
-      });
-    });
-
-    test('should not validate proxy when disabled', () => {
-      const account = new AccountConfig({
-        name: 'Disabled Proxy',
-        proxy: {
-          enabled: false,
-          protocol: 'invalid',
-          host: '',
-          port: 0
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(true);
-    });
-
-    test('should accept proxy with authentication', () => {
-      const account = new AccountConfig({
-        name: 'Authenticated Proxy',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080,
-          username: 'user',
-          password: 'pass'
-        }
-      });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(true);
-    });
-  });
+  
 
   describe('translation configuration validation', () => {
     test('should validate valid translation configuration', () => {
@@ -414,12 +267,6 @@ describe('AccountConfig', () => {
         name: '',
         order: -1,
         sessionDir: '',
-        proxy: {
-          enabled: true,
-          protocol: 'invalid',
-          host: '',
-          port: 0
-        },
         translation: {
           enabled: true,
           targetLanguage: '',
@@ -441,14 +288,6 @@ describe('AccountConfig', () => {
         order: 1,
         autoStart: true,
         sessionDir: 'session-data/account-complex',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080,
-          username: 'user',
-          password: 'pass'
-        },
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN',
@@ -488,7 +327,6 @@ describe('AccountConfig', () => {
       expect(json.createdAt).toBeDefined();
       expect(json.sessionDir).toBeDefined();
       expect(json.autoStart).toBeDefined();
-      expect(json.proxy).toBeDefined();
       expect(json.translation).toBeDefined();
       expect(json.window).toBeUndefined();
     });
@@ -499,12 +337,6 @@ describe('AccountConfig', () => {
         note: 'Original note',
         order: 2,
         autoStart: true,
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
       });
       
       const json = originalAccount.toJSON();
@@ -515,8 +347,7 @@ describe('AccountConfig', () => {
       expect(restoredAccount.note).toBe(originalAccount.note);
       expect(restoredAccount.order).toBe(2);
       expect(restoredAccount.autoStart).toBe(true);
-      expect(restoredAccount.proxy.enabled).toBe(true);
-      expect(restoredAccount.proxy.host).toBe('127.0.0.1');
+      
     });
   });
 

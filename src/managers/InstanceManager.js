@@ -219,7 +219,7 @@ class InstanceManager {
    * @returns {Promise<{success: boolean, instanceId?: string, window?: BrowserWindow, error?: string}>}
    */
   async createInstance(accountConfig) {
-    const { id, name, proxy, translation, window: windowConfig } = accountConfig;
+    const { id, name, translation, window: windowConfig } = accountConfig;
     
     this.log('info', `Creating instance for account: ${name} (${id})`);
     
@@ -297,10 +297,7 @@ class InstanceManager {
         }
       }
       
-      // 2.5. 配置代理（如果启用）
-      if (proxy && proxy.enabled) {
-        await this._applyProxyConfig(instanceSession, proxy, id);
-      }
+      
       
       // 3. 创建 BrowserWindow
       // 验证窗口位置是否在可见屏幕范围内
@@ -530,126 +527,7 @@ class InstanceManager {
     return bounds;
   }
 
-  /**
-   * 应用代理配置
-   * @private
-   * @param {Electron.Session} instanceSession - 实例的 session 对象
-   * @param {Object} proxyConfig - 代理配置
-   * @param {string} instanceId - 实例 ID
-   * @returns {Promise<void>}
-   */
-  async _applyProxyConfig(instanceSession, proxyConfig, instanceId) {
-    const { protocol, host, port, username, password, bypass } = proxyConfig;
-    
-    this.log('info', `Applying proxy config for instance ${instanceId}: ${protocol}://${host}:${port}`);
-    
-    try {
-      // 构建代理规则
-      let proxyRules = `${protocol}://${host}:${port}`;
-      
-      // 如果有认证信息，需要通过 webRequest 拦截器处理
-      if (username && password) {
-        this.log('info', `Setting up proxy authentication for instance ${instanceId}`);
-        
-        // 监听代理认证请求
-        instanceSession.webRequest.onBeforeSendHeaders((details, callback) => {
-          // 添加代理认证头
-          const authString = Buffer.from(`${username}:${password}`).toString('base64');
-          details.requestHeaders['Proxy-Authorization'] = `Basic ${authString}`;
-          callback({ requestHeaders: details.requestHeaders });
-        });
-      }
-      
-      // 设置代理
-      const proxyConfig = {
-        proxyRules: proxyRules,
-        proxyBypassRules: bypass || '<local>'
-      };
-      
-      await instanceSession.setProxy(proxyConfig);
-      
-      this.log('info', `Proxy configured successfully for instance ${instanceId}`);
-      
-      // 验证代理连接（可选）
-      await this._verifyProxyConnection(instanceSession, instanceId);
-      
-    } catch (error) {
-      this.log('error', `Failed to apply proxy config for instance ${instanceId}:`, error);
-      
-      // 使用错误处理器处理代理错误
-      if (this.errorHandler) {
-        await this.errorHandler.handleProxyError(instanceId, error);
-      }
-      
-      throw new Error(`Proxy configuration failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * 验证代理连接
-   * @private
-   * @param {Electron.Session} instanceSession - 实例的 session 对象
-   * @param {string} instanceId - 实例 ID
-   * @returns {Promise<void>}
-   */
-  async _verifyProxyConnection(instanceSession, instanceId) {
-    try {
-      this.log('info', `Verifying proxy connection for instance ${instanceId}`);
-      
-      // 尝试解析代理配置
-      const resolvedProxy = await instanceSession.resolveProxy('https://web.whatsapp.com');
-      this.log('info', `Proxy resolved for instance ${instanceId}: ${resolvedProxy}`);
-      
-    } catch (error) {
-      this.log('warn', `Proxy verification failed for instance ${instanceId}:`, error);
-      // 不抛出错误，因为这只是验证步骤
-    }
-  }
-
-  /**
-   * 更新实例的代理配置
-   * @param {string} instanceId - 实例 ID
-   * @param {Object} proxyConfig - 新的代理配置
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
-  async updateProxyConfig(instanceId, proxyConfig) {
-    this.log('info', `Updating proxy config for instance ${instanceId}`);
-    
-    try {
-      const instance = this.instances.get(instanceId);
-      if (!instance) {
-        return {
-          success: false,
-          error: 'Instance not found'
-        };
-      }
-      
-      // 获取实例的 session
-      const partition = `persist:account_${instanceId}`;
-      const instanceSession = this.electron.session.fromPartition(partition);
-      
-      // 应用新的代理配置
-      if (proxyConfig && proxyConfig.enabled) {
-        await this._applyProxyConfig(instanceSession, proxyConfig, instanceId);
-      } else {
-        // 清除代理配置
-        await instanceSession.setProxy({ proxyRules: 'direct://' });
-        this.log('info', `Proxy disabled for instance ${instanceId}`);
-      }
-      
-      // 更新配置
-      instance.config.proxy = proxyConfig;
-      
-      return { success: true };
-      
-    } catch (error) {
-      this.log('error', `Failed to update proxy config for instance ${instanceId}:`, error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
+  
 
   /**
    * 销毁实例

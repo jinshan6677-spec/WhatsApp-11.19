@@ -1,8 +1,0 @@
-﻿No tests found, exiting with code 1
-Run with `--passWithNoTests` to exit with code 0
-In E:\WhatsApps\WhatsApp 11.19
-  391 files checked.
-  testMatch: **/__tests__/**/*.js, **/*.test.js, **/*.property.test.js - 36 matches
-  testPathIgnorePatterns: \\node_modules\\, \\dist\\, \\backups\\ - 346 matches
-  testRegex:  - 0 matches
-Pattern: StartupManager.test - 0 matches

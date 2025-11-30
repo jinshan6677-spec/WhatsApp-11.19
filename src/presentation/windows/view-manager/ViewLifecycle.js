@@ -15,13 +15,11 @@ class ViewLifecycle {
    * @param {Object} options - Configuration options
    * @param {Function} [options.logger] - Logger function
    * @param {Function} [options.notifyRenderer] - Function to notify renderer
-   * @param {Object} [options.proxyIntegration] - ViewProxyIntegration instance for secure proxy error handling
    */
   constructor(options = {}) {
     this.options = options;
     this.log = options.logger || this._createLogger();
     this.notifyRenderer = options.notifyRenderer || (() => {});
-    this.proxyIntegration = options.proxyIntegration || null;
   }
 
   /**
@@ -100,29 +98,12 @@ class ViewLifecycle {
 
     // Handle load failures
     view.webContents.on('did-fail-load', async (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      this.log('error', `[SOCKS5-DEBUG] did-fail-load event:`);
-      this.log('error', `[SOCKS5-DEBUG]   Account: ${accountId}`);
-      this.log('error', `[SOCKS5-DEBUG]   Error Code: ${errorCode}`);
-      this.log('error', `[SOCKS5-DEBUG]   Error Description: ${errorDescription}`);
-      this.log('error', `[SOCKS5-DEBUG]   URL: ${validatedURL}`);
-      this.log('error', `[SOCKS5-DEBUG]   Is Main Frame: ${isMainFrame}`);
+    this.log('error', `did-fail-load: account=${accountId}, code=${errorCode}, desc=${errorDescription}, url=${validatedURL}, mainFrame=${isMainFrame}`);
       
       await this._handleLoadFailure(accountId, view, viewState, errorCode, errorDescription, validatedURL);
     });
 
-    // Handle certificate errors
-    view.webContents.on('certificate-error', (event, url, error, certificate, callback) => {
-      this.log('error', `[SOCKS5-DEBUG] Certificate error:`);
-      this.log('error', `[SOCKS5-DEBUG]   Account: ${accountId}`);
-      this.log('error', `[SOCKS5-DEBUG]   URL: ${url}`);
-      this.log('error', `[SOCKS5-DEBUG]   Error: ${error}`);
-      callback(false); // Don't ignore certificate errors
-    });
-
-    // Handle did-stop-loading (fires even if load fails)
-    view.webContents.on('did-stop-loading', () => {
-      this.log('info', `[SOCKS5-DEBUG] did-stop-loading for account ${accountId}`);
-    });
+    
 
     // Handle navigation
     view.webContents.on('did-navigate', (_event, url) => {
@@ -213,49 +194,7 @@ class ViewLifecycle {
       return;
     }
 
-    // Check if it's a proxy-related error
-    const proxyErrors = {
-      '-120': 'SOCKS 代理连接失败',
-      '-130': '代理连接失败',
-      '-125': '代理隧道连接失败',
-      '-106': '无法连接到代理服务器',
-      '-118': '代理认证失败',
-      '-21': '网络访问被拒绝（可能是代理问题）',
-      '-7': '连接超时',
-      '-2': '网络错误'
-    };
-    
-    const isProxyError = proxyErrors[errorCode.toString()];
-    
-    if (isProxyError) {
-      this.log('error', `[代理错误] 账户 ${accountId}: ${isProxyError} (${errorCode})`);
-      this.log('error', `  URL: ${validatedURL}`);
-      this.log('error', `  描述: ${errorDescription}`);
-      
-      // 🔴 安全关键：使用ViewProxyIntegration.handleProxyError()处理代理错误
-      // 不再回退到直连，而是触发Kill-Switch并启动重连机制
-      if (viewState.config && viewState.config.proxy && viewState.config.proxy.enabled) {
-        if (this.proxyIntegration) {
-          this.log('info', `[安全代理] 使用安全代理错误处理（不回退直连）...`);
-          
-          const result = await this.proxyIntegration.handleProxyError(
-            accountId, 
-            viewState, 
-            errorCode, 
-            errorDescription
-          );
-          
-          if (result.handled) {
-            this.log('info', `[安全代理] 代理错误已处理，动作: ${result.action}`);
-            return;
-          }
-        } else {
-          // 如果没有proxyIntegration，记录警告但不回退到直连
-          this.log('warn', `[安全代理] 未配置proxyIntegration，无法处理代理错误`);
-          this.log('warn', `[安全代理] 🔴 拒绝回退到直连，保持错误状态`);
-        }
-      }
-    }
+    // Normalize error handling
 
     // Update view state
     viewState.status = 'error';
@@ -264,9 +203,7 @@ class ViewLifecycle {
       code: errorCode,
       description: errorDescription,
       url: validatedURL,
-      timestamp: Date.now(),
-      isProxyError: !!isProxyError,
-      proxyErrorType: isProxyError || null
+      timestamp: Date.now()
     };
     viewState.errorInfo = viewState.connectionError;
     
@@ -280,11 +217,7 @@ class ViewLifecycle {
       error: {
         code: errorCode,
         message: errorDescription,
-        url: validatedURL,
-        isProxyError: !!isProxyError,
-        proxyErrorType: isProxyError || null,
-        // 🔴 安全关键：不再建议使用直连
-        suggestion: isProxyError ? '代理服务器可能无法访问，请检查代理设置或等待自动重连' : null
+        url: validatedURL
       }
     });
     
@@ -293,8 +226,7 @@ class ViewLifecycle {
       connectionStatus: 'error',
       error: {
         code: errorCode,
-        message: errorDescription,
-        isProxyError: !!isProxyError
+        message: errorDescription
       }
     });
   }
@@ -315,30 +247,7 @@ class ViewLifecycle {
     
     this.log('error', `[崩溃] 账户 ${accountId} 渲染进程崩溃:`, details);
     
-    const hasProxy = viewState.config && viewState.config.proxy && viewState.config.proxy.enabled;
-    
-    // 🔴 安全关键：使用ViewProxyIntegration.handleProxyCrash()处理代理崩溃
-    // 不再回退到直连，而是触发Kill-Switch
-    if (hasProxy && details.reason === 'crashed') {
-      if (this.proxyIntegration) {
-        this.log('info', `[安全代理] 使用安全代理崩溃处理（不回退直连）...`);
-        
-        const result = await this.proxyIntegration.handleProxyCrash(
-          accountId, 
-          viewState, 
-          details
-        );
-        
-        if (result.handled) {
-          this.log('info', `[安全代理] 代理崩溃已处理，动作: ${result.action}`);
-          // 继续通知渲染进程，但不回退到直连
-        }
-      } else {
-        // 如果没有proxyIntegration，记录警告但不回退到直连
-        this.log('warn', `[安全代理] 未配置proxyIntegration，无法处理代理崩溃`);
-        this.log('warn', `[安全代理] 🔴 拒绝回退到直连，保持错误状态`);
-      }
-    }
+    // Normalize crash handling
     
     this.notifyRenderer('view-crashed', { 
       accountId, 
@@ -346,8 +255,7 @@ class ViewLifecycle {
       connectionStatus: 'error',
       error: {
         reason: details.reason,
-        exitCode: details.exitCode,
-        possibleProxyIssue: hasProxy
+        exitCode: details.exitCode
       }
     });
     

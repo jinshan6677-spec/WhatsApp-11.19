@@ -7,23 +7,18 @@
 
 // 引入数据模型
 const AccountConfig = require('../../models/AccountConfig');
-const ProxyListEntry = require('../../models/ProxyListEntry');
 
 // 导出统一接口
 module.exports = {
   // 数据模型类
   AccountConfig,
-  ProxyListEntry,
   
   // 便捷创建方法
   createAccountConfig: (data) => new AccountConfig(data),
-  createProxyListEntry: (data) => new ProxyListEntry(data),
   
   // 验证方法
   validateAccountConfig: (config) => AccountConfig.validate(config),
-  validateProxyEntry: (entry) => ProxyListEntry.validate(entry),
   
   // 静态方法
-  AccountConfig,
-  ProxyListEntry
+  AccountConfig
 };

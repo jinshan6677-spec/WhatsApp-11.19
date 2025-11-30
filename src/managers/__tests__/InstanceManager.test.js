@@ -65,8 +65,6 @@ jest.mock('electron', () => {
     },
     session: {
       fromPartition: jest.fn(() => ({
-        setProxy: jest.fn().mockResolvedValue(undefined),
-        resolveProxy: jest.fn().mockResolvedValue('PROXY 127.0.0.1:1080'),
         webRequest: {
           onBeforeSendHeaders: jest.fn()
         }
@@ -252,21 +250,7 @@ describe('InstanceManager', () => {
       expect(result.error).toContain('Maximum instance limit');
     });
 
-    test('should create instance with proxy configuration', async () => {
-      const account = new AccountConfig({
-        name: 'Proxy Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      
-      const result = await manager.createInstance(account);
-      
-      expect(result.success).toBe(true);
-    });
+    
   });
 
   describe('destroyInstance', () => {
@@ -394,40 +378,7 @@ describe('InstanceManager', () => {
     });
   });
 
-  describe('proxy configuration', () => {
-    test('should update proxy configuration', async () => {
-      const account = new AccountConfig({ name: 'Test Account' });
-      await manager.createInstance(account);
-      
-      const newProxyConfig = {
-        enabled: true,
-        protocol: 'http',
-        host: '192.168.1.1',
-        port: 8080
-      };
-      
-      const result = await manager.updateProxyConfig(account.id, newProxyConfig);
-      
-      expect(result.success).toBe(true);
-    });
-
-    test('should disable proxy', async () => {
-      const account = new AccountConfig({
-        name: 'Test Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      await manager.createInstance(account);
-      
-      const result = await manager.updateProxyConfig(account.id, { enabled: false });
-      
-      expect(result.success).toBe(true);
-    });
-  });
+  
 
   describe('health monitoring', () => {
     test('should get instance health', async () => {

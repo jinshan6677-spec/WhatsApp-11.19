@@ -7,6 +7,4 @@ module.exports = {
   MigrationRunner,
   migrations,
   
-  // Re-export individual migrations for convenience
-  AddProxySecurityFieldsMigration: migrations.AddProxySecurityFields
 };

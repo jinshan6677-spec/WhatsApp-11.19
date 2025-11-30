@@ -46,7 +46,6 @@
 5. **ViewResizeHandler.js** - 窗口大小调整
 6. **ViewMemoryManager.js** - 内存管理
 7. **ViewPerformanceOptimizer.js** - 性能优化
-8. **ViewProxyIntegration.js** - 代理集成
 9. **ViewTranslationIntegration.js** - 翻译集成
 10. **ViewFingerprintIntegration.js** - 指纹集成
 11. **index.js** - 统一导出和懒加载
@@ -98,7 +97,6 @@ src/presentation/windows/view-manager/
 ├── ViewResizeHandler.js
 ├── ViewMemoryManager.js
 ├── ViewPerformanceOptimizer.js
-├── ViewProxyIntegration.js
 ├── ViewTranslationIntegration.js
 └── ViewFingerprintIntegration.ts
 ```

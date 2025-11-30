@@ -28,7 +28,6 @@ const ErrorCategory = {
   SESSION: 'session',
   VIEW: 'view',
   NETWORK: 'network',
-  PROXY: 'proxy',
   TRANSLATION: 'translation',
   MIGRATION: 'migration',
   IPC: 'ipc',
@@ -350,12 +349,6 @@ class ErrorLogger {
         'connection_failed': 'Network connection failed. Please check your internet connection.',
         'timeout': 'Connection timed out. Please try again.',
         'dns_failed': 'DNS resolution failed. Please check your network settings.'
-      },
-      [ErrorCategory.PROXY]: {
-        'config_invalid': 'Invalid proxy configuration. Please check your proxy settings.',
-        'connection_failed': 'Failed to connect to proxy. Please check your proxy settings.',
-        'auth_failed': 'Proxy authentication failed. Please check your credentials.',
-        'timeout': 'Proxy connection timed out. Please try again.'
       },
       [ErrorCategory.TRANSLATION]: {
         'injection_failed': 'Failed to inject translation scripts. Translation may not work.',

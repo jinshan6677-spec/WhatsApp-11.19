@@ -187,7 +187,6 @@ function register(dependencies) {
         createIfMissing: true,
         viewConfig: {
           url: 'https://web.whatsapp.com',
-          proxy: account.proxy,
           translation: account.translation
         }
       });

@@ -29,8 +29,7 @@
   // Translation fields - removed from UI but keep references for compatibility
   // Translation is now configured only within WhatsApp Web interface
   
-  // Proxy fields - removed from UI, now configured in settings panel
-  // Proxy is now configured only within the settings panel on the right side
+  
 
   /**
    * Initialize the dialog
@@ -108,14 +107,13 @@
     accountNote.value = account.note || '';
     autoStart.checked = account.autoStart || false;
 
-    // Proxy configuration - removed from UI
-    // Proxy is now configured only within the settings panel on the right side
+    
 
     // Translation configuration - removed from UI
     // Translation is now configured only within WhatsApp Web interface
   }
 
-  // Proxy and Translation functions removed - now configured in settings panel
+  
 
   /**
    * Validate a single field
@@ -135,7 +133,7 @@
         }
         break;
 
-      // proxy and translation validation removed - now in settings panel
+      
     }
 
     return true;
@@ -185,7 +183,7 @@
       setFieldError('name', '账号名称不能超过 100 个字符');
     }
 
-    // Proxy and Translation validation removed - now configured in settings panel
+    
 
     // Additional phone number validation (optional)
     if (!validatePhoneNumberField()) {
@@ -262,17 +260,6 @@
       phoneNumber: accountPhoneNumber ? accountPhoneNumber.value.trim() : '',
       note: accountNote.value.trim(),
       autoStart: autoStart.checked,
-      // Proxy configuration - keep existing proxy settings from originalData
-      // Proxy is now configured only within the settings panel on the right side
-      proxy: originalData?.proxy || {
-        enabled: false,
-        protocol: 'http',
-        host: '',
-        port: 0,
-        username: '',
-        password: '',
-        bypass: ''
-      },
       // Translation configuration - keep existing translation settings from originalData
       // Translation is now configured only within WhatsApp Web interface
       translation: originalData?.translation || {
@@ -375,7 +362,6 @@
       phoneNumber: originalData.phoneNumber || '',
       note: originalData.note,
       autoStart: originalData.autoStart,
-      proxy: originalData.proxy,
       translation: {
         ...originalData.translation,
         friendSettings: originalData.translation?.friendSettings || {}

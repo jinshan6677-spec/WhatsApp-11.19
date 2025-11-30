@@ -9,13 +9,12 @@
  * **Feature: architecture-refactoring, Property 14: Data Model Round-Trip**
  * **Validates: Requirements 4.6**
  * 
- * For any data model entity (Account, ProxyConfig, TranslationConfig),
+ * For any data model entity (Account, TranslationConfig),
  * converting to JSON and back should produce an equivalent entity.
  */
 
 const fc = require('fast-check');
 const Account = require('../Account');
-const ProxyConfig = require('../ProxyConfig');
 const TranslationConfig = require('../TranslationConfig');
 
 describe('Domain Entity Property Tests', () => {
@@ -29,12 +28,7 @@ describe('Domain Entity Property Tests', () => {
     Account.Status.Error
   );
 
-  // Proxy Protocol arbitrary
-  const proxyProtocolArbitrary = fc.constantFrom(
-    ProxyConfig.Protocol.HTTP,
-    ProxyConfig.Protocol.HTTPS,
-    ProxyConfig.Protocol.SOCKS5
-  );
+  
 
   // Translation Engine arbitrary
   const translationEngineArbitrary = fc.constantFrom(
@@ -81,7 +75,6 @@ describe('Domain Entity Property Tests', () => {
     autoStart: fc.boolean(),
     createdAt: dateArbitrary,
     lastActiveAt: fc.option(dateArbitrary, { nil: null }),
-    proxyId: optionalStringArbitrary,
     translationConfigId: optionalStringArbitrary,
     sessionDir: fc.string({ minLength: 1, maxLength: 100 }).map(s => `session-data/${s}`),
     profileName: optionalStringArbitrary,
@@ -90,20 +83,7 @@ describe('Domain Entity Property Tests', () => {
     order: fc.integer({ min: 0, max: 1000 })
   });
 
-  // ProxyConfig arbitrary
-  const proxyConfigArbitrary = fc.record({
-    id: fc.uuid(),
-    enabled: fc.boolean(),
-    protocol: proxyProtocolArbitrary,
-    host: fc.domain().map(d => d.substring(0, 255)),
-    port: fc.integer({ min: 1, max: 65535 }),
-    username: optionalStringArbitrary,
-    password: optionalStringArbitrary,
-    bypass: optionalStringArbitrary,
-    name: fc.string({ minLength: 1, maxLength: 100 }),
-    createdAt: dateArbitrary,
-    lastUsedAt: fc.option(dateArbitrary, { nil: null })
-  });
+  
 
   // Friend settings arbitrary
   const friendSettingsArbitrary = fc.dictionary(
@@ -136,7 +116,7 @@ describe('Domain Entity Property Tests', () => {
    * **Feature: architecture-refactoring, Property 14: Data Model Round-Trip**
    * **Validates: Requirements 4.6**
    * 
-   * For any data model entity (Account, ProxyConfig, TranslationConfig),
+   * For any data model entity (Account, TranslationConfig),
    * converting to JSON and back should produce an equivalent entity.
    */
   describe('Property 14: Data Model Round-Trip', () => {
@@ -236,122 +216,7 @@ describe('Domain Entity Property Tests', () => {
     });
 
 
-    describe('ProxyConfig Entity', () => {
-      test('ProxyConfig toJSON/fromJSON round-trip preserves all data', () => {
-        fc.assert(
-          fc.property(
-            proxyConfigArbitrary,
-            (proxyData) => {
-              // Create proxy config from arbitrary data
-              const proxy = new ProxyConfig(proxyData);
-              
-              // Convert to JSON
-              const json = proxy.toJSON();
-              
-              // Reconstruct from JSON
-              const restored = ProxyConfig.fromJSON(json);
-              
-              // Convert restored to JSON for comparison
-              const restoredJson = restored.toJSON();
-              
-              // Should be equivalent
-              expect(restoredJson).toEqual(json);
-            }
-          ),
-          { numRuns: 100 }
-        );
-      });
-
-      test('ProxyConfig double round-trip produces identical JSON', () => {
-        fc.assert(
-          fc.property(
-            proxyConfigArbitrary,
-            (proxyData) => {
-              const proxy = new ProxyConfig(proxyData);
-              
-              // First round-trip
-              const json1 = proxy.toJSON();
-              const restored1 = ProxyConfig.fromJSON(json1);
-              
-              // Second round-trip
-              const json2 = restored1.toJSON();
-              const restored2 = ProxyConfig.fromJSON(json2);
-              const json3 = restored2.toJSON();
-              
-              // All JSON representations should be identical
-              expect(json2).toEqual(json1);
-              expect(json3).toEqual(json1);
-            }
-          ),
-          { numRuns: 100 }
-        );
-      });
-
-      test('ProxyConfig JSON serialization is valid JSON string', () => {
-        fc.assert(
-          fc.property(
-            proxyConfigArbitrary,
-            (proxyData) => {
-              const proxy = new ProxyConfig(proxyData);
-              const json = proxy.toJSON();
-              
-              // Should be serializable to JSON string
-              const jsonString = JSON.stringify(json);
-              expect(typeof jsonString).toBe('string');
-              
-              // Should be parseable back
-              const parsed = JSON.parse(jsonString);
-              expect(parsed).toEqual(json);
-              
-              // Should be reconstructable from parsed JSON
-              const restored = ProxyConfig.fromJSON(parsed);
-              expect(restored.toJSON()).toEqual(json);
-            }
-          ),
-          { numRuns: 100 }
-        );
-      });
-
-      test('ProxyConfig prettyPrint produces non-empty string', () => {
-        fc.assert(
-          fc.property(
-            proxyConfigArbitrary,
-            (proxyData) => {
-              const proxy = new ProxyConfig(proxyData);
-              const pretty = ProxyConfig.prettyPrint(proxy);
-              
-              expect(typeof pretty).toBe('string');
-              expect(pretty.length).toBeGreaterThan(0);
-              expect(pretty).toContain('PROXY CONFIG');
-            }
-          ),
-          { numRuns: 100 }
-        );
-      });
-
-      test('ProxyConfig prettyPrint masks password', () => {
-        // Use unique passwords that won't appear elsewhere in the output
-        // Using UUID-prefixed strings ensures uniqueness
-        const uniquePassword = fc.uuid().map(id => `SECRET_${id}`);
-        
-        fc.assert(
-          fc.property(
-            proxyConfigArbitrary.chain(p => 
-              uniquePassword.map(pwd => ({ ...p, password: pwd }))
-            ),
-            (proxyData) => {
-              const proxy = new ProxyConfig(proxyData);
-              const pretty = ProxyConfig.prettyPrint(proxy);
-              
-              // Password should be masked
-              expect(pretty).not.toContain(proxyData.password);
-              expect(pretty).toContain('********');
-            }
-          ),
-          { numRuns: 100 }
-        );
-      });
-    });
+  
 
 
     describe('TranslationConfig Entity', () => {
@@ -498,7 +363,7 @@ describe('Domain Entity Property Tests', () => {
 
 
     describe('Cross-Entity Consistency', () => {
-      test('All entities handle null/undefined optional fields consistently', () => {
+      test('Entities handle null/undefined optional fields consistently', () => {
         fc.assert(
           fc.property(
             fc.uuid(),
@@ -506,16 +371,13 @@ describe('Domain Entity Property Tests', () => {
             (id, name) => {
               // Create entities with minimal required fields
               const account = new Account({ id, name });
-              const proxy = new ProxyConfig({ id, host: 'localhost', port: 8080, name });
               const translation = new TranslationConfig({ id, targetLanguage: 'en' });
               
               // All should round-trip successfully
               const accountRestored = Account.fromJSON(account.toJSON());
-              const proxyRestored = ProxyConfig.fromJSON(proxy.toJSON());
               const translationRestored = TranslationConfig.fromJSON(translation.toJSON());
               
               expect(accountRestored.toJSON()).toEqual(account.toJSON());
-              expect(proxyRestored.toJSON()).toEqual(proxy.toJSON());
               expect(translationRestored.toJSON()).toEqual(translation.toJSON());
             }
           ),
@@ -523,20 +385,17 @@ describe('Domain Entity Property Tests', () => {
         );
       });
 
-      test('All entities produce valid JSON that can be stringified', () => {
+      test('Entities produce valid JSON that can be stringified', () => {
         fc.assert(
           fc.property(
             accountArbitrary,
-            proxyConfigArbitrary,
             translationConfigArbitrary,
-            (accountData, proxyData, translationData) => {
+            (accountData, translationData) => {
               const account = new Account(accountData);
-              const proxy = new ProxyConfig(proxyData);
               const translation = new TranslationConfig(translationData);
               
               // All should be stringifiable
               expect(() => JSON.stringify(account.toJSON())).not.toThrow();
-              expect(() => JSON.stringify(proxy.toJSON())).not.toThrow();
               expect(() => JSON.stringify(translation.toJSON())).not.toThrow();
             }
           ),

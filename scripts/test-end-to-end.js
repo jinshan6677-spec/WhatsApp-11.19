@@ -115,9 +115,6 @@ async function testAccountManager() {
     const testAccount = {
       name: 'Test Account E2E',
       note: 'End-to-end test account',
-      proxy: {
-        enabled: false
-      },
       translation: {
         enabled: true,
         targetLanguage: 'zh-CN'
@@ -168,9 +165,6 @@ async function testMultipleAccounts(accountManager) {
       const account = await accountManager.createAccount({
         name: `Test Account ${i + 1}`,
         note: `Performance test account ${i + 1}`,
-        proxy: {
-          enabled: false
-        },
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN'
@@ -345,36 +339,6 @@ async function testMemoryUsage(viewManager, accounts) {
   }
 }
 
-// Test 9: Proxy Configuration
-async function testProxyConfiguration(accountManager, sessionManager) {
-  log('Testing proxy configuration...', 'test');
-  
-  try {
-    const testAccount = await accountManager.createAccount({
-      name: 'Proxy Test Account',
-      proxy: {
-        enabled: true,
-        protocol: 'http',
-        host: '127.0.0.1',
-        port: 8080
-      }
-    });
-    
-    const session = sessionManager.createSession(testAccount.id, testAccount);
-    
-    // Verify proxy is configured
-    if (!session) {
-      throw new Error('Session not created for proxy test');
-    }
-    
-    // Clean up
-    await accountManager.deleteAccount(testAccount.id, { deleteSessionData: true });
-    
-    recordResult('Proxy Configuration', true);
-  } catch (error) {
-    recordResult('Proxy Configuration', false, error);
-  }
-}
 
 // Test 10: Translation Configuration
 async function testTranslationConfiguration(accountManager) {
@@ -589,8 +553,7 @@ async function runTests() {
       await testMemoryUsage(viewManager, accounts);
     }
     
-    // Test 9: Proxy Configuration
-    await testProxyConfiguration(accountManager, sessionManager);
+    
     
     // Test 10: Translation Configuration
     await testTranslationConfiguration(accountManager);

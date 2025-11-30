@@ -63,8 +63,7 @@ async function initializeWithStateRestoration() {
       const switchResult = await viewManager.switchView(firstAccountId, {
         createIfMissing: true,
         viewConfig: {
-          url: 'https://web.whatsapp.com',
-          proxy: accounts[0].proxy
+          url: 'https://web.whatsapp.com'
         }
       });
       

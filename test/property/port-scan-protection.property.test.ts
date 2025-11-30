@@ -65,7 +65,7 @@ const sensitivePortArbitrary = fc.constantFrom(
   5900,  // VNC
   445,   // SMB
   3000,  // Dev server
-  8080   // HTTP proxy
+  8080   // Alternate HTTP port
 );
 
 // Non-sensitive ports

@@ -4,7 +4,7 @@ const AppError = require('./AppError');
 
 /**
  * Error class for network-related failures.
- * Used for connection issues, timeouts, and proxy errors.
+ * Used for connection issues and timeouts.
  * 
  * @class NetworkError
  * @extends AppError

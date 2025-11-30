@@ -28,7 +28,6 @@ const mockBrowserView = {
 const mockSession = {
   partition: 'persist:test',
   getStoragePath: () => '/test/path',
-  setProxy: async () => {},
   cookies: {
     set: async () => {},
     get: async () => []

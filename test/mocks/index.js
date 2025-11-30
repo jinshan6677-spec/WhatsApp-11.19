@@ -30,8 +30,7 @@ const {
   NetworkMock,
   MockResponse,
   MockHeaders,
-  WebSocketMock,
-  ProxyMock
+  WebSocketMock
 } = require('./NetworkMock');
 
 module.exports = {
@@ -55,6 +54,5 @@ module.exports = {
   NetworkMock,
   MockResponse,
   MockHeaders,
-  WebSocketMock,
-  ProxyMock
+  WebSocketMock
 };

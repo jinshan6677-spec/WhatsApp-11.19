@@ -605,44 +605,6 @@
               </div>
             </div>
             
-            <!-- 智能匹配 -->
-            <div class="settings-section">
-              <h3>🎯 智能匹配</h3>
-              
-              <div class="setting-item">
-                <label class="setting-label">
-                  <label class="switch">
-                    <input type="checkbox" id="smartMatchEnabled">
-                    <span class="slider"></span>
-                  </label>
-                  <span class="setting-title">启用智能匹配</span>
-                </label>
-                <p class="setting-desc">根据代理 IP 地理位置自动调整时区、语言等参数</p>
-              </div>
-              
-              <div id="smartMatchInfo" class="setting-item" style="display: none;">
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; font-size: 13px;">
-                  <div style="margin-bottom: 8px;"><strong>检测到的 IP 信息：</strong></div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span>出口 IP:</span>
-                    <span id="smartMatchIP">-</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span>国家/地区:</span>
-                    <span id="smartMatchCountry">-</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span>建议时区:</span>
-                    <span id="smartMatchTimezone">-</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>建议语言:</span>
-                    <span id="smartMatchLanguage">-</span>
-                  </div>
-                </div>
-                <button id="applySmartMatchBtn" class="setting-button secondary" style="margin-top: 8px; width: 100%;">应用建议配置</button>
-              </div>
-            </div>
             
             <!-- 端口扫描保护 -->
             <div class="settings-section">
@@ -744,13 +706,7 @@
       this.panel.querySelector('#randomWebGL')?.addEventListener('change', () => this.markModified());
       this.panel.querySelector('#randomScreen')?.addEventListener('change', () => this.markModified());
 
-      // Smart matching
-      this.panel.querySelector('#smartMatchEnabled')?.addEventListener('change', (e) => {
-        this.toggleSmartMatch(e.target.checked);
-      });
-      this.panel.querySelector('#applySmartMatchBtn')?.addEventListener('click', () => {
-        this.applySmartMatch();
-      });
+      
 
       // Port scan protection
       this.panel.querySelector('#portScanProtection')?.addEventListener('change', () => this.markModified());
@@ -794,52 +750,7 @@
       }
     }
 
-    async toggleSmartMatch(enabled) {
-      const infoEl = this.panel.querySelector('#smartMatchInfo');
-      if (infoEl) {
-        infoEl.style.display = enabled ? 'block' : 'none';
-      }
-
-      if (enabled && this.accountId) {
-        await this.loadSmartMatchInfo();
-      }
-    }
-
-    async loadSmartMatchInfo() {
-      if (!window.proxyRelayAPI) return;
-
-      try {
-        const response = await window.proxyRelayAPI.smartMatch(this.accountId);
-        
-        if (response.success) {
-          this.panel.querySelector('#smartMatchIP').textContent = response.exitIP || '-';
-          this.panel.querySelector('#smartMatchCountry').textContent = response.suggestions?.country || '-';
-          this.panel.querySelector('#smartMatchTimezone').textContent = response.suggestions?.timezone || 'UTC';
-          this.panel.querySelector('#smartMatchLanguage').textContent = response.suggestions?.language || 'en-US';
-        }
-      } catch (error) {
-        console.error('[FingerprintSettingsPanel] loadSmartMatchInfo error:', error);
-      }
-    }
-
-    applySmartMatch() {
-      const timezone = this.panel.querySelector('#smartMatchTimezone').textContent;
-      const language = this.panel.querySelector('#smartMatchLanguage').textContent;
-
-      if (timezone && timezone !== '-') {
-        this.panel.querySelector('#timezoneMode').value = 'custom';
-        this.panel.querySelector('#timezoneValue').value = timezone;
-        this.toggleTimezoneField();
-      }
-
-      if (language && language !== '-') {
-        this.panel.querySelector('#languageMode').value = 'custom';
-        this.panel.querySelector('#languageValue').value = language;
-      }
-
-      this.markModified();
-      this.showMessage('已应用智能匹配建议', 'success');
-    }
+    
 
     markModified() {
       this.isModified = true;

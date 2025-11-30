@@ -185,10 +185,6 @@ function register(dependencies) {
         name: config.name.trim(),
         phoneNumber: (config.phoneNumber || '').trim(),
         note: config.note || '',
-        proxy: config.proxy || {
-          enabled: false, protocol: 'http', host: '', port: 0,
-          username: '', password: '', bypass: ''
-        },
         translation: config.translation || {
           enabled: false, targetLanguage: 'zh-CN', engine: 'google',
           autoTranslate: false, translateInput: false, friendSettings: {}
@@ -239,7 +235,7 @@ function register(dependencies) {
       if (updates.name !== undefined) accountUpdates.name = updates.name.trim();
       if (updates.phoneNumber !== undefined) accountUpdates.phoneNumber = (updates.phoneNumber || '').trim();
       if (updates.note !== undefined) accountUpdates.note = updates.note;
-      if (updates.proxy !== undefined) accountUpdates.proxy = updates.proxy;
+      
       if (updates.translation !== undefined) accountUpdates.translation = updates.translation;
       if (updates.autoStart !== undefined) accountUpdates.autoStart = updates.autoStart;
 
@@ -248,13 +244,7 @@ function register(dependencies) {
         throw new Error(result.errors.join(', '));
       }
 
-      // Handle proxy config changes
-      if (updates.proxy && viewManager.hasView(accountId)) {
-        const viewState = viewManager.getViewState(accountId);
-        if (viewState && updates.proxy.enabled) {
-          console.log(`[IPC:Account] Proxy config updated for account ${accountId}. Restart view to apply changes.`);
-        }
-      }
+      
 
       // Handle translation config changes
       if (updates.translation && viewManager.hasView(accountId)) {
@@ -372,7 +362,6 @@ function register(dependencies) {
         createIfMissing: true,
         viewConfig: {
           url: 'https://web.whatsapp.com',
-          proxy: account.proxy,
           translation: account.translation
         }
       });
@@ -542,7 +531,6 @@ function register(dependencies) {
 
       const result = await viewManager.openAccount(accountId, {
         url: 'https://web.whatsapp.com',
-        proxy: account.proxy,
         translation: account.translation
       });
 

@@ -415,7 +415,6 @@ async function verifyDomainEntities() {
   log('\n=== 验证领域实体 ===');
   try {
     const Account = require('../src/domain/entities/Account');
-    const ProxyConfig = require('../src/domain/entities/ProxyConfig');
     const TranslationConfig = require('../src/domain/entities/TranslationConfig');
     
     // 测试 Account
@@ -429,18 +428,7 @@ async function verifyDomainEntities() {
     if (accountRestored.name !== 'Test Account') throw new Error('Account round-trip failed');
     recordResult('Account - 序列化往返', true);
     
-    // 测试 ProxyConfig
-    const proxy = new ProxyConfig({
-      name: 'Test Proxy',
-      host: 'proxy.example.com',
-      port: 8080,
-      protocol: 'http'
-    });
     
-    const proxyJson = proxy.toJSON();
-    const proxyRestored = ProxyConfig.fromJSON(proxyJson);
-    if (proxyRestored.host !== 'proxy.example.com') throw new Error('ProxyConfig round-trip failed');
-    recordResult('ProxyConfig - 序列化往返', true);
     
     // 测试 TranslationConfig
     const translation = new TranslationConfig({
@@ -463,9 +451,7 @@ async function verifyRepositories() {
   log('\n=== 验证 Repository ===');
   try {
     const AccountRepository = require('../src/infrastructure/repositories/AccountRepository');
-    const ProxyRepository = require('../src/infrastructure/repositories/ProxyRepository');
     const Account = require('../src/domain/entities/Account');
-    const ProxyConfig = require('../src/domain/entities/ProxyConfig');
     
     const testDir = path.join(os.tmpdir(), `repo-test-${Date.now()}`);
     await fs.mkdir(testDir, { recursive: true });
@@ -487,24 +473,7 @@ async function verifyRepositories() {
     if (!found || found.name !== 'Test Account') throw new Error('AccountRepository save/find failed');
     recordResult('AccountRepository - 保存/查找', true);
     
-    // 测试 ProxyRepository
-    const proxyRepo = new ProxyRepository({
-      storagePath: testDir,
-      fileName: 'proxies.json',
-      cacheTTL: 0
-    });
     
-    const proxy = new ProxyConfig({
-      name: 'Test Proxy',
-      host: 'proxy.example.com',
-      port: 8080,
-      protocol: 'http'
-    });
-    
-    await proxyRepo.save(proxy);
-    const foundProxy = await proxyRepo.findById(proxy.id);
-    if (!foundProxy || foundProxy.host !== 'proxy.example.com') throw new Error('ProxyRepository save/find failed');
-    recordResult('ProxyRepository - 保存/查找', true);
     
     // 清理
     await fs.rm(testDir, { recursive: true, force: true });

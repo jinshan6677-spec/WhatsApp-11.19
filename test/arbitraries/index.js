@@ -68,7 +68,7 @@ const validAccountArbitrary = fc.record({
   autoStart: fc.boolean(),
   createdAt: dateArbitrary,
   lastActiveAt: optionalDateArbitrary,
-  proxyId: fc.option(uuidArbitrary, { nil: null }),
+  
   translationConfigId: fc.option(uuidArbitrary, { nil: null }),
   sessionDir: nonEmptyString(1, 255).map(s => `session-data/${s}`),
   profileName: optionalString,
@@ -88,7 +88,7 @@ const accountArbitrary = fc.record({
   autoStart: fc.oneof(fc.boolean(), fc.constant('true')),
   createdAt: fc.oneof(dateArbitrary, fc.constant('invalid-date')),
   lastActiveAt: optionalDateArbitrary,
-  proxyId: fc.option(uuidArbitrary, { nil: null }),
+  
   translationConfigId: fc.option(uuidArbitrary, { nil: null }),
   sessionDir: fc.oneof(nonEmptyString(1, 255), fc.constant('')),
   profileName: optionalString,
@@ -97,55 +97,7 @@ const accountArbitrary = fc.record({
   order: fc.oneof(fc.nat({ max: 1000 }), fc.constant(-1))
 });
 
-// ==================== ProxyConfig Arbitraries ====================
-
-/**
- * Proxy protocol arbitrary
- */
-const proxyProtocolArbitrary = fc.constantFrom('http', 'https', 'socks5');
-
-/**
- * Hostname arbitrary
- */
-const hostnameArbitrary = fc.oneof(
-  fc.domain(),
-  fc.ipV4(),
-  fc.constant('localhost')
-);
-
-/**
- * Valid proxy config arbitrary - generates configs that pass validation
- */
-const validProxyConfigArbitrary = fc.record({
-  id: uuidArbitrary,
-  enabled: fc.boolean(),
-  protocol: proxyProtocolArbitrary,
-  host: hostnameArbitrary,
-  port: portArbitrary,
-  username: fc.option(nonEmptyString(1, 255), { nil: null }),
-  password: fc.option(fc.string({ maxLength: 255 }), { nil: null }),
-  bypass: fc.option(fc.string({ maxLength: 500 }), { nil: null }),
-  name: nonEmptyString(1, 100),
-  createdAt: dateArbitrary,
-  lastUsedAt: optionalDateArbitrary
-});
-
-/**
- * Proxy config arbitrary (may include invalid data)
- */
-const proxyConfigArbitrary = fc.record({
-  id: fc.oneof(uuidArbitrary, fc.constant('')),
-  enabled: fc.oneof(fc.boolean(), fc.constant('true')),
-  protocol: fc.oneof(proxyProtocolArbitrary, fc.constant('invalid')),
-  host: fc.oneof(hostnameArbitrary, fc.constant('')),
-  port: fc.oneof(portArbitrary, fc.constant(0), fc.constant(70000)),
-  username: optionalString,
-  password: optionalString,
-  bypass: optionalString,
-  name: fc.oneof(nonEmptyString(1, 100), fc.constant('')),
-  createdAt: dateArbitrary,
-  lastUsedAt: optionalDateArbitrary
-});
+ 
 
 
 // ==================== TranslationConfig Arbitraries ====================
@@ -430,7 +382,7 @@ const appConfigArbitrary = fc.record({
     x: fc.option(fc.integer({ min: 0, max: 3000 }), { nil: undefined }),
     y: fc.option(fc.integer({ min: 0, max: 2000 }), { nil: undefined })
   }),
-  proxy: fc.option(validProxyConfigArbitrary, { nil: null }),
+  
   translation: fc.option(validTranslationConfigArbitrary, { nil: null })
 });
 
@@ -506,11 +458,7 @@ module.exports = {
   validAccountArbitrary,
   accountArbitrary,
   
-  // ProxyConfig
-  proxyProtocolArbitrary,
-  hostnameArbitrary,
-  validProxyConfigArbitrary,
-  proxyConfigArbitrary,
+  
   
   // TranslationConfig
   translationEngineArbitrary,

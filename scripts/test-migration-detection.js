@@ -43,12 +43,7 @@ async function createTestOldConfig(userDataPath) {
           height: 800,
           minimized: false
         },
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        },
+        
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN',
@@ -69,9 +64,7 @@ async function createTestOldConfig(userDataPath) {
           height: 800,
           minimized: false
         },
-        proxy: {
-          enabled: false
-        },
+        
         translation: {
           enabled: false
         },
@@ -103,12 +96,7 @@ async function createTestNewConfig(userDataPath) {
         note: 'Test note',
         order: 0,
         sessionDir: 'session-data/account-acc-001',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        },
+        
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN',

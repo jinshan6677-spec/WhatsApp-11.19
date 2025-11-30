@@ -32,7 +32,6 @@ async function createTestAccount(name, config = {}) {
   const result = await accountManager.createAccount({
     name: name || `E2E Test Account ${Date.now()}`,
     note: 'End-to-end test account',
-    proxy: { enabled: false },
     translation: { enabled: false },
     autoStart: false,
     ...config
@@ -91,7 +90,6 @@ async function testScenario1_CompleteAccountLifecycle() {
   log('Step 2: Opening account...');
   const openResult = await viewManager.openAccount(account.id, {
     url: 'https://web.whatsapp.com',
-    proxy: { enabled: false },
     translation: { enabled: false }
   });
   

@@ -106,17 +106,7 @@ module.exports = {
     minimizeToTray: process.env.MINIMIZE_TO_TRAY !== 'false'
   },
   
-  // 代理配置
-  proxy: {
-    // 支持的代理协议
-    supportedProtocols: ['socks5', 'http', 'https'],
-    
-    // 代理超时（毫秒）
-    timeout: 10000,
-    
-    // 代理重试次数
-    retries: 3
-  },
+  
   
   // 翻译配置
   translation: {

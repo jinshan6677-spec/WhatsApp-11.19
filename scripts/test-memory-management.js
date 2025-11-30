@@ -10,7 +10,6 @@ function createMockSession(accountId) {
   return {
     partition: `persist:account_${accountId}`,
     getStoragePath: () => `/test/path/${accountId}`,
-    setProxy: async () => {},
     clearCache: async () => {},
     clearStorageData: async () => {},
     cookies: {

@@ -248,29 +248,7 @@ class UnifiedErrorHandler {
     return shouldRestart;
   }
 
-  /**
-   * 处理代理错误
-   * @param {string} proxyId - 代理ID
-   * @param {Error} error - 错误对象
-   * @param {Object} [details] - 错误详情
-   * @returns {Promise<void>}
-   */
-  async handleProxyError(proxyId, error, details = {}) {
-    const timestamp = new Date();
-    
-    // 记录错误
-    await this.logger.error(
-      ErrorCategory.PROXY,
-      `Proxy ${proxyId} error`,
-      { proxyId, errorMessage: error.message, ...details },
-      error
-    );
-    
-    // 如果有实例管理器，通知它
-    if (this.instanceManager && this.instanceManager.handleProxyError) {
-      await this.instanceManager.handleProxyError(proxyId, error, details);
-    }
-  }
+  
 
   /**
    * 处理翻译错误

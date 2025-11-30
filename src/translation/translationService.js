@@ -80,7 +80,6 @@ class TranslationService {
     // 注册 AI 翻译引擎
     const engineConfigs = this.configManager.getAllEngineConfigs();
     console.log('[TranslationService] Engine configs:', JSON.stringify(Object.keys(engineConfigs)));
-    console.log('[TranslationService] Custom engine config:', engineConfigs.custom);
 
     // GPT-4
     if (engineConfigs.gpt4 && engineConfigs.gpt4.enabled) {

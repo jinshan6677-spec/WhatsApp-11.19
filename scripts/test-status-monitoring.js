@@ -55,9 +55,6 @@ async function testCreateAccountAndView() {
     const accountConfig = {
       name: 'Status Test Account',
       note: 'Testing connection status monitoring',
-      proxy: {
-        enabled: false
-      },
       translation: {
         enabled: false
       }
@@ -75,7 +72,6 @@ async function testCreateAccountAndView() {
     // Create view for the account
     const view = await viewManager.createView(account.id, {
       url: 'https://web.whatsapp.com',
-      proxy: account.proxy,
       translation: account.translation
     });
 
@@ -299,4 +295,3 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-

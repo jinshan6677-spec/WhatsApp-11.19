@@ -38,22 +38,7 @@ The original `SessionManager.js` (1204 lines) has been split into focused, maint
 - `validateSession(accountId)` - Validate session integrity
 - `recoverSession(accountId)` - Recover session after failure
 
-### 3. SessionValidator.js (Validation Module)
-**Responsibilities:**
-- Proxy configuration and validation
-- Proxy authentication setup
-- Proxy connectivity testing
-- Proxy cache management
-
-**Key Methods:**
-- `configureProxy(accountId, proxyConfig)` - Configure proxy for account
-- `getProxyConfig(accountId)` - Get proxy configuration
-- `clearProxy(accountId)` - Clear proxy configuration
-- `_validateProxyConfig(proxyConfig)` - Validate proxy configuration
-- `_setupProxyAuth(accountSession, username, password)` - Setup proxy authentication
-- `_validateProxyConnectivity(accountSession, proxyRules, username, password)` - Test proxy connectivity
-
-### 4. index.js (Integration Module)
+### 3. index.js (Integration Module)
 **Responsibilities:**
 - Integrating all modules
 - Maintaining backward compatibility
@@ -81,7 +66,7 @@ The original `SessionManager.js` (1204 lines) has been split into focused, maint
 | Original SessionManager.js | 1204 | Monolithic implementation |
 | SessionStorage.js | ~150 | Storage and persistence |
 | SessionRecovery.js | ~220 | Recovery and monitoring |
-| SessionValidator.js | ~180 | Validation and proxy |
+| SessionValidator.js | ~180 | Validation |
 | index.js | ~250 | Integration |
 | **Total** | **~800** | **Modular implementation** |
 
@@ -99,14 +84,7 @@ const SessionManager = require('./managers/session');
 const sessionManager = new SessionManager({ userDataPath: '/path/to/data' });
 
 // All methods work the same
-const result = await sessionManager.createSession('account-1', {
-  proxy: {
-    enabled: true,
-    protocol: 'socks5',
-    host: '127.0.0.1',
-    port: 1080
-  }
-});
+const result = await sessionManager.createSession('account-1');
 ```
 
 ## Module Dependencies
@@ -145,7 +123,6 @@ assert(session !== null);
 ## Future Enhancements
 
 The modular structure enables:
-1. Advanced proxy features (rotation, failover)
 2. Session backup and restore
 3. Multi-account session synchronization
 4. Enhanced health monitoring

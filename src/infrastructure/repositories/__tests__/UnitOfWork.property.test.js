@@ -20,9 +20,7 @@ const path = require('path');
 const os = require('os');
 const UnitOfWork = require('../UnitOfWork');
 const AccountRepository = require('../AccountRepository');
-const ProxyRepository = require('../ProxyRepository');
 const Account = require('../../../domain/entities/Account');
-const ProxyConfig = require('../../../domain/entities/ProxyConfig');
 
 describe('UnitOfWork Property Tests', () => {
   let testDir;
@@ -66,15 +64,7 @@ describe('UnitOfWork Property Tests', () => {
     order: fc.integer({ min: 0, max: 100 })
   });
 
-  const validProxyArbitrary = fc.record({
-    id: fc.uuid(),
-    enabled: fc.boolean(),
-    protocol: fc.constantFrom('http', 'https', 'socks5'),
-    host: fc.domain(),
-    port: fc.integer({ min: 1, max: 65535 }),
-    name: fc.string({ minLength: 1, maxLength: 50 }),
-    createdAt: dateArbitrary
-  });
+  
 
 
   /**
@@ -83,68 +73,7 @@ describe('UnitOfWork Property Tests', () => {
    */
   describe('Property 11: Unit of Work Atomicity', () => {
     
-    test('successful commit persists all operations', async () => {
-      const testCases = fc.sample(fc.tuple(
-        fc.array(validAccountArbitrary, { minLength: 1, maxLength: 3 }),
-        fc.array(validProxyArbitrary, { minLength: 1, maxLength: 3 })
-      ), 10);
-
-      for (const [accountsData, proxiesData] of testCases) {
-        // Create fresh repositories for each test case
-        const accountRepo = new AccountRepository({
-          storagePath: testDir,
-          fileName: `accounts-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-          cacheTTL: 0
-        });
-        const proxyRepo = new ProxyRepository({
-          storagePath: testDir,
-          fileName: `proxies-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-          cacheTTL: 0
-        });
-
-        // Create unit of work
-        const uow = new UnitOfWork();
-        uow.registerRepository('accounts', accountRepo);
-        uow.registerRepository('proxies', proxyRepo);
-
-        // Schedule operations
-        const accounts = accountsData.map(d => new Account(d));
-        const proxies = proxiesData.map(d => new ProxyConfig(d));
-
-        for (const account of accounts) {
-          uow.scheduleSave('accounts', account);
-        }
-        for (const proxy of proxies) {
-          uow.scheduleSave('proxies', proxy);
-        }
-
-        // Commit
-        const result = await uow.commit();
-
-        // Verify success
-        expect(result.success).toBe(true);
-        expect(uow.isCommitted()).toBe(true);
-
-        // Verify all entities were persisted
-        const savedAccounts = await accountRepo.findAll();
-        const savedProxies = await proxyRepo.findAll();
-
-        expect(savedAccounts.length).toBe(accounts.length);
-        expect(savedProxies.length).toBe(proxies.length);
-
-        // Verify each entity exists
-        for (const account of accounts) {
-          const found = await accountRepo.findById(account.id);
-          expect(found).not.toBeNull();
-          expect(found.name).toBe(account.name);
-        }
-        for (const proxy of proxies) {
-          const found = await proxyRepo.findById(proxy.id);
-          expect(found).not.toBeNull();
-          expect(found.host).toBe(proxy.host);
-        }
-      }
-    });
+    
 
     test('failed operation rolls back all changes', async () => {
       const testCases = fc.sample(fc.tuple(

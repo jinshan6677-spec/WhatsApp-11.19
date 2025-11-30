@@ -1,7 +1,7 @@
 /**
  * ValidationHelper - Comprehensive validation utilities
  * 
- * Provides validation functions for account configurations, proxy settings,
+ * Provides validation functions for account configurations,
  * network operations, and other edge cases in the single-window architecture.
  */
 
@@ -41,13 +41,7 @@ function validateAccountConfig(config) {
     }
   }
 
-  // Validate proxy configuration
-  if (config.proxy) {
-    const proxyErrors = validateProxyConfig(config.proxy);
-    if (!proxyErrors.valid) {
-      errors.push(...proxyErrors.errors.map(e => `Proxy: ${e}`));
-    }
-  }
+  
 
   // Validate translation configuration
   if (config.translation) {
@@ -90,96 +84,7 @@ function validateAccountConfig(config) {
   };
 }
 
-/**
- * Validate proxy configuration
- * @param {Object} proxyConfig - Proxy configuration object
- * @returns {{valid: boolean, errors: string[]}}
- */
-function validateProxyConfig(proxyConfig) {
-  const errors = [];
-
-  if (!proxyConfig || typeof proxyConfig !== 'object') {
-    return {
-      valid: false,
-      errors: ['Proxy configuration must be an object']
-    };
-  }
-
-  // Validate enabled flag
-  if (proxyConfig.enabled !== undefined && typeof proxyConfig.enabled !== 'boolean') {
-    errors.push('enabled must be a boolean');
-  }
-
-  // Only validate other fields if proxy is enabled
-  if (proxyConfig.enabled) {
-    // Validate protocol
-    const validProtocols = ['http', 'https', 'socks5', 'socks4'];
-    if (!proxyConfig.protocol) {
-      errors.push('protocol is required when proxy is enabled');
-    } else if (!validProtocols.includes(proxyConfig.protocol.toLowerCase())) {
-      errors.push(`protocol must be one of: ${validProtocols.join(', ')}`);
-    }
-
-    // Validate host
-    if (!proxyConfig.host || typeof proxyConfig.host !== 'string' || proxyConfig.host.trim() === '') {
-      errors.push('host is required and must be a non-empty string');
-    } else {
-      // Basic host format validation
-      const hostPattern = /^[a-zA-Z0-9.-]+$/;
-      const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-      const host = proxyConfig.host.trim();
-      
-      if (!hostPattern.test(host) && !ipPattern.test(host)) {
-        errors.push('host must be a valid hostname or IP address');
-      }
-
-      // Validate IP address ranges if it's an IP
-      if (ipPattern.test(host)) {
-        const octets = host.split('.');
-        for (const octet of octets) {
-          const num = parseInt(octet, 10);
-          if (num < 0 || num > 255) {
-            errors.push('host IP address octets must be between 0 and 255');
-            break;
-          }
-        }
-      }
-    }
-
-    // Validate port
-    if (!proxyConfig.port) {
-      errors.push('port is required when proxy is enabled');
-    } else if (typeof proxyConfig.port !== 'number' || proxyConfig.port < 1 || proxyConfig.port > 65535) {
-      errors.push('port must be a number between 1 and 65535');
-    }
-
-    // Validate authentication (optional)
-    if (proxyConfig.username !== undefined || proxyConfig.password !== undefined) {
-      if (proxyConfig.username && typeof proxyConfig.username !== 'string') {
-        errors.push('username must be a string');
-      }
-      if (proxyConfig.password && typeof proxyConfig.password !== 'string') {
-        errors.push('password must be a string');
-      }
-      // If one is provided, both should be provided
-      if ((proxyConfig.username && !proxyConfig.password) || (!proxyConfig.username && proxyConfig.password)) {
-        errors.push('both username and password must be provided for authentication');
-      }
-    }
-
-    // Validate bypass rules (optional)
-    if (proxyConfig.bypass !== undefined && proxyConfig.bypass !== null) {
-      if (typeof proxyConfig.bypass !== 'string') {
-        errors.push('bypass must be a string');
-      }
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
+ 
 
 /**
  * Validate translation configuration
@@ -472,13 +377,7 @@ function validateViewCreationParams(accountId, config = {}) {
     }
   }
 
-  // Validate proxy if provided
-  if (config.proxy) {
-    const proxyValidation = validateProxyConfig(config.proxy);
-    if (!proxyValidation.valid) {
-      errors.push(...proxyValidation.errors.map(e => `Proxy: ${e}`));
-    }
-  }
+  
 
   // Validate translation if provided
   if (config.translation) {
@@ -589,9 +488,6 @@ function handleViewCreationFailure(error, accountId) {
   if (errorMessage.includes('session') || errorMessage.includes('Session')) {
     userMessage += 'There was a problem with the account session.';
     suggestedAction = 'Try clearing the account session data and logging in again.';
-  } else if (errorMessage.includes('proxy') || errorMessage.includes('Proxy')) {
-    userMessage += 'There was a problem with the proxy configuration.';
-    suggestedAction = 'Check your proxy settings and try again.';
   } else if (errorMessage.includes('memory') || errorMessage.includes('Memory')) {
     userMessage += 'Insufficient memory to create the view.';
     suggestedAction = 'Close some accounts or restart the application.';
@@ -667,7 +563,7 @@ function validateOperationSafety(operation, state = {}) {
 
 module.exports = {
   validateAccountConfig,
-  validateProxyConfig,
+  
   validateTranslationConfig,
   checkDuplicateAccountName,
   validateAccountId,

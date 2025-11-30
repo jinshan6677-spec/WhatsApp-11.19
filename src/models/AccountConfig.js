@@ -4,7 +4,7 @@
  * 定义单个 WhatsApp 账号的完整配置信息：
  * - 应用侧的账号名称 / 备注 / 排序
  * - 从 WhatsApp Web 解析到的真实头像、昵称、号码
- * - 代理、翻译、通知等运行配置
+ * - 翻译、通知等运行配置
  */
 
 const crypto = require('crypto');
@@ -17,16 +17,6 @@ function uuidv4() {
   return crypto.randomUUID();
 }
 
-/**
- * @typedef {Object} ProxyConfig
- * @property {boolean} enabled - 是否启用代理
- * @property {'socks5'|'http'|'https'} protocol - 代理协议
- * @property {string} host - 代理服务器地址
- * @property {number} port - 代理服务器端口
- * @property {string} [username] - 代理认证用户名（可选）
- * @property {string} [password] - 代理认证密码（可选）
- * @property {string} [bypass] - 代理绕过规则（可选）
- */
 
 /**
  * @typedef {Object} FriendTranslationConfig
@@ -66,7 +56,6 @@ function uuidv4() {
  * @property {boolean} autoStart - 是否自动启动
  * @property {boolean} keepAlive - 是否保持运行（应用关闭时记住状态）
  * @property {string|null} lastRunningStatus - 最后运行状态（'not-started'|'loading'|'connected'|'error'|null）
- * @property {ProxyConfig} proxy - 代理配置
  * @property {TranslationConfig} translation - 翻译配置
  * @property {NotificationConfig} notifications - 通知配置
  * @property {string} sessionDir - 会话数据目录路径
@@ -99,18 +88,6 @@ class AccountConfig {
 
     // 会话数据目录路径
     this.sessionDir = config.sessionDir || `session-data/account-${this.id}`;
-
-    // 代理配置
-    this.proxy = {
-      enabled: false,
-      protocol: 'socks5',
-      host: '',
-      port: 0,
-      username: '',
-      password: '',
-      bypass: '',
-      ...(config.proxy || {})
-    };
 
     // 翻译配置
     this.translation = {
@@ -167,7 +144,6 @@ class AccountConfig {
       keepAlive: this.keepAlive,
       lastRunningStatus: this.lastRunningStatus,
       sessionDir: this.sessionDir,
-      proxy: this.proxy,
       translation: this.translation,
       notifications: this.notifications
     };
@@ -263,25 +239,6 @@ class AccountConfig {
       );
     }
 
-    // 验证代理配置
-    if (this.proxy && this.proxy.enabled) {
-      if (!['socks5', 'http', 'https'].includes(this.proxy.protocol)) {
-        errors.push('Invalid proxy protocol. Must be socks5, http, or https');
-      }
-
-      if (!this.proxy.host || typeof this.proxy.host !== 'string' || this.proxy.host.trim().length === 0) {
-        errors.push('Proxy host is required when proxy is enabled');
-      }
-
-      if (
-        !this.proxy.port ||
-        typeof this.proxy.port !== 'number' ||
-        this.proxy.port < 1 ||
-        this.proxy.port > 65535
-      ) {
-        errors.push('Invalid proxy port. Must be between 1 and 65535');
-      }
-    }
 
     // 验证翻译配置
     if (this.translation && this.translation.enabled) {

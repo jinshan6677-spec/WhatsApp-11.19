@@ -24,7 +24,6 @@ module.exports = {
   ViewResizeHandler: viewManagerModule.ViewResizeHandler,
   ViewMemoryManager: viewManagerModule.ViewMemoryManager,
   ViewPerformanceOptimizer: viewManagerModule.ViewPerformanceOptimizer,
-  ViewProxyIntegration: viewManagerModule.ViewProxyIntegration,
   ViewTranslationIntegration: viewManagerModule.ViewTranslationIntegration,
   
   // 旧的独立模块（向后兼容）

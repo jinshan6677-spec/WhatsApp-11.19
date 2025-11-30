@@ -639,7 +639,7 @@ export class FingerprintDetectionService {
         } else if (risk.description.includes('fake local IP')) {
           suggestion.suggestion = 'Configure a fake local IP address for WebRTC';
           suggestion.autoFixable = true;
-          suggestion.fixAction = 'Generate fake local IP based on proxy';
+          suggestion.fixAction = 'Generate random fake local IP';
         }
         break;
 

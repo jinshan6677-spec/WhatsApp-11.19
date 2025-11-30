@@ -226,7 +226,6 @@ class UnitOfWork {
     // Map repository names to entity classes
     const entityClasses = {
       accounts: require('../../domain/entities/Account'),
-      proxies: require('../../domain/entities/ProxyConfig'),
       translations: require('../../domain/entities/TranslationConfig')
     };
     return entityClasses[repoName] || null;

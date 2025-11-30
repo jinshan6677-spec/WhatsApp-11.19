@@ -9,7 +9,6 @@
  * - ViewIPCHandlers: View management, session, monitoring
  * - SystemIPCHandlers: Sidebar, window resize, layout
  * - TranslationIPCHandlers: Translation panel, chat info
- * - ProxyIPCHandlers: Proxy configuration (separate registration)
  * 
  * @module single-window/ipcHandlers
  */
@@ -140,7 +139,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       return { success: false, error: 'View not found for active account' };
     }
 
-    // Get active chat info from the WhatsApp page (���վɰ汾b108fe28�ļ򵥷�ʽ)
+    // Get active chat info from the WhatsApp page (���վɰ汾b108fe28�ļ򵥷�ʽ)
     const chatInfo = await view.webContents.executeJavaScript(`
       (function() {
         const contactId = window.WhatsAppTranslation?.getCurrentContactId?.() || null;

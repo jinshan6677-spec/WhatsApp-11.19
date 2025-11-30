@@ -25,7 +25,7 @@ const requirements = {
   'Requirement 3: Account Configuration Management': [
     { id: '3.1', description: 'Account configs stored in JSON file', verified: false },
     { id: '3.2', description: 'Unique Account ID assigned on creation', verified: false },
-    { id: '3.3', description: 'Account name, proxy, and notes configurable', verified: false },
+    { id: '3.3', description: 'Account name and notes configurable', verified: false },
     { id: '3.4', description: 'Account configs persisted with session path', verified: false },
     { id: '3.5', description: 'Account deletion preserves session data option', verified: false }
   ],
@@ -34,7 +34,7 @@ const requirements = {
     { id: '4.2', description: 'Isolated session using partition API', verified: false },
     { id: '4.3', description: 'Separate cookies, localStorage, IndexedDB', verified: false },
     { id: '4.4', description: 'Separate cache and browsing data', verified: false },
-    { id: '4.5', description: 'Proxy settings applied per session', verified: false }
+    { id: '4.5', description: 'Translation settings applied per session', verified: false }
   ],
   'Requirement 5: WebView Management and Switching': [
     { id: '5.1', description: 'WebView created on first account access', verified: false },
@@ -57,12 +57,12 @@ const requirements = {
     { id: '7.4', description: 'Separate translation configs per account', verified: false },
     { id: '7.5', description: 'Different languages/engines per account', verified: false }
   ],
-  'Requirement 8: Independent Proxy Configuration': [
-    { id: '8.1', description: 'Proxy config includes protocol, host, port, auth', verified: false },
-    { id: '8.2', description: 'HTTP, HTTPS, SOCKS5 protocols supported', verified: false },
-    { id: '8.3', description: 'Proxy applied to account session only', verified: false },
-    { id: '8.4', description: 'Proxy updates applied to session', verified: false },
-    { id: '8.5', description: 'Proxy connectivity validated', verified: false }
+  'Requirement 8: Network Configuration': [
+    { id: '8.1', description: 'Network connectivity validated', verified: false },
+    { id: '8.2', description: 'HTTPS protocol supported', verified: false },
+    { id: '8.3', description: 'Configuration applied to account session only', verified: false },
+    { id: '8.4', description: 'Configuration updates applied to session', verified: false },
+    { id: '8.5', description: 'Configuration validation implemented', verified: false }
   ],
   'Requirement 9: Account Status Monitoring': [
     { id: '9.1', description: 'Status indicator shows online/offline/error', verified: false },
@@ -163,7 +163,7 @@ function verifyRequirements() {
     checkCodeContains('src/managers/AccountConfigManager.js', 'generateId');
   requirements['Requirement 3: Account Configuration Management'][2].verified = 
     checkCodeContains('src/managers/AccountConfigManager.js', 'name') &&
-    checkCodeContains('src/managers/AccountConfigManager.js', 'proxy');
+    checkCodeContains('src/managers/AccountConfigManager.js', 'note');
   requirements['Requirement 3: Account Configuration Management'][3].verified = 
     checkCodeContains('src/managers/AccountConfigManager.js', 'sessionDir');
   requirements['Requirement 3: Account Configuration Management'][4].verified = 
@@ -182,8 +182,7 @@ function verifyRequirements() {
   requirements['Requirement 4: Isolated Account Sessions'][3].verified = 
     checkCodeContains('src/managers/SessionManager.js', 'partition');
   requirements['Requirement 4: Isolated Account Sessions'][4].verified = 
-    checkCodeContains('src/managers/SessionManager.js', 'proxy') &&
-    checkCodeContains('src/managers/SessionManager.js', 'setProxy');
+    checkCodeContains('src/managers/TranslationIntegration.js', 'configureTranslation');
   
   // Requirement 5: WebView Management and Switching (新模块化架构)
   requirements['Requirement 5: WebView Management and Switching'][0].verified = 
@@ -228,20 +227,17 @@ function verifyRequirements() {
   requirements['Requirement 7: Per-Account Translation Integration'][4].verified = 
     checkCodeContains('src/managers/AccountConfigManager.js', 'translation');
   
-  // Requirement 8: Independent Proxy Configuration
-  requirements['Requirement 8: Independent Proxy Configuration'][0].verified = 
-    checkCodeContains('src/managers/AccountConfigManager.js', 'proxy') &&
-    checkCodeContains('src/managers/AccountConfigManager.js', 'host');
-  requirements['Requirement 8: Independent Proxy Configuration'][1].verified = 
-    checkCodeContains('src/managers/SessionManager.js', 'socks5') ||
-    checkCodeContains('src/managers/SessionManager.js', 'http');
-  requirements['Requirement 8: Independent Proxy Configuration'][2].verified = 
-    checkCodeContains('src/managers/SessionManager.js', 'setProxy');
-  requirements['Requirement 8: Independent Proxy Configuration'][3].verified = 
-    checkCodeContains('src/managers/SessionManager.js', 'setProxy');
-  requirements['Requirement 8: Independent Proxy Configuration'][4].verified = 
-    checkCodeContains('src/managers/SessionManager.js', 'validateProxy') ||
-    checkCodeContains('src/utils/ValidationHelper.js', 'validateProxy');
+  // Requirement 8: Network Configuration
+  requirements['Requirement 8: Network Configuration'][0].verified = 
+    checkCodeContains('src/utils/ValidationHelper.js', 'validateNetworkConnectivity');
+  requirements['Requirement 8: Network Configuration'][1].verified = 
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'https');
+  requirements['Requirement 8: Network Configuration'][2].verified = 
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'createView');
+  requirements['Requirement 8: Network Configuration'][3].verified = 
+    checkCodeContains('src/presentation/windows/view-manager/ViewManager.js', 'reloadView');
+  requirements['Requirement 8: Network Configuration'][4].verified = 
+    checkCodeContains('src/utils/ValidationHelper.js', 'validateOperationSafety');
   
   // Requirement 9: Account Status Monitoring (新模块化架构)
   requirements['Requirement 9: Account Status Monitoring'][0].verified = 
@@ -298,7 +294,6 @@ function verifyRequirements() {
   requirements['Requirement 12: Migration from Multi-Window Architecture'][2].verified = 
     checkCodeContains('src/single-window/migration/MigrationManager.js', 'sessionDir');
   requirements['Requirement 12: Migration from Multi-Window Architecture'][3].verified = 
-    checkCodeContains('src/single-window/migration/MigrationManager.js', 'proxy') &&
     checkCodeContains('src/single-window/migration/MigrationManager.js', 'translation');
   requirements['Requirement 12: Migration from Multi-Window Architecture'][4].verified = 
     checkCodeContains('src/single-window/migration/MigrationManager.js', 'backup');

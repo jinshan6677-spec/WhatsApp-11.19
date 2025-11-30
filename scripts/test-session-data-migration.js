@@ -82,15 +82,7 @@ async function createTestConfig() {
         createdAt: '2024-01-01T00:00:00.000Z',
         lastActiveAt: '2024-01-15T10:30:00.000Z',
         autoStart: true,
-        proxy: {
-          enabled: false,
-          protocol: 'socks5',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
+        
         translation: {
           enabled: false,
           targetLanguage: 'zh-CN',
@@ -110,15 +102,7 @@ async function createTestConfig() {
         createdAt: '2024-01-02T00:00:00.000Z',
         lastActiveAt: '2024-01-16T14:20:00.000Z',
         autoStart: false,
-        proxy: {
-          enabled: false,
-          protocol: 'http',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
+        
         translation: {
           enabled: false,
           targetLanguage: 'en',
@@ -138,15 +122,7 @@ async function createTestConfig() {
         createdAt: '2024-01-03T00:00:00.000Z',
         lastActiveAt: '2024-01-17T09:15:00.000Z',
         autoStart: false,
-        proxy: {
-          enabled: false,
-          protocol: 'socks5',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
+        
         translation: {
           enabled: false,
           targetLanguage: 'es',
@@ -166,15 +142,7 @@ async function createTestConfig() {
         createdAt: '2024-01-04T00:00:00.000Z',
         lastActiveAt: '2024-01-18T11:00:00.000Z',
         autoStart: false,
-        proxy: {
-          enabled: false,
-          protocol: 'socks5',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
+        
         translation: {
           enabled: false,
           targetLanguage: 'fr',

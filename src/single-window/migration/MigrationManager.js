@@ -370,10 +370,6 @@ class MigrationManager {
             logContent.push(`  Window: ${account.window.width}x${account.window.height} at (${account.window.x}, ${account.window.y})`);
           }
           
-          if (account.proxy && account.proxy.enabled) {
-            logContent.push(`  Proxy: ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port}`);
-          }
-          
           if (account.translation && account.translation.enabled) {
             logContent.push(`  Translation: ${account.translation.engine} -> ${account.translation.targetLanguage}`);
           }
@@ -604,29 +600,7 @@ class MigrationManager {
       migratedAccount.sessionDir = `session-data/account-${oldAccount.id}`;
     }
     
-    // 代理配置保留
-    if (oldAccount.proxy) {
-      migratedAccount.proxy = {
-        enabled: oldAccount.proxy.enabled !== undefined ? oldAccount.proxy.enabled : false,
-        protocol: oldAccount.proxy.protocol || 'socks5',
-        host: oldAccount.proxy.host || '',
-        port: oldAccount.proxy.port || 0,
-        username: oldAccount.proxy.username || '',
-        password: oldAccount.proxy.password || '',
-        bypass: oldAccount.proxy.bypass || ''
-      };
-    } else {
-      // 默认代理配置
-      migratedAccount.proxy = {
-        enabled: false,
-        protocol: 'socks5',
-        host: '',
-        port: 0,
-        username: '',
-        password: '',
-        bypass: ''
-      };
-    }
+    
     
     // 翻译配置保留
     if (oldAccount.translation) {
@@ -703,22 +677,7 @@ class MigrationManager {
       errors.push('Invalid or missing session directory path');
     }
     
-    // 验证代理配置
-    if (account.proxy) {
-      if (account.proxy.enabled) {
-        if (!['socks5', 'http', 'https'].includes(account.proxy.protocol)) {
-          errors.push('Invalid proxy protocol');
-        }
-        
-        if (!account.proxy.host || typeof account.proxy.host !== 'string') {
-          errors.push('Invalid proxy host');
-        }
-        
-        if (typeof account.proxy.port !== 'number' || account.proxy.port < 1 || account.proxy.port > 65535) {
-          errors.push('Invalid proxy port');
-        }
-      }
-    }
+    
     
     // 验证翻译配置
     if (account.translation) {
@@ -1137,10 +1096,6 @@ class MigrationManager {
           logContent.push(`  Name: ${account.name}`);
           logContent.push(`  Order: ${account.order}`);
           logContent.push(`  Session Dir: ${account.sessionDir}`);
-          
-          if (account.proxy && account.proxy.enabled) {
-            logContent.push(`  Proxy: ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port}`);
-          }
           
           if (account.translation && account.translation.enabled) {
             logContent.push(`  Translation: ${account.translation.engine} -> ${account.translation.targetLanguage}`);

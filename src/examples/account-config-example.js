@@ -36,16 +36,10 @@ async function basicAccountManagement() {
     console.log(`✓ 账号创建成功: ${result1.account.name} (${result1.account.id})`);
   }
 
-  // 2. 创建带代理的账号
-  console.log('\n2. 创建带代理配置的账号...');
+  // 2. 创建另一个账号
+  console.log('\n2. 创建另一个账号...');
   const result2 = await manager.createAccount({
     name: '工作账号',
-    proxy: {
-      enabled: true,
-      protocol: 'socks5',
-      host: '127.0.0.1',
-      port: 1080
-    },
     translation: {
       enabled: true,
       targetLanguage: 'en',
@@ -63,7 +57,7 @@ async function basicAccountManagement() {
   const accounts = await manager.loadAccounts();
   console.log(`✓ 找到 ${accounts.length} 个账号:`);
   accounts.forEach(account => {
-    console.log(`  - ${account.name} (代理: ${account.proxy.enabled ? '启用' : '禁用'})`);
+    console.log(`  - ${account.name}`);
   });
 
   // 4. 更新账号
@@ -115,36 +109,13 @@ async function configurationValidation() {
   // 1. 有效配置
   console.log('1. 测试有效配置...');
   const validConfig = new AccountConfig({
-    name: '有效账号',
-    proxy: {
-      enabled: true,
-      protocol: 'socks5',
-      host: '127.0.0.1',
-      port: 1080
-    }
+    name: '有效账号'
   });
 
   const validation1 = manager.validateConfig(validConfig);
   console.log(`✓ 验证结果: ${validation1.valid ? '通过' : '失败'}`);
 
-  // 2. 无效代理配置
-  console.log('\n2. 测试无效代理配置...');
-  const invalidProxyConfig = new AccountConfig({
-    name: '无效代理',
-    proxy: {
-      enabled: true,
-      protocol: 'invalid-protocol',
-      host: '',
-      port: 99999
-    }
-  });
-
-  const validation2 = manager.validateConfig(invalidProxyConfig);
-  console.log(`✗ 验证结果: ${validation2.valid ? '通过' : '失败'}`);
-  if (!validation2.valid) {
-    console.log('  错误信息:');
-    validation2.errors.forEach(error => console.log(`    - ${error}`));
-  }
+  
 
   // 3. 无效翻译配置
   console.log('\n3. 测试无效翻译配置...');

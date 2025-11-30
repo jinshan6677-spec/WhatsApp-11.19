@@ -8,7 +8,6 @@
  * - ViewResizeHandler: 窗口大小调整处理
  * - ViewMemoryManager: 内存管理
  * - ViewPerformanceOptimizer: 性能优化
- * - ViewProxyIntegration: 代理集成
  * - ViewTranslationIntegration: 翻译集成
  * - ViewManager: 主协调器（500行以下）
  * 
@@ -17,7 +16,7 @@
 
 // Lazy load modules to avoid circular dependencies
 let _ViewFactory, _ViewLifecycle, _ViewBoundsManager, _ViewResizeHandler;
-let _ViewMemoryManager, _ViewPerformanceOptimizer, _ViewProxyIntegration, _ViewTranslationIntegration;
+let _ViewMemoryManager, _ViewPerformanceOptimizer, _ViewTranslationIntegration;
 let _ViewFingerprintIntegration;
 let _ViewManager;
 
@@ -51,10 +50,6 @@ function getViewPerformanceOptimizer() {
   return _ViewPerformanceOptimizer;
 }
 
-function getViewProxyIntegration() {
-  if (!_ViewProxyIntegration) _ViewProxyIntegration = require('./ViewProxyIntegration');
-  return _ViewProxyIntegration;
-}
 
 function getViewTranslationIntegration() {
   if (!_ViewTranslationIntegration) _ViewTranslationIntegration = require('./ViewTranslationIntegration');
@@ -83,7 +78,6 @@ module.exports = {
   get ViewResizeHandler() { return getViewResizeHandler(); },
   get ViewMemoryManager() { return getViewMemoryManager(); },
   get ViewPerformanceOptimizer() { return getViewPerformanceOptimizer(); },
-  get ViewProxyIntegration() { return getViewProxyIntegration(); },
   get ViewTranslationIntegration() { return getViewTranslationIntegration(); },
   get ViewFingerprintIntegration() { return getViewFingerprintIntegration(); },
   

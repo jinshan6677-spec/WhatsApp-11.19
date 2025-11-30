@@ -5,7 +5,6 @@
  * Tests the batch fingerprint application functionality
  * 
  * Property 40: 批量应用指纹一致性
- * Property 41: 批量应用代理一致性
  * Validates: Requirements 32.3, 32.5
  * 
  * @module test/property/fingerprint-batch

@@ -18,15 +18,12 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const AccountRepository = require('../AccountRepository');
-const ProxyRepository = require('../ProxyRepository');
 const Account = require('../../../domain/entities/Account');
-const ProxyConfig = require('../../../domain/entities/ProxyConfig');
 const ValidationError = require('../../../core/errors/ValidationError');
 
 describe('Repository Property Tests', () => {
   let testDir;
   let accountRepo;
-  let proxyRepo;
 
   beforeAll(async () => {
     // Create a single temp directory for all tests
@@ -39,11 +36,6 @@ describe('Repository Property Tests', () => {
     accountRepo = new AccountRepository({ 
       storagePath: testDir, 
       fileName: `accounts-${Date.now()}.json`,
-      cacheTTL: 0 
-    });
-    proxyRepo = new ProxyRepository({ 
-      storagePath: testDir, 
-      fileName: `proxies-${Date.now()}.json`,
       cacheTTL: 0 
     });
   });
@@ -197,128 +189,7 @@ describe('Repository Property Tests', () => {
     });
 
 
-    describe('ProxyRepository Validation', () => {
-      test('empty host produces field-level error for host field', async () => {
-        const testCases = fc.sample(fc.record({
-          id: fc.uuid(),
-          enabled: fc.boolean(),
-          protocol: fc.constantFrom('http', 'https', 'socks5'),
-          port: fc.integer({ min: 1, max: 65535 }),
-          name: fc.string({ minLength: 1, maxLength: 50 }),
-          createdAt: dateArbitrary
-        }), 20);
-
-        for (const data of testCases) {
-          const proxy = new ProxyConfig({ ...data, host: '' });
-          
-          await expect(proxyRepo.save(proxy)).rejects.toThrow(ValidationError);
-          
-          try {
-            await proxyRepo.save(proxy);
-          } catch (error) {
-            expect(error).toBeInstanceOf(ValidationError);
-            expect(error.fields).toBeDefined();
-            
-            const hostError = error.fields.find(f => f.field === 'host');
-            expect(hostError).toBeDefined();
-            expect(hostError.reason).toBeDefined();
-          }
-        }
-      });
-
-      test('port out of range produces field-level error for port field', async () => {
-        const testCases = fc.sample(fc.record({
-          id: fc.uuid(),
-          enabled: fc.boolean(),
-          protocol: fc.constantFrom('http', 'https', 'socks5'),
-          host: fc.domain(),
-          port: fc.oneof(
-            fc.integer({ min: -1000, max: 0 }),
-            fc.integer({ min: 65536, max: 100000 })
-          ),
-          name: fc.string({ minLength: 1, maxLength: 50 }),
-          createdAt: dateArbitrary
-        }), 20);
-
-        for (const data of testCases) {
-          const proxy = new ProxyConfig(data);
-          
-          await expect(proxyRepo.save(proxy)).rejects.toThrow(ValidationError);
-          
-          try {
-            await proxyRepo.save(proxy);
-          } catch (error) {
-            expect(error).toBeInstanceOf(ValidationError);
-            expect(error.fields).toBeDefined();
-            
-            const portError = error.fields.find(f => f.field === 'port');
-            expect(portError).toBeDefined();
-            expect(portError.reason).toBeDefined();
-            expect(portError.value).toBe(data.port);
-          }
-        }
-      });
-
-      test('invalid protocol produces field-level error for protocol field', async () => {
-        const testCases = fc.sample(fc.record({
-          id: fc.uuid(),
-          enabled: fc.boolean(),
-          protocol: fc.string({ minLength: 1, maxLength: 20 }).filter(s => !['http', 'https', 'socks5'].includes(s)),
-          host: fc.domain(),
-          port: fc.integer({ min: 1, max: 65535 }),
-          name: fc.string({ minLength: 1, maxLength: 50 }),
-          createdAt: dateArbitrary
-        }), 20);
-
-        for (const data of testCases) {
-          const proxy = new ProxyConfig(data);
-          
-          await expect(proxyRepo.save(proxy)).rejects.toThrow(ValidationError);
-          
-          try {
-            await proxyRepo.save(proxy);
-          } catch (error) {
-            expect(error).toBeInstanceOf(ValidationError);
-            expect(error.fields).toBeDefined();
-            
-            const protocolError = error.fields.find(f => f.field === 'protocol');
-            expect(protocolError).toBeDefined();
-            expect(protocolError.reason).toBeDefined();
-            expect(protocolError.value).toBe(data.protocol);
-          }
-        }
-      });
-
-      test('empty name produces field-level error for name field', async () => {
-        const testCases = fc.sample(fc.record({
-          id: fc.uuid(),
-          enabled: fc.boolean(),
-          protocol: fc.constantFrom('http', 'https', 'socks5'),
-          host: fc.domain(),
-          port: fc.integer({ min: 1, max: 65535 }),
-          createdAt: dateArbitrary
-        }), 20);
-
-        for (const data of testCases) {
-          const proxy = new ProxyConfig(data);
-          // Force empty name after construction
-          proxy.name = '';
-          
-          await expect(proxyRepo.save(proxy)).rejects.toThrow(ValidationError);
-          
-          try {
-            await proxyRepo.save(proxy);
-          } catch (error) {
-            expect(error).toBeInstanceOf(ValidationError);
-            expect(error.fields).toBeDefined();
-            
-            const nameError = error.fields.find(f => f.field === 'name');
-            expect(nameError).toBeDefined();
-            expect(nameError.reason).toBeDefined();
-          }
-        }
-      });
-    });
+    
 
 
     describe('Error Structure Consistency', () => {

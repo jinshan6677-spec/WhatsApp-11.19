@@ -1,7 +1,6 @@
 /**
  * WhatsApp Desktop - 新架构主入口
  * 
- * 使用新的架构：依赖注入 + 模块化设计 + 代理安全防护
  * 完全迁移到新架构，不再支持旧架构回退
  * 
  * 架构组件：
@@ -10,7 +9,6 @@
  * - StateManager: 状态管理
  * - PluginManager: 插件系统
  * - IPCRouter: IPC路由
- * - ProxyService: 代理安全服务
  */
 
 const { app } = require('electron');
@@ -23,11 +21,9 @@ const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandl
 
 // 导入新架构的IPC处理器
 const TranslationServiceIPCHandlers = require('./presentation/ipc/handlers/TranslationServiceIPCHandlers');
-const ProxyIPCHandlers = require('./presentation/ipc/handlers/ProxyIPCHandlers');
 const translationService = require('./translation/translationService');
 
-// 导入代理Repository（新架构数据访问层）
-const ProxyRepository = require('./infrastructure/repositories/ProxyRepository');
+ 
 
 // 导入自动清理工具
 const OrphanedDataCleaner = require('./utils/OrphanedDataCleaner');
@@ -90,9 +86,6 @@ async function registerAllIPCHandlers() {
     const translationIntegration = appBootstrap.getManager('translationIntegration');
     const ipcRouter = appBootstrap.getIPCRouter();
     const eventBus = appBootstrap.getEventBus();
-    
-    // 获取新架构代理安全组件
-    const proxyService = appBootstrap.getProxyService();
 
     // 注册单窗口架构IPC处理器
     registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
@@ -105,25 +98,7 @@ async function registerAllIPCHandlers() {
       console.log('[INFO] 翻译服务IPC处理器注册完成 (IPCRouter - 13 channels)');
     }
 
-    // 注册代理IPC处理器 (新架构 - ProxyService + ProxyRepository)
-    const proxyRepository = new ProxyRepository({
-      storagePath: app.getPath('userData'),
-      fileName: 'proxies.json'
-    });
-    
-    if (ipcRouter && proxyService) {
-      ProxyIPCHandlers.registerWithRouter(ipcRouter, {
-        proxyService,
-        proxyRepository,
-        eventBus
-      });
-      console.log('[INFO] 代理IPC处理器注册完成 (IPCRouter - 15 channels: 8 existing + 7 security)');
-      console.log('[INFO] ✓ 代理安全功能已启用');
-      console.log('[INFO] ✓ ProxyRepository已集成');
-    } else {
-      console.error('[ERROR] 代理服务初始化失败 - ProxyService或IPCRouter不可用');
-      throw new Error('ProxyService initialization failed');
-    }
+ 
 
     console.log('[INFO] 所有IPC处理器注册完成');
   } catch (error) {
@@ -155,18 +130,7 @@ function unregisterAllIPCHandlers() {
     console.error('[ERROR] 注销翻译服务IPC处理器时出错:', error);
   }
 
-  try {
-    const ipcRouter = appBootstrap.getIPCRouter();
-    if (ipcRouter) {
-      ProxyIPCHandlers.unregisterFromRouter(ipcRouter);
-      console.log('[INFO] 代理IPC处理器已注销 (IPCRouter - 15 channels)');
-    } else {
-      ProxyIPCHandlers.unregister();
-      console.log('[INFO] 代理IPC处理器已注销 (legacy)');
-    }
-  } catch (error) {
-    console.error('[ERROR] 注销代理IPC处理器时出错:', error);
-  }
+  
 
   console.log('[INFO] 所有IPC处理器注销完成');
 }
@@ -226,7 +190,6 @@ async function autoStartAccounts() {
         
         const result = await viewManager.openAccount(account.id, {
           url: 'https://web.whatsapp.com',
-          proxy: account.proxy,
           translation: account.translation
         });
         

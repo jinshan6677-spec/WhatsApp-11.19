@@ -1009,7 +1009,7 @@ button:focus-visible {
   opacity: 1;
 }
 
-/* ===== Translation and Proxy Settings Panel ===== */
+/* ===== Translation and Fingerprint Settings Panel ===== */
 .translate-panel {
   width: var(--translate-panel-width-expanded);
   height: 100%;

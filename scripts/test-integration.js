@@ -5,7 +5,6 @@
  * - Account creation to view creation flow
  * - Account switching and state preservation
  * - Translation injection and configuration
- * - Proxy application and isolation
  * - Session persistence and restoration
  * 
  * Requirements: All (comprehensive integration testing)
@@ -28,12 +27,6 @@ const TEST_ACCOUNTS = [
   {
     name: 'Test Account 1',
     note: 'First test account',
-    proxy: {
-      enabled: true,
-      protocol: 'http',
-      host: '127.0.0.1',
-      port: 8080
-    },
     translation: {
       enabled: true,
       targetLanguage: 'zh-CN',
@@ -44,12 +37,6 @@ const TEST_ACCOUNTS = [
   {
     name: 'Test Account 2',
     note: 'Second test account',
-    proxy: {
-      enabled: true,
-      protocol: 'socks5',
-      host: '192.168.1.1',
-      port: 1080
-    },
     translation: {
       enabled: true,
       targetLanguage: 'en',
@@ -60,9 +47,6 @@ const TEST_ACCOUNTS = [
   {
     name: 'Test Account 3',
     note: 'Third test account',
-    proxy: {
-      enabled: false
-    },
     translation: {
       enabled: false
     }
@@ -160,9 +144,7 @@ async function test1_AccountCreationToViewFlow() {
       console.log(`  ✓ Account created with ID: ${account.id}`);
       
       // Step 2: Create session
-      const sessionResult = await sessionManager.createSession(account.id, {
-        proxy: accountConfig.proxy
-      });
+      const sessionResult = await sessionManager.createSession(account.id);
       if (!sessionResult.success) {
         throw new Error(`Session creation failed: ${sessionResult.error}`);
       }
@@ -369,86 +351,6 @@ async function test3_TranslationInjectionAndConfig() {
   return results;
 }
 
-/**
- * Test 4: Proxy application and isolation
- */
-async function test4_ProxyApplicationAndIsolation() {
-  console.log('\n=== Test 4: Proxy Application and Isolation ===\n');
-  
-  const results = { passed: 0, failed: 0 };
-  
-  for (const accountId of createdAccountIds) {
-    try {
-      const account = await accountManager.getAccount(accountId);
-      
-      console.log(`\nTesting proxy for account: ${accountId}`);
-      
-      // Get session
-      const sessionObj = sessionManager.getSession(accountId);
-      if (!sessionObj) {
-        throw new Error('Session not found');
-      }
-      console.log(`  ✓ Session retrieved: ${sessionObj.partition}`);
-      
-      // Verify proxy configuration
-      if (account.proxy && account.proxy.enabled) {
-        const proxyConfig = sessionManager.getProxyConfig(accountId);
-        if (!proxyConfig) {
-          throw new Error('Proxy config not found');
-        }
-        
-        if (proxyConfig.protocol !== account.proxy.protocol ||
-            proxyConfig.host !== account.proxy.host ||
-            proxyConfig.port !== account.proxy.port) {
-          throw new Error('Proxy config mismatch');
-        }
-        console.log(`  ✓ Proxy config verified: ${proxyConfig.protocol}://${proxyConfig.host}:${proxyConfig.port}`);
-        
-        // Test proxy update
-        const newProxy = {
-          protocol: 'http',
-          host: '10.0.0.1',
-          port: 3128
-        };
-        
-        const updateResult = await sessionManager.configureProxy(accountId, newProxy);
-        if (!updateResult.success) {
-          throw new Error(`Proxy update failed: ${updateResult.error}`);
-        }
-        console.log('  ✓ Proxy configuration updated');
-        
-        // Verify update
-        const updatedConfig = sessionManager.getProxyConfig(accountId);
-        if (updatedConfig.host !== '10.0.0.1') {
-          throw new Error('Proxy update not applied');
-        }
-        console.log('  ✓ Proxy update verified');
-        
-      } else {
-        console.log('  ⚠ Proxy not enabled for this account');
-      }
-      
-      // Verify session isolation
-      const isolationResult = await sessionManager.verifySessionIsolation(accountId);
-      if (!isolationResult.isolated) {
-        throw new Error('Session isolation verification failed');
-      }
-      console.log('  ✓ Session isolation verified');
-      console.log(`    - Partition: ${isolationResult.details.partition}`);
-      console.log(`    - Own cookies: ${isolationResult.details.hasOwnCookies}`);
-      console.log(`    - Own localStorage: ${isolationResult.details.hasOwnLocalStorage}`);
-      
-      results.passed++;
-      
-    } catch (error) {
-      console.error(`✗ Proxy test failed for ${accountId}:`, error.message);
-      results.failed++;
-    }
-  }
-  
-  console.log(`\nTest 4 Results: ${results.passed} passed, ${results.failed} failed`);
-  return results;
-}
 
 /**
  * Test 5: Session persistence and restoration
@@ -625,10 +527,7 @@ async function runIntegrationTests() {
     overallResults.passed += test3Results.passed;
     overallResults.failed += test3Results.failed;
     
-    const test4Results = await test4_ProxyApplicationAndIsolation();
-    overallResults.total += test4Results.passed + test4Results.failed;
-    overallResults.passed += test4Results.passed;
-    overallResults.failed += test4Results.failed;
+    
     
     const test5Results = await test5_SessionPersistenceAndRestoration();
     overallResults.total += test5Results.passed + test5Results.failed;

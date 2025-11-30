@@ -19,11 +19,11 @@
    - 模块化组件：`presentation/windows/view-manager/` - 新架构模块
    - 旧备份已移至 `archive/old-architecture-backup/ViewManager-old.js`
 
-3. **代理系统**
-   - 新架构：`infrastructure/proxy/` - 完整的代理安全模块
-   - 服务层：`application/services/ProxyService.js`
-   - 数据层：`infrastructure/repositories/ProxyRepository.js`
-   - 旧代码备份：`archive/proxy-legacy-backup/`
+3. **网络系统**
+   - 新架构：`infrastructure/network/` - 网络与安全模块
+   - 服务层：`application/services/NetworkService.js`
+   - 数据层：`infrastructure/repositories/NetworkRepository.js`
+   - 旧代码备份：`archive/network-legacy-backup/`
 
 4. **错误处理**
    - 新架构：`core/errors/ErrorHandler.js`
@@ -34,7 +34,7 @@
 - [x] 删除 `main-backup-old-architecture.js.backup`
 - [x] 确认 `main-refactored.js` 作为唯一入口
 - [x] ViewManager已拆分为模块化组件
-- [x] 代理功能完全重写（企业级IP安全防护）
+ 
 - [x] IPC处理器迁移到IPCRouter
 - [x] 翻译功能渐进式迁移
 - [x] 大文件拆分完成

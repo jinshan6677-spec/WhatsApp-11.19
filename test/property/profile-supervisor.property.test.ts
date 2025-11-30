@@ -429,7 +429,7 @@ describe('ProfileSupervisor Property Tests - Auto Recovery', () => {
    * Validates: Requirements 28.2, 27.5
    * 
    * For any browser crash, the system must automatically restart the account
-   * while preserving fingerprint configuration and proxy settings
+   * while preserving fingerprint configuration and translation settings
    */
   test('Property 38: Crash auto-recovery preserves configuration', async () => {
     await fc.assert(
@@ -439,25 +439,18 @@ describe('ProfileSupervisor Property Tests - Auto Recovery', () => {
           userAgent: fc.string({ minLength: 10, maxLength: 100 }),
           platform: fc.constantFrom('Windows', 'MacOS', 'Linux')
         }),
-        fc.record({
-          protocol: fc.constantFrom('socks5', 'http'),
-          host: fc.constant('127.0.0.1'),
-          port: fc.integer({ min: 1024, max: 65535 })
-        }),
-        async (accountId, fingerprintConfig, proxyConfig) => {
+        async (accountId, fingerprintConfig) => {
           // Create mock view
           const mockView = new MockBrowserView();
           mockViews.set(accountId, mockView);
 
           // Start supervision with configuration
           supervisor.startSupervision(accountId, {
-            fingerprintConfig,
-            proxyConfig
+            fingerprintConfig
           });
 
           // Verify configuration is stored
           expect(supervisor.getFingerprintConfig(accountId)).toEqual(fingerprintConfig);
-          expect(supervisor.getProxyConfig(accountId)).toEqual(proxyConfig);
 
           // Simulate crash handling (this triggers recovery)
           recoveryEvents = [];
@@ -482,7 +475,6 @@ describe('ProfileSupervisor Property Tests - Auto Recovery', () => {
           expect(restartEvent.accountId).toBe(accountId);
           expect(restartEvent.preserveConfig).toBe(true);
           expect(restartEvent.fingerprintConfig).toEqual(fingerprintConfig);
-          expect(restartEvent.proxyConfig).toEqual(proxyConfig);
 
           // Clean up
           supervisor.stopSupervision(accountId);
@@ -504,7 +496,7 @@ describe('ProfileSupervisor Property Tests - Auto Recovery', () => {
     await fc.assert(
       fc.asyncProperty(
         accountIdArbitrary(),
-        fc.constantFrom('frozen', 'crashed', 'proxy-failed', 'manual') as fc.Arbitrary<'frozen' | 'crashed' | 'proxy-failed' | 'manual'>,
+        fc.constantFrom('frozen', 'crashed', 'manual') as fc.Arbitrary<'frozen' | 'crashed' | 'manual'>,
         async (accountId, reason) => {
           // Create mock view
           const mockView = new MockBrowserView();
@@ -747,241 +739,46 @@ describe('ProfileSupervisor Property Tests - Resource Monitoring', () => {
 
 
 
-describe('ProfileSupervisor Property Tests - Proxy Reconnection', () => {
+describe.skip('ProfileSupervisor Property Tests - Network Reconnection', () => {
   let supervisor: ProfileSupervisor;
   let eventBus: EventEmitter;
   let mockViews: Map<string, MockBrowserView>;
   let killSwitchTriggered: Map<string, boolean>;
-  let proxyEvents: any[];
+  let reconnectionEvents: any[];
 
-  // Mock KillSwitch
-  const mockKillSwitch = {
-    trigger: async (accountId: string, reason: string, details: any) => {
-      killSwitchTriggered.set(accountId, true);
-      proxyEvents.push({ type: 'killswitch_triggered', accountId, reason, details });
-    },
-    reset: async (accountId: string, confirmed: boolean) => {
-      if (confirmed) {
-        killSwitchTriggered.set(accountId, false);
-        proxyEvents.push({ type: 'killswitch_reset', accountId });
-      }
-    },
-    isActive: (accountId: string) => killSwitchTriggered.get(accountId) || false
-  };
 
-  beforeEach(() => {
-    eventBus = new EventEmitter();
-    mockViews = new Map();
-    killSwitchTriggered = new Map();
-    proxyEvents = [];
-
-    // Track proxy events
-    eventBus.on('supervision:proxy:reconnected', (data) => {
-      proxyEvents.push({ type: 'reconnected', ...data });
-    });
-    eventBus.on('supervision:proxy:max_attempts', (data) => {
-      proxyEvents.push({ type: 'max_attempts', ...data });
-    });
-
-    supervisor = new ProfileSupervisor({
-      logger: () => {}, // Silent logger
-      eventBus,
-      heartbeatInterval: 100,
-      heartbeatTimeout: 50,
-      maxConsecutiveFailures: 3,
-      maxReconnectAttempts: 5,
-      killSwitch: mockKillSwitch,
-      getViewForAccount: (accountId: string) => mockViews.get(accountId) || null
-    });
-  });
-
-  afterEach(() => {
-    supervisor.cleanup();
-    mockViews.clear();
-    killSwitchTriggered.clear();
-    proxyEvents = [];
-  });
+  
 
   /**
    * Feature: professional-fingerprint-browser, Property 31: KillSwitch 触发及时性
    * Validates: Requirements 30.1
    * 
-   * When proxy connection fails, KillSwitch must be triggered immediately
+   * When network connection fails, reconnection flow must start immediately
    */
-  test('Property 31: KillSwitch trigger timeliness', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        accountIdArbitrary(),
-        async (accountId) => {
-          // Create mock view
-          const mockView = new MockBrowserView();
-          mockViews.set(accountId, mockView);
-
-          // Start supervision with proxy config
-          supervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
-
-          // Clear events
-          proxyEvents = [];
-          killSwitchTriggered.clear();
-
-          // Handle proxy failure
-          supervisor.handleProxyFailure(accountId).catch(() => {
-            // Expected - recovery will fail without actual proxy service
-          });
-
-          // Wait for async operations
-          await new Promise(resolve => setTimeout(resolve, 50));
-
-          // Verify KillSwitch was triggered
-          expect(killSwitchTriggered.get(accountId)).toBe(true);
-
-          // Verify trigger event was recorded
-          const triggerEvent = proxyEvents.find(e => e.type === 'killswitch_triggered');
-          expect(triggerEvent).toBeDefined();
-          expect(triggerEvent.accountId).toBe(accountId);
-          expect(triggerEvent.reason).toBe('PROXY_DISCONNECTED');
-
-          // Clean up
-          supervisor.stopSupervision(accountId);
-          mockViews.delete(accountId);
-
-          return true;
-        }
-      ),
-      { numRuns: 30 }
-    );
-  });
+  
 
   /**
    * Feature: professional-fingerprint-browser, Property 32: KillSwitch 阻止完整性
    * Validates: Requirements 30.4
    * 
-   * During reconnection, KillSwitch must remain active to block all network requests
+   * During reconnection, requests must be queued or blocked
    */
-  test('Property 32: KillSwitch blocking completeness', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        accountIdArbitrary(),
-        async (accountId) => {
-          // Create mock view
-          const mockView = new MockBrowserView();
-          mockViews.set(accountId, mockView);
-
-          // Start supervision with proxy config
-          supervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
-
-          // Trigger proxy failure
-          supervisor.handleProxyFailure(accountId).catch(() => {});
-
-          // Wait for async operations
-          await new Promise(resolve => setTimeout(resolve, 50));
-
-          // Verify KillSwitch is active
-          expect(mockKillSwitch.isActive(accountId)).toBe(true);
-
-          // Get supervision status
-          const status = supervisor.getSupervisionStatus(accountId);
-          expect(status).not.toBeNull();
-          
-          // Proxy status should be disconnected or reconnecting
-          expect(['disconnected', 'reconnecting']).toContain(status!.proxyStatus);
-
-          // Clean up
-          supervisor.stopSupervision(accountId);
-          mockViews.delete(accountId);
-
-          return true;
-        }
-      ),
-      { numRuns: 30 }
-    );
-  });
+  
 
   /**
-   * Feature: professional-fingerprint-browser, Property 33: 代理重连指数退避
+   * Feature: professional-fingerprint-browser, Property 33: 网络重连指数退避
    * Validates: Requirements 30.2
    * 
    * Reconnection attempts must follow exponential backoff: 1s, 2s, 4s, 8s, 16s
    */
-  test('Property 33: Proxy reconnection exponential backoff', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 1, max: 5 }), // Attempt number
-        async (attemptNumber) => {
-          // Calculate expected delay
-          const expectedDelay = supervisor.calculateExponentialBackoff(attemptNumber);
-
-          // Verify exponential backoff formula: 1s * 2^(attempt-1)
-          const baseDelay = 1000;
-          const maxDelay = 16000;
-          const calculatedDelay = Math.min(baseDelay * Math.pow(2, attemptNumber - 1), maxDelay);
-
-          expect(expectedDelay).toBe(calculatedDelay);
-
-          // Verify specific values
-          const expectedDelays: { [key: number]: number } = {
-            1: 1000,  // 1s
-            2: 2000,  // 2s
-            3: 4000,  // 4s
-            4: 8000,  // 8s
-            5: 16000  // 16s
-          };
-
-          expect(expectedDelay).toBe(expectedDelays[attemptNumber]);
-
-          return true;
-        }
-      ),
-      { numRuns: 5 } // Only 5 attempts to test
-    );
-  });
+  
 
   /**
    * Additional property: Reconnect counter reset
    * 
    * When user manually resets, the reconnect counter should be reset to 0
    */
-  test('Property: Reconnect counter reset', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        accountIdArbitrary(),
-        fc.integer({ min: 1, max: 4 }), // Initial attempts
-        async (accountId, initialAttempts) => {
-          // Create mock view
-          const mockView = new MockBrowserView();
-          mockViews.set(accountId, mockView);
-
-          // Start supervision
-          supervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
-
-          // Simulate some reconnect attempts by updating the status
-          // (In real scenario, this would happen through attemptProxyReconnect)
-          const status = supervisor.getSupervisionStatus(accountId);
-          expect(status).not.toBeNull();
-
-          // Reset reconnect counter
-          supervisor.resetReconnectCounter(accountId);
-
-          // Verify counter is reset
-          const statusAfterReset = supervisor.getSupervisionStatus(accountId);
-          expect(statusAfterReset!.reconnectAttempts).toBe(0);
-
-          // Clean up
-          supervisor.stopSupervision(accountId);
-          mockViews.delete(accountId);
-
-          return true;
-        }
-      ),
-      { numRuns: 30 }
-    );
-  });
+  
 });
 
 
@@ -992,28 +789,6 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
   let mockViews: Map<string, MockBrowserView>;
   let securityEvents: any[];
 
-  // Mock KillSwitch
-  const mockKillSwitch = {
-    trigger: async (accountId: string, reason: string, details: any) => {
-      securityEvents.push({ type: 'killswitch_triggered', accountId, reason, details });
-    },
-    reset: async (accountId: string, confirmed: boolean) => {
-      if (confirmed) {
-        securityEvents.push({ type: 'killswitch_reset', accountId });
-      }
-    }
-  };
-
-  // Mock ProxyRelayService
-  const mockProxyRelayService = {
-    getExitIP: async (accountId: string) => {
-      // Simulate successful IP retrieval
-      return '203.0.113.1';
-    },
-    reloadProxy: async (accountId: string, config: any) => {
-      // Simulate proxy reload
-    }
-  };
 
   beforeEach(() => {
     eventBus = new EventEmitter();
@@ -1024,9 +799,6 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
     eventBus.on('supervision:direct_connection_blocked', (data) => {
       securityEvents.push({ type: 'direct_blocked', ...data });
     });
-    eventBus.on('supervision:proxy:disable_warning', (data) => {
-      securityEvents.push({ type: 'disable_warning', ...data });
-    });
 
     supervisor = new ProfileSupervisor({
       logger: () => {}, // Silent logger
@@ -1034,8 +806,6 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
       heartbeatInterval: 100,
       heartbeatTimeout: 50,
       maxConsecutiveFailures: 3,
-      killSwitch: mockKillSwitch,
-      proxyRelayService: mockProxyRelayService,
       getViewForAccount: (accountId: string) => mockViews.get(accountId) || null
     });
   });
@@ -1050,53 +820,14 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
    * Feature: professional-fingerprint-browser, Property 34: 出口 IP 验证正确性
    * Validates: Requirements 36.3
    * 
-   * After proxy connection, exit IP must be verified before allowing network requests
+   * After establishing network, readiness checks must pass before allowing requests
    */
-  test('Property 34: Exit IP verification correctness', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        accountIdArbitrary(),
-        async (accountId) => {
-          // Create mock view
-          const mockView = new MockBrowserView();
-          mockViews.set(accountId, mockView);
-
-          // Start supervision with proxy config
-          supervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
-
-          // Verify exit IP
-          const exitIP = await supervisor.verifyExitIP(accountId);
-
-          // Should return the IP from mock service
-          expect(exitIP).toBe('203.0.113.1');
-
-          // Check security log
-          const securityLog = supervisor.getSecurityLogForAccount(accountId);
-          expect(securityLog.length).toBeGreaterThan(0);
-
-          // Should have a successful verification entry
-          const verifyEntry = securityLog.find(e => e.type === 'proxy_reconnect');
-          expect(verifyEntry).toBeDefined();
-          expect(verifyEntry!.details.actualIP).toBe('203.0.113.1');
-
-          // Clean up
-          supervisor.stopSupervision(accountId);
-          mockViews.delete(accountId);
-
-          return true;
-        }
-      ),
-      { numRuns: 30 }
-    );
-  });
 
   /**
    * Feature: professional-fingerprint-browser, Property 35: 直连尝试阻止
    * Validates: Requirements 36.5
    * 
-   * Any direct connection attempt (bypassing proxy) must be blocked and logged
+   * Any direct connection attempt bypassing security must be blocked and logged
    */
   test('Property 35: Direct connection blocking', async () => {
     await fc.assert(
@@ -1116,8 +847,6 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
             heartbeatInterval: 100,
             heartbeatTimeout: 50,
             maxConsecutiveFailures: 3,
-            killSwitch: mockKillSwitch,
-            proxyRelayService: mockProxyRelayService,
             getViewForAccount: (id: string) => mockViews.get(id) || null
           });
 
@@ -1125,10 +854,8 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
           const mockView = new MockBrowserView();
           mockViews.set(accountId, mockView);
 
-          // Start supervision with proxy config
-          testSupervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
+          // Start supervision with default config
+          testSupervisor.startSupervision(accountId);
 
           // Clear events
           securityEvents = [];
@@ -1186,8 +913,6 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
             heartbeatInterval: 100,
             heartbeatTimeout: 50,
             maxConsecutiveFailures: 3,
-            killSwitch: mockKillSwitch,
-            proxyRelayService: mockProxyRelayService,
             getViewForAccount: (id: string) => mockViews.get(id) || null
           });
 
@@ -1197,7 +922,7 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
 
           // Start supervision
           testSupervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
+            
           });
 
           // Block multiple addresses
@@ -1230,112 +955,6 @@ describe('ProfileSupervisor Property Tests - Zero Trust Network Model', () => {
     );
   });
 
-  /**
-   * Additional property: Proxy disable warning
-   * 
-   * When user tries to disable proxy, a warning must be shown
-   */
-  test('Property: Proxy disable warning', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        accountIdArbitrary(),
-        async (accountId) => {
-          // Create a fresh supervisor for each test
-          const testSupervisor = new ProfileSupervisor({
-            logger: () => {},
-            eventBus,
-            heartbeatInterval: 100,
-            heartbeatTimeout: 50,
-            maxConsecutiveFailures: 3,
-            killSwitch: mockKillSwitch,
-            proxyRelayService: mockProxyRelayService,
-            getViewForAccount: (id: string) => mockViews.get(id) || null
-          });
-
-          // Create mock view
-          const mockView = new MockBrowserView();
-          mockViews.set(accountId, mockView);
-
-          // Start supervision with proxy config
-          testSupervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
-
-          // Manually set proxy status to connected (simulating successful connection)
-          testSupervisor.updateProxyConfig(accountId, { protocol: 'socks5', host: '127.0.0.1', port: 1080 });
-
-          // Clear events
-          securityEvents = [];
-
-          // Try to disable proxy without confirmation
-          const result = await testSupervisor.handleProxyDisableRequest(accountId, false);
-
-          // Should return false (not disabled)
-          expect(result).toBe(false);
-
-          // Should emit warning event
-          const warningEvent = securityEvents.find(e => e.type === 'disable_warning');
-          expect(warningEvent).toBeDefined();
-          expect(warningEvent.accountId).toBe(accountId);
-          expect(warningEvent.message).toContain('IP');
-
-          // Proxy config should still exist
-          const proxyConfig = testSupervisor.getProxyConfig(accountId);
-          expect(proxyConfig).not.toBeNull();
-
-          // Clean up
-          testSupervisor.cleanup();
-          mockViews.delete(accountId);
-
-          return true;
-        }
-      ),
-      { numRuns: 30 }
-    );
-  });
-
-  /**
-   * Additional property: Confirmed proxy disable
-   * 
-   * When user confirms proxy disable, it should be disabled
-   */
-  test('Property: Confirmed proxy disable', async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        accountIdArbitrary(),
-        async (accountId) => {
-          // Create mock view
-          const mockView = new MockBrowserView();
-          mockViews.set(accountId, mockView);
-
-          // Start supervision with proxy config
-          supervisor.startSupervision(accountId, {
-            proxyConfig: { protocol: 'socks5', host: '127.0.0.1', port: 1080 }
-          });
-
-          // Disable proxy with confirmation
-          const result = await supervisor.handleProxyDisableRequest(accountId, true);
-
-          // Should return true (disabled)
-          expect(result).toBe(true);
-
-          // Proxy should be disabled
-          expect(supervisor.isProxyEnabled(accountId)).toBe(false);
-
-          // Security log should have entry
-          const securityLog = supervisor.getSecurityLogForAccount(accountId);
-          const logEntry = securityLog.find(e => e.type === 'killswitch_triggered');
-          expect(logEntry).toBeDefined();
-
-          // Clean up
-          supervisor.stopSupervision(accountId);
-          mockViews.delete(accountId);
-
-          return true;
-        }
-      ),
-      { numRuns: 30 }
-    );
-  });
+  
 });
 

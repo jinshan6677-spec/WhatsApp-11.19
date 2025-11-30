@@ -762,15 +762,6 @@
         name: defaultAccountName,
         note: '',
         autoStart: false,
-        proxy: {
-          enabled: false,
-          protocol: 'http',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
         translation: {
           enabled: true,
           engine: 'google',

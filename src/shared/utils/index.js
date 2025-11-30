@@ -12,7 +12,6 @@ const OrphanedDataCleaner = require('../../utils/OrphanedDataCleaner');
 const PasswordEncryption = require('../../utils/PasswordEncryption');
 const PerformanceOptimizer = require('../../utils/PerformanceOptimizer');
 const RecoveryManager = require('../../utils/RecoveryManager');
-const SmartFillParser = require('../../utils/SmartFillParser');
 const ValidationHelper = require('../../utils/ValidationHelper');
 
 // 导出统一接口
@@ -26,7 +25,6 @@ module.exports = {
   // 数据处理工具
   OrphanedDataCleaner,
   PasswordEncryption,
-  SmartFillParser,
   
   // 性能优化工具
   PerformanceOptimizer,
@@ -40,7 +38,6 @@ module.exports = {
   createErrorHandler,
   createOrphanedDataCleaner: () => new OrphanedDataCleaner(),
   createRecoveryManager: () => new RecoveryManager(),
-  createSmartFillParser: () => new SmartFillParser(),
   
   // 常量
   ErrorLevel: ErrorLogger.ErrorLevel,

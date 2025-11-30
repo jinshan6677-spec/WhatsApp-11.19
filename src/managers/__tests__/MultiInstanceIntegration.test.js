@@ -3,7 +3,6 @@
  * 
  * 测试完整的多实例架构集成场景：
  * - 账号创建和启动流程
- * - 代理配置的应用
  * - 实例崩溃和重启
  * - 多实例并发运行
  */
@@ -34,9 +33,7 @@ jest.mock('electron', () => {
             this._crashedCallback = callback;
           }
         }),
-        session: {
-          resolveProxy: jest.fn().mockResolvedValue('DIRECT')
-        }
+        session: {}
       };
       this.loadURL = jest.fn().mockResolvedValue(undefined);
       this.isDestroyed = jest.fn(() => this.destroyed);
@@ -102,14 +99,6 @@ jest.mock('electron', () => {
     },
     session: {
       fromPartition: jest.fn((partition) => ({
-        setProxy: jest.fn().mockResolvedValue(undefined),
-        resolveProxy: jest.fn((url) => {
-          // Simulate proxy resolution based on partition
-          if (partition.includes('proxy')) {
-            return Promise.resolve('PROXY 127.0.0.1:1080');
-          }
-          return Promise.resolve('DIRECT');
-        }),
         webRequest: {
           onBeforeSendHeaders: jest.fn()
         }
@@ -172,9 +161,6 @@ describe('Multi-Instance Integration Tests', () => {
       // Step 1: Create account configuration
       const createResult = await configManager.createAccount({
         name: 'Integration Test Account',
-        proxy: {
-          enabled: false
-        },
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN',
@@ -245,13 +231,7 @@ describe('Multi-Instance Integration Tests', () => {
     test('should persist account configuration across manager restarts', async () => {
       // Create account
       const createResult = await configManager.createAccount({
-        name: 'Persistent Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
+        name: 'Persistent Account'
       });
       expect(createResult.success).toBe(true);
       const accountId = createResult.account.id;
@@ -266,116 +246,11 @@ describe('Multi-Instance Integration Tests', () => {
       const loadedAccount = await newConfigManager.getAccount(accountId);
       expect(loadedAccount).toBeDefined();
       expect(loadedAccount.name).toBe('Persistent Account');
-      expect(loadedAccount.proxy.enabled).toBe(true);
-      expect(loadedAccount.proxy.host).toBe('127.0.0.1');
+      
     });
   });
 
-  describe('Proxy Configuration Application', () => {
-    test('should create instance with proxy configuration', async () => {
-      const account = new AccountConfig({
-        name: 'Proxy Test Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      
-      const result = await instanceManager.createInstance(account);
-      
-      expect(result.success).toBe(true);
-      expect(result.window).toBeDefined();
-      
-      // Verify proxy was applied
-      const status = instanceManager.getInstanceStatus(account.id);
-      expect(status).toBeDefined();
-      expect(status.status).toBe('running');
-    });
-
-    test('should create instance without proxy (direct connection)', async () => {
-      const account = new AccountConfig({
-        name: 'Direct Connection Account',
-        proxy: {
-          enabled: false
-        }
-      });
-      
-      const result = await instanceManager.createInstance(account);
-      
-      expect(result.success).toBe(true);
-      expect(result.window).toBeDefined();
-    });
-
-    test('should update proxy configuration for running instance', async () => {
-      const account = new AccountConfig({
-        name: 'Proxy Update Test',
-        proxy: {
-          enabled: false
-        }
-      });
-      
-      // Create instance without proxy
-      await instanceManager.createInstance(account);
-      
-      // Update proxy configuration
-      const newProxyConfig = {
-        enabled: true,
-        protocol: 'http',
-        host: '192.168.1.1',
-        port: 8080
-      };
-      
-      const updateResult = await instanceManager.updateProxyConfig(
-        account.id,
-        newProxyConfig
-      );
-      
-      expect(updateResult.success).toBe(true);
-    });
-
-    test('should handle different proxy protocols', async () => {
-      const protocols = ['socks5', 'http', 'https'];
-      
-      for (const protocol of protocols) {
-        const account = new AccountConfig({
-          name: `${protocol.toUpperCase()} Proxy Account`,
-          proxy: {
-            enabled: true,
-            protocol: protocol,
-            host: '127.0.0.1',
-            port: 1080
-          }
-        });
-        
-        const result = await instanceManager.createInstance(account);
-        expect(result.success).toBe(true);
-        
-        // Cleanup
-        await instanceManager.destroyInstance(account.id);
-      }
-    });
-
-    test('should handle proxy with authentication', async () => {
-      const account = new AccountConfig({
-        name: 'Authenticated Proxy Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080,
-          username: 'testuser',
-          password: 'testpass'
-        }
-      });
-      
-      const result = await instanceManager.createInstance(account);
-      
-      expect(result.success).toBe(true);
-      expect(result.window).toBeDefined();
-    });
-  });
+  
 
   describe('Instance Crash and Restart Handling', () => {
     test('should detect instance crash', async () => {
@@ -540,22 +415,8 @@ describe('Multi-Instance Integration Tests', () => {
     });
 
     test('should isolate instances from each other', async () => {
-      const account1 = new AccountConfig({
-        name: 'Isolated Account 1',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      
-      const account2 = new AccountConfig({
-        name: 'Isolated Account 2',
-        proxy: {
-          enabled: false
-        }
-      });
+      const account1 = new AccountConfig({ name: 'Isolated Account 1' });
+      const account2 = new AccountConfig({ name: 'Isolated Account 2' });
       
       await instanceManager.createInstance(account1);
       await instanceManager.createInstance(account2);
@@ -727,16 +588,7 @@ describe('Multi-Instance Integration Tests', () => {
 
   describe('Error Handling and Recovery', () => {
     test('should handle invalid account configuration gracefully', async () => {
-      const invalidAccount = new AccountConfig({
-        name: '',  // Invalid: empty name
-        proxy: {
-          enabled: true,
-          protocol: 'invalid',  // Invalid protocol
-          host: '',
-          port: 0
-        }
-      });
-      
+      const invalidAccount = new AccountConfig({ name: 'Invalid', autoStart: 'yes', lastRunningStatus: 'invalid' });
       const validation = configManager.validateConfig(invalidAccount);
       expect(validation.valid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);

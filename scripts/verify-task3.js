@@ -3,9 +3,8 @@
  * 
  * 此脚本验证 SessionManager 是否正确实现了以下功能：
  * 1. createSession(accountId, config) - 创建 BrowserView 会话
- * 2. 代理配置支持
- * 3. 会话隔离验证
- * 4. 错误处理
+ * 2. 会话隔离验证
+ * 3. 错误处理
  */
 
 const SessionManager = require('../src/managers/SessionManager');
@@ -46,26 +45,10 @@ if (typeof sessionManager.getSession === 'function') {
   process.exit(1);
 }
 
-// 测试3: 验证 configureProxy 方法存在
-console.log('测试3: 验证 configureProxy 方法');
-if (typeof sessionManager.configureProxy === 'function') {
-  console.log('  ✓ configureProxy 方法存在');
-} else {
-  console.log('  ✗ configureProxy 方法不存在');
-  process.exit(1);
-}
+ 
 
-// 测试4: 验证 clearProxy 方法存在
-console.log('测试4: 验证 clearProxy 方法');
-if (typeof sessionManager.clearProxy === 'function') {
-  console.log('  ✓ clearProxy 方法存在');
-} else {
-  console.log('  ✗ clearProxy 方法不存在');
-  process.exit(1);
-}
-
-// 测试5: 验证 verifySessionIsolation 方法存在
-console.log('测试5: 验证 verifySessionIsolation 方法');
+// 测试3: 验证 verifySessionIsolation 方法存在
+console.log('测试3: 验证 verifySessionIsolation 方法');
 if (typeof sessionManager.verifySessionIsolation === 'function') {
   console.log('  ✓ verifySessionIsolation 方法存在');
 } else {
@@ -73,8 +56,8 @@ if (typeof sessionManager.verifySessionIsolation === 'function') {
   process.exit(1);
 }
 
-// 测试6: 验证 detectLoginStatus 方法支持 BrowserView
-console.log('测试6: 验证 detectLoginStatus 方法');
+// 测试4: 验证 detectLoginStatus 方法支持 BrowserView
+console.log('测试4: 验证 detectLoginStatus 方法');
 if (typeof sessionManager.detectLoginStatus === 'function') {
   console.log('  ✓ detectLoginStatus 方法存在');
 } else {
@@ -82,8 +65,8 @@ if (typeof sessionManager.detectLoginStatus === 'function') {
   process.exit(1);
 }
 
-// 测试7: 验证 hasSessionData 方法存在
-console.log('测试7: 验证 hasSessionData 方法');
+// 测试5: 验证 hasSessionData 方法存在
+console.log('测试5: 验证 hasSessionData 方法');
 if (typeof sessionManager.hasSessionData === 'function') {
   console.log('  ✓ hasSessionData 方法存在');
 } else {
@@ -91,8 +74,8 @@ if (typeof sessionManager.hasSessionData === 'function') {
   process.exit(1);
 }
 
-// 测试8: 验证 getUserDataDir 方法
-console.log('测试8: 验证 getUserDataDir 方法');
+// 测试6: 验证 getUserDataDir 方法
+console.log('测试6: 验证 getUserDataDir 方法');
 const testAccountId = 'test-account-001';
 const userDataDir = sessionManager.getUserDataDir(testAccountId);
 const expectedPath = path.join(tempDir, 'profiles', testAccountId);
@@ -106,36 +89,7 @@ if (userDataDir === expectedPath) {
   process.exit(1);
 }
 
-// 测试9: 验证代理配置验证逻辑
-console.log('测试9: 验证代理配置验证逻辑');
-const invalidProxyConfig = {
-  protocol: 'invalid',
-  host: '127.0.0.1',
-  port: 8080
-};
-const validation = sessionManager._validateProxyConfig(invalidProxyConfig);
-if (!validation.valid && validation.error.includes('Invalid protocol')) {
-  console.log('  ✓ 代理配置验证正确拒绝无效协议');
-} else {
-  console.log('  ✗ 代理配置验证未正确工作');
-  process.exit(1);
-}
-
-// 测试10: 验证有效的代理配置
-console.log('测试10: 验证有效的代理配置');
-const validProxyConfig = {
-  protocol: 'http',
-  host: '127.0.0.1',
-  port: 8080
-};
-const validValidation = sessionManager._validateProxyConfig(validProxyConfig);
-if (validValidation.valid) {
-  console.log('  ✓ 代理配置验证正确接受有效配置');
-} else {
-  console.log('  ✗ 代理配置验证未正确接受有效配置');
-  console.log(`    错误: ${validValidation.error}`);
-  process.exit(1);
-}
+ 
 
 // 测试11: 验证缓存管理方法
 console.log('测试11: 验证缓存管理方法');
@@ -164,7 +118,6 @@ console.log('='.repeat(60));
 console.log();
 console.log('任务3实现总结:');
 console.log('  ✓ createSession(accountId, config) - 创建 BrowserView partition');
-console.log('  ✓ configureProxy() - 支持 HTTP/HTTPS/SOCKS5 代理');
 console.log('  ✓ verifySessionIsolation() - 验证会话隔离');
 console.log('  ✓ detectLoginStatus() - 支持 BrowserView 和 BrowserWindow');
 console.log('  ✓ 错误处理和验证 - 完整的错误处理机制');
@@ -175,10 +128,4 @@ console.log('  ✓ 4.1 - 独立的用户数据目录');
 console.log('  ✓ 4.2 - 使用 partition 隔离会话');
 console.log('  ✓ 4.3 - 隔离 cookies, localStorage, IndexedDB');
 console.log('  ✓ 4.4 - 隔离缓存和浏览数据');
-console.log('  ✓ 4.5 - 独立的代理配置');
-console.log('  ✓ 8.1 - 代理配置支持');
-console.log('  ✓ 8.2 - 支持多种代理协议');
-console.log('  ✓ 8.3 - 仅应用于特定账号');
-console.log('  ✓ 8.4 - 更新活动会话的代理');
-console.log('  ✓ 8.5 - 验证代理配置');
 console.log();

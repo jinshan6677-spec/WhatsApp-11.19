@@ -26,7 +26,6 @@
     "test:isolation": "electron scripts/test-session-isolation.js",
     "verify:isolation": "node scripts/verify-session-isolation.js",
     "migrate": "node scripts/migrate-to-multi-instance.js",
-    "diagnose:proxy": "electron scripts/diagnose-proxy-issue.js",
     "lint": "eslint src/**/*.js",
     "lint:fix": "eslint src/**/*.js --fix"
   },
@@ -55,10 +54,7 @@
     "@types/node": "^24.10.1",
     "axios": "^1.13.2",
     "electron-store": "^8.1.0",
-    "https-proxy-agent": "^7.0.6",
     "lru-cache": "^10.0.0",
-    "socks": "^2.8.7",
-    "socks-proxy-agent": "^8.0.5",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

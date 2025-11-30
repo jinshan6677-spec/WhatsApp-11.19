@@ -233,7 +233,6 @@ class RecoveryManager {
 
       // Recreate session with preserved settings
       const sessionConfig = preserveSettings ? {
-        proxy: account.proxy,
         translation: account.translation
       } : {};
 
@@ -245,7 +244,6 @@ class RecoveryManager {
 
       // Recreate view
       const viewConfig = {
-        proxy: account.proxy,
         translation: account.translation
       };
 

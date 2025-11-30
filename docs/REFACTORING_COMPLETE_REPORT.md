@@ -133,7 +133,7 @@ this.managers.accountConfigManager = this.container.resolve('accountConfigManage
 ### 1. 测试验证
 - 运行完整的应用测试套件
 - 验证多账户功能
-- 测试翻译和代理功能
+- 测试翻译功能
 
 ### 2. 性能监控
 - 监控应用启动时间

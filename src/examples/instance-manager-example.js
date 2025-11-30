@@ -26,12 +26,6 @@ async function exampleMultiInstanceManagement() {
   // 2. 创建账号配置
   const account1Result = await configManager.createAccount({
     name: 'Work Account',
-    proxy: {
-      enabled: true,
-      protocol: 'socks5',
-      host: '127.0.0.1',
-      port: 1080
-    },
     translation: {
       enabled: true,
       targetLanguage: 'zh-CN',
@@ -104,51 +98,6 @@ async function exampleMultiInstanceManagement() {
   console.log('=== 示例完成 ===');
 }
 
-/**
- * 示例：代理配置更新
- */
-async function exampleProxyUpdate() {
-  console.log('=== 代理配置更新示例 ===\n');
-  
-  const configManager = new AccountConfigManager();
-  const instanceManager = new InstanceManager();
-  
-  // 创建账号
-  const accountResult = await configManager.createAccount({
-    name: 'Test Account',
-    proxy: {
-      enabled: false
-    }
-  });
-  
-  const account = accountResult.account;
-  
-  // 创建实例
-  await instanceManager.createInstance(account);
-  console.log('✓ 实例创建完成（无代理）\n');
-  
-  // 更新代理配置
-  console.log('正在更新代理配置...');
-  const updateResult = await instanceManager.updateProxyConfig(account.id, {
-    enabled: true,
-    protocol: 'http',
-    host: 'proxy.example.com',
-    port: 8080,
-    username: 'user',
-    password: 'pass'
-  });
-  
-  if (updateResult.success) {
-    console.log('✓ 代理配置更新成功\n');
-  } else {
-    console.error('代理配置更新失败:', updateResult.error);
-  }
-  
-  // 清理
-  await instanceManager.destroyInstance(account.id);
-  
-  console.log('=== 示例完成 ===');
-}
 
 /**
  * 示例：批量管理实例
@@ -202,7 +151,6 @@ async function exampleBatchManagement() {
 // 导出示例函数
 module.exports = {
   exampleMultiInstanceManagement,
-  exampleProxyUpdate,
   exampleBatchManagement
 };
 

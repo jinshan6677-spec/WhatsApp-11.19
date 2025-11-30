@@ -3,7 +3,7 @@
  * 
  * 负责管理 WhatsApp 账号的会话持久化和恢复
  * 包括登录状态检测、会话数据保存和清除
- * 支持 BrowserView 会话和代理配置
+ * 支持 BrowserView 会话
  */
 
 const path = require('path');
@@ -40,8 +40,7 @@ class SessionManager {
     // Session 实例缓存 Map: accountId -> Session
     this.sessionCache = new Map();
 
-    // 代理配置缓存 Map: accountId -> proxyConfig
-    this.proxyCache = new Map();
+    
 
     // 日志函数
     this.log = this._createLogger();
@@ -67,20 +66,11 @@ class SessionManager {
     };
   }
 
-  /**
-   * 创建或获取账号的 session 对象（用于 BrowserView）
-   * @param {string} accountId - 账号 ID
-   * @param {Object} [config] - 配置选项
-   * @param {Object} [config.proxy] - 代理配置
-   * @param {boolean} [config.proxy.enabled] - 是否启用代理
-   * @param {string} [config.proxy.protocol] - 代理协议 (http/https/socks5)
-   * @param {string} [config.proxy.host] - 代理主机
-   * @param {number} [config.proxy.port] - 代理端口
-   * @param {string} [config.proxy.username] - 代理用户名（可选）
-   * @param {string} [config.proxy.password] - 代理密码（可选）
-   * @param {string} [config.proxy.bypass] - 代理绕过规则（可选）
-   * @param {boolean} [config.proxy.validateConnectivity] - 是否验证代理连接性（可选）
-   * @returns {Promise<{success: boolean, session?: Electron.Session, error?: string, proxyWarning?: string}>}
+   /**
+    * 创建或获取账号的 session 对象（用于 BrowserView）
+    * @param {string} accountId - 账号 ID
+    * @param {Object} [config] - 配置选项
+    * @returns {Promise<{success: boolean, session?: Electron.Session, error?: string}>}
    */
   async createSession(accountId, config = {}) {
     try {
@@ -98,39 +88,19 @@ class SessionManager {
       // 缓存 session 实例
       this.sessionCache.set(accountId, accountSession);
 
-      let proxyWarning = null;
+      
 
-      // 配置代理（如果提供）
-      if (config.proxy && config.proxy.enabled) {
-        const proxyResult = await this.configureProxy(accountId, config.proxy);
-        if (!proxyResult.success) {
-          proxyWarning = `Proxy configuration failed: ${proxyResult.error}`;
-          this.log('warn', `Failed to configure proxy for account ${accountId}: ${proxyResult.error}`);
-
-          // 如果应用了回退策略，记录警告
-          if (proxyResult.fallbackApplied) {
-            proxyWarning += ' (using direct connection as fallback)';
-          }
-        } else if (proxyResult.fallbackApplied) {
-          proxyWarning = proxyResult.error;
-        }
-      }
+      
 
       // 配置 session 持久化选项
       await this.configureSessionPersistence(accountId);
 
       this.log('info', `Session created successfully for account ${accountId}`);
 
-      const result = {
+      return {
         success: true,
         session: accountSession
       };
-
-      if (proxyWarning) {
-        result.proxyWarning = proxyWarning;
-      }
-
-      return result;
     } catch (error) {
       this.log('error', `Failed to create session for account ${accountId}:`, error);
       return {
@@ -163,389 +133,28 @@ class SessionManager {
     }
   }
 
-  /**
-   * 配置账号的代理设置
-   * @param {string} accountId - 账号 ID
-   * @param {Object} proxyConfig - 代理配置
-   * @param {string} proxyConfig.protocol - 代理协议 (http/https/socks5)
-   * @param {string} proxyConfig.host - 代理主机
-   * @param {number} proxyConfig.port - 代理端口
-   * @param {string} [proxyConfig.username] - 代理用户名（可选）
-   * @param {string} [proxyConfig.password] - 代理密码（可选）
-   * @param {string} [proxyConfig.bypass] - 代理绕过规则（可选）
-   * @param {boolean} [proxyConfig.validateConnectivity] - 是否验证代理连接性（可选，默认 false）
-   * @returns {Promise<{success: boolean, error?: string, fallbackApplied?: boolean}>}
-   */
-  async configureProxy(accountId, proxyConfig) {
-    try {
-      this.log('info', `Configuring proxy for account ${accountId}`);
+  
 
-      // 验证代理配置
-      const validation = this._validateProxyConfig(proxyConfig);
-      if (!validation.valid) {
-        throw new Error(`Invalid proxy configuration: ${validation.error}`);
-      }
+  
+  
 
-      const accountSession = this.getSession(accountId);
-      if (!accountSession) {
-        throw new Error(`Session not found for account ${accountId}`);
-      }
+  
+  
 
-      // 构建代理 URL
-      const { protocol, host, port, username, password, bypass, validateConnectivity } = proxyConfig;
+  
+  
 
-      // 构建代理规则字符串
-      // 对于 SOCKS5，使用 socks5:// 协议头，Chromium 会默认使用远程 DNS
-      // 如果需要强制远程 DNS，可以考虑使用 socks5h:// (取决于 Electron/Chromium 版本支持)
-      // 但最重要的是禁用非代理 UDP
-      let scheme = protocol.toLowerCase();
-      if (scheme === 'socks5') {
-        // 确保使用 socks5://
-        scheme = 'socks5';
-      }
+  
+  
 
-      let proxyRules = `${scheme}://${host}:${port}`;
+  
+  
 
-      // 可选：验证代理连接性
-      if (validateConnectivity) {
-        this.log('info', `Validating proxy connectivity for account ${accountId}`);
-        const isValid = await this._validateProxyConnectivity(accountSession, proxyRules, username, password);
-        if (!isValid) {
-          this.log('warn', `Proxy connectivity validation failed for account ${accountId}, applying fallback`);
-          // 应用回退策略：使用直连
-          return await this._applyProxyFallback(accountId, accountSession, 'Proxy connectivity validation failed');
-        }
-      }
+  
+  
 
-      // 如果有认证信息，需要通过 webRequest 拦截器处理
-      if (username && password) {
-        this._setupProxyAuth(accountSession, username, password);
-      }
-
-      // 设置 WebRTC IP 处理策略，防止真实 IP 泄露
-      // disable_non_proxied_udp: 强制 WebRTC 流量走代理，如果代理不支持 UDP，WebRTC 可能会失败，但保护了 IP
-      try {
-        accountSession.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
-        this.log('info', `WebRTC IP handling policy set to 'disable_non_proxied_udp' for account ${accountId}`);
-      } catch (error) {
-        this.log('error', `Failed to set WebRTC IP handling policy for account ${accountId}:`, error);
-      }
-
-      // 设置代理
-      const proxySettings = {
-        proxyRules,
-        proxyBypassRules: bypass || '<local>'
-      };
-
-      await accountSession.setProxy(proxySettings);
-
-      // 缓存代理配置
-      this.proxyCache.set(accountId, proxyConfig);
-
-      this.log('info', `Proxy configured successfully for account ${accountId}: ${proxyRules}`);
-
-      return { success: true };
-    } catch (error) {
-      this.log('error', `Failed to configure proxy for account ${accountId}:`, error);
-
-      // 尝试应用回退策略
-      try {
-        const accountSession = this.getSession(accountId);
-        if (accountSession) {
-          return await this._applyProxyFallback(accountId, accountSession, error.message);
-        }
-      } catch (fallbackError) {
-        this.log('error', `Fallback also failed for account ${accountId}:`, fallbackError);
-      }
-
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * 验证代理配置
-   * @private
-   * @param {Object} proxyConfig - 代理配置
-   * @returns {{valid: boolean, error?: string}}
-   */
-  _validateProxyConfig(proxyConfig) {
-    if (!proxyConfig) {
-      return { valid: false, error: 'Proxy config is required' };
-    }
-
-    const { protocol, host, port, username, password } = proxyConfig;
-
-    // 验证协议
-    const validProtocols = ['http', 'https', 'socks5', 'socks4'];
-    if (!protocol || !validProtocols.includes(protocol.toLowerCase())) {
-      return { valid: false, error: `Invalid protocol: ${protocol}. Must be one of: ${validProtocols.join(', ')}` };
-    }
-
-    // 验证主机
-    if (!host || typeof host !== 'string' || host.trim() === '') {
-      return { valid: false, error: 'Invalid host: must be a non-empty string' };
-    }
-
-    // 验证主机格式（基本检查）
-    const hostPattern = /^[a-zA-Z0-9.-]+$/;
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!hostPattern.test(host) && !ipPattern.test(host)) {
-      return { valid: false, error: 'Invalid host format: must be a valid hostname or IP address' };
-    }
-
-    // 验证端口
-    if (!port || typeof port !== 'number' || port < 1 || port > 65535) {
-      return { valid: false, error: 'Invalid port: must be a number between 1 and 65535' };
-    }
-
-    // 验证认证信息（如果提供）
-    if (username !== undefined || password !== undefined) {
-      if (username && typeof username !== 'string') {
-        return { valid: false, error: 'Invalid username: must be a string' };
-      }
-      if (password && typeof password !== 'string') {
-        return { valid: false, error: 'Invalid password: must be a string' };
-      }
-      // 如果提供了用户名或密码，两者都应该提供
-      if ((username && !password) || (!username && password)) {
-        return { valid: false, error: 'Both username and password must be provided for authentication' };
-      }
-    }
-
-    return { valid: true };
-  }
-
-  /**
-   * 设置代理认证
-   * @private
-   * @param {Electron.Session} accountSession - Session 实例
-   * @param {string} username - 用户名
-   * @param {string} password - 密码
-   */
-  _setupProxyAuth(accountSession, username, password) {
-    // 移除之前的监听器（如果存在）
-    accountSession.webRequest.onBeforeSendHeaders(null);
-
-    // 设置代理认证拦截器
-    accountSession.webRequest.onBeforeSendHeaders((details, callback) => {
-      // 为代理请求添加认证头
-      if (details.requestHeaders['Proxy-Authorization']) {
-        // 已经有认证头，不需要添加
-        callback({ requestHeaders: details.requestHeaders });
-        return;
-      }
-
-      // 添加 Basic 认证
-      const auth = Buffer.from(`${username}:${password}`).toString('base64');
-      details.requestHeaders['Proxy-Authorization'] = `Basic ${auth}`;
-
-      callback({ requestHeaders: details.requestHeaders });
-    });
-
-    this.log('info', 'Proxy authentication configured');
-  }
-
-  /**
-   * 验证代理连接性
-   * @private
-   * @param {Electron.Session} accountSession - Session 实例
-   * @param {string} proxyRules - 代理规则
-   * @param {string} [username] - 用户名（可选）
-   * @param {string} [password] - 密码（可选）
-   * @returns {Promise<boolean>}
-   */
-  async _validateProxyConnectivity(accountSession, proxyRules, username, password) {
-    try {
-      // 临时设置代理
-      const tempProxySettings = {
-        proxyRules,
-        proxyBypassRules: '<local>'
-      };
-
-      await accountSession.setProxy(tempProxySettings);
-
-      // 如果有认证信息，临时设置
-      if (username && password) {
-        this._setupProxyAuth(accountSession, username, password);
-      }
-
-      // 尝试通过代理发起一个简单的请求来验证连接性
-      // 使用一个轻量级的测试 URL
-      const testUrl = 'https://www.google.com/generate_204';
-
-      return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          this.log('warn', 'Proxy connectivity validation timed out');
-          resolve(false);
-        }, 10000); // 10 秒超时
-
-        const request = require('electron').net.request({
-          url: testUrl,
-          session: accountSession,
-          method: 'HEAD'
-        });
-
-        request.on('response', (response) => {
-          clearTimeout(timeout);
-          // 任何响应都表示代理可以连接
-          const isValid = response.statusCode >= 200 && response.statusCode < 500;
-          this.log('info', `Proxy connectivity validation result: ${isValid} (status: ${response.statusCode})`);
-          resolve(isValid);
-        });
-
-        request.on('error', (error) => {
-          clearTimeout(timeout);
-          this.log('warn', `Proxy connectivity validation failed:`, error.message);
-          resolve(false);
-        });
-
-        request.end();
-      });
-    } catch (error) {
-      this.log('error', 'Error during proxy connectivity validation:', error);
-      return false;
-    }
-  }
-
-  /**
-   * 应用代理回退策略（使用直连）
-   * @private
-   * @param {string} accountId - 账号 ID
-   * @param {Electron.Session} accountSession - Session 实例
-   * @param {string} reason - 回退原因
-   * @returns {Promise<{success: boolean, fallbackApplied: boolean, error?: string}>}
-   */
-  async _applyProxyFallback(accountId, accountSession, reason) {
-    try {
-      this.log('warn', `Applying proxy fallback for account ${accountId}: ${reason}`);
-
-      // 清除代理设置，使用直连
-      await accountSession.setProxy({ proxyRules: 'direct://' });
-
-      // 清除代理认证拦截器
-      accountSession.webRequest.onBeforeSendHeaders(null);
-
-      // 清除代理缓存
-      this.proxyCache.delete(accountId);
-
-      this.log('info', `Proxy fallback applied for account ${accountId}, using direct connection`);
-
-      return {
-        success: true,
-        fallbackApplied: true,
-        error: `Proxy configuration failed (${reason}), using direct connection as fallback`
-      };
-    } catch (error) {
-      this.log('error', `Failed to apply proxy fallback for account ${accountId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * 测试代理配置（不实际应用）
-   * @param {Object} proxyConfig - 代理配置
-   * @param {string} proxyConfig.protocol - 代理协议 (http/https/socks5)
-   * @param {string} proxyConfig.host - 代理主机
-   * @param {number} proxyConfig.port - 代理端口
-   * @param {string} [proxyConfig.username] - 代理用户名（可选）
-   * @param {string} [proxyConfig.password] - 代理密码（可选）
-   * @returns {Promise<{valid: boolean, error?: string, latency?: number}>}
-   */
-  async testProxyConfig(proxyConfig) {
-    try {
-      this.log('info', 'Testing proxy configuration');
-
-      // 验证代理配置格式
-      const validation = this._validateProxyConfig(proxyConfig);
-      if (!validation.valid) {
-        return {
-          valid: false,
-          error: validation.error
-        };
-      }
-
-      // 创建临时 session 用于测试
-      const testPartition = `temp:proxy-test-${Date.now()}`;
-      const testSession = this.electron.session.fromPartition(testPartition);
-
-      const { protocol, host, port, username, password } = proxyConfig;
-      const proxyRules = `${protocol}://${host}:${port}`;
-
-      // 测试连接性
-      const startTime = Date.now();
-      const isValid = await this._validateProxyConnectivity(testSession, proxyRules, username, password);
-      const latency = Date.now() - startTime;
-
-      // 清理临时 session
-      await testSession.clearStorageData();
-
-      if (isValid) {
-        this.log('info', `Proxy test successful, latency: ${latency}ms`);
-        return {
-          valid: true,
-          latency
-        };
-      } else {
-        return {
-          valid: false,
-          error: 'Proxy connectivity test failed'
-        };
-      }
-    } catch (error) {
-      this.log('error', 'Proxy test failed:', error);
-      return {
-        valid: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * 获取账号的代理配置
-   * @param {string} accountId - 账号 ID
-   * @returns {Object|null}
-   */
-  getProxyConfig(accountId) {
-    return this.proxyCache.get(accountId) || null;
-  }
-
-  /**
-   * 清除账号的代理配置
-   * @param {string} accountId - 账号 ID
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
-  async clearProxy(accountId) {
-    try {
-      this.log('info', `Clearing proxy for account ${accountId}`);
-
-      const accountSession = this.getSession(accountId);
-      if (!accountSession) {
-        throw new Error(`Session not found for account ${accountId}`);
-      }
-
-      // 清除代理设置
-      await accountSession.setProxy({ proxyRules: 'direct://' });
-
-      // 清除代理认证拦截器
-      accountSession.webRequest.onBeforeSendHeaders(null);
-
-      // 清除缓存
-      this.proxyCache.delete(accountId);
-
-      this.log('info', `Proxy cleared for account ${accountId}`);
-
-      return { success: true };
-    } catch (error) {
-      this.log('error', `Failed to clear proxy for account ${accountId}:`, error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
+  
+  
 
   /**
    * 获取实例的 session 对象（向后兼容）
@@ -800,7 +409,6 @@ class SessionManager {
   clearAccountCache(accountId) {
     this.loginStatusCache.delete(accountId);
     this.sessionCache.delete(accountId);
-    this.proxyCache.delete(accountId);
     this.log('info', `All caches cleared for account ${accountId}`);
   }
 
@@ -1182,7 +790,7 @@ class SessionManager {
    * @param {string} accountId - 账号 ID
    * @param {Object} [options] - 选项
    * @param {boolean} [options.clearCache] - 是否清除缓存
-   * @param {boolean} [options.preserveSettings] - 是否保留设置（代理、翻译等）
+   * @param {boolean} [options.preserveSettings] - 是否保留设置（翻译等）
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async handleSessionExpiration(accountId, options = {}) {

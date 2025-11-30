@@ -89,7 +89,6 @@ async function runTests() {
         // Create view
         const view = await viewManager.createView(account.id, {
           url: 'https://web.whatsapp.com',
-          proxy: account.proxy,
           translation: account.translation
         });
 
@@ -223,4 +222,3 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled rejection at:', promise, 'reason:', reason);
 });
-

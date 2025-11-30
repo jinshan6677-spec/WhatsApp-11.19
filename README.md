@@ -8,16 +8,16 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=for-the-badge)
 ![Architecture](https://img.shields.io/badge/Architecture-v2.0-00d26a?style=for-the-badge&logo=architecture&logoColor=white)
 
-基于 Electron 的 WhatsApp 桌面应用程序，支持实时翻译和企业级代理安全防护。
+基于 Electron 的 WhatsApp 桌面应用程序，支持实时翻译。
 
-[功能特性](#核心特性) • [快速开始](#快速开始) • [新架构](#-新架构-v20) • [代理安全](#-代理安全防护) • [文档](#文档)
+[功能特性](#核心特性) • [快速开始](#快速开始) • [新架构](#-新架构-v20) • [文档](#文档)
 
 <div align="left">
 
 ## � 新架版构亮点 (v2.0)
 
 ✨ **全新分层架构** - 表现层、应用层、领域层、基础设施层  
-🔒 **企业级代理安全** - 零信任网络模型，100% IP泄露防护  
+ 
 ⚡ **性能显著提升** - 边界计算优化、内存管理增强  
 � **开发体容验改善** - 依赖注入、事件总线、插件系统  
 🧪 **属性测试覆盖** - 56个正确性属性，确保代码质量  
@@ -60,7 +60,6 @@
 - [关键特性详解](#-关键特性详解)
 
 ### 🔒 安全和配置
-- [代理安全防护](#-代理安全防护)
 - [配置](#配置)
 - [最佳实践](#-最佳实践)
 - [安全性说明](#安全性说明)
@@ -98,13 +97,7 @@
   - 输入框翻译：支持 11 种风格（正式、口语化、亲切等），提升沟通质量
 - ✅ **输入框翻译** - 发送前自动翻译消息，支持风格定制
 - ✅ **好友独立翻译配置** - 为每个联系人设置不同的翻译偏好
-- ✅ **独立代理配置** - 每个账号可配置独立的网络代理（SOCKS5/HTTP/HTTPS）
-- 🔒 **企业级代理安全** - 零信任网络模型，禁止回退直连，100% IP泄露防护
-  - Kill-Switch机制：代理断开时立即阻断所有网络请求
-  - WebRTC阻断：完全禁用WebRTC防止IP泄露
-  - DNS泄露防护：确保DNS请求通过代理
-  - IP验证：连接前验证出口IP
-  - 健康监控：实时监控代理状态
+ 
 - ✅ **进程级隔离** - 每个账号在独立进程中运行，互不影响
 - ✅ **会话持久化** - 自动保存登录状态，无需重复扫码
 - ✅ **跨平台支持** - Windows、macOS、Linux 全平台支持
@@ -205,7 +198,7 @@ electron src/main-refactored.js
 
 **新架构优势:**
 - 🏗️ 分层架构：表现层、应用层、领域层、基础设施层
-- 🔒 企业级代理安全：零信任网络模型，100% IP泄露防护
+ 
 - ⚡ 更快的启动速度和更好的性能
 - 🛡️ 统一的错误处理和恢复策略
 - 📊 事件总线和状态管理
@@ -220,7 +213,7 @@ electron src/main-refactored.js
 
 1. 启动应用后，会显示账号管理主界面
 2. 点击"添加账号"创建新的 WhatsApp 账号实例
-3. 为账号设置名称、代理和翻译配置
+3. 为账号设置名称和翻译配置
 4. 点击账号旁边的 **▶ 打开** 按钮启动账号
 5. 首次使用需要用手机扫描二维码登录
 6. 登录后会话会自动保存，下次启动无需重新扫码
@@ -263,32 +256,11 @@ electron src/main-refactored.js
 
 - **添加账号**：点击主界面的"添加账号"按钮，系统会自动生成唯一 ID
 - **启动/停止**：每个账号可以独立启动和停止
-- **配置账号**：点击账号卡片可以编辑名称、代理和翻译设置
+- **配置账号**：点击账号卡片可以编辑名称和翻译设置
 - **删除账号**：删除账号会同时清除其会话数据和配置
 - **状态监控**：实时查看每个账号的运行状态和未读消息数
 
-#### 代理配置
-
-每个账号可以配置独立的网络代理，实现 IP 隔离：
-
-```javascript
-// 代理配置示例
-{
-  enabled: true,
-  protocol: 'socks5',  // 支持 socks5、http、https
-  host: '127.0.0.1',
-  port: 1080,
-  username: 'user',    // 可选
-  password: 'pass',    // 可选
-  bypass: 'localhost'  // 可选，绕过代理的地址
-}
-```
-
-**支持的代理类型**：
-- SOCKS5 代理（推荐）
-- HTTP 代理
-- HTTPS 代理
-- 支持用户名/密码认证
+ 
 
 #### 翻译配置
 
@@ -365,14 +337,6 @@ whatsapp-desktop-translation/
 │   │   └── dtos/            # 数据传输对象
 │   │
 │   ├── infrastructure/      # 🔧 基础设施层
-│   │   ├── proxy/           # 🔒 代理安全模块
-│   │   │   ├── ProxyService.js
-│   │   │   ├── ProxySecurityManager.js
-│   │   │   ├── KillSwitch.js
-│   │   │   ├── ProxyHealthMonitor.js
-│   │   │   ├── IPProtectionInjector.js
-│   │   │   ├── IPLeakDetector.js
-│   │   │   └── ...
 │   │   ├── translation/     # 翻译适配器
 │   │   ├── repositories/    # Repository实现
 │   │   ├── storage/         # 存储适配器
@@ -388,7 +352,7 @@ whatsapp-desktop-translation/
 │   │   │       ├── ViewFactory.js
 │   │   │       ├── ViewLifecycle.js
 │   │   │       ├── ViewBoundsManager.js
-│   │   │       ├── ViewProxyIntegration.js
+│   │   │       ├── ViewTranslationIntegration.js
 │   │   │       └── ...
 │   │   └── translation/     # 翻译内容脚本
 │   │
@@ -412,7 +376,7 @@ whatsapp-desktop-translation/
 |------|----------------|----------------|
 | **架构模式** | 单层 | Clean Architecture（4层） |
 | **通信方式** | 直接调用 | 事件总线 + 依赖注入 |
-| **代理安全** | 基础 | 企业级（零信任模型） |
+ 
 | **测试覆盖** | 基础单元测试 | 56个属性测试 + 单元测试 |
 | **启动时间** | 8-10 秒 | 3-5 秒 |
 | **内存占用** | 500-600MB | 200-400MB |
@@ -425,7 +389,7 @@ whatsapp-desktop-translation/
 - **🎨 表现层**: IPC路由、窗口管理、UI组件
 - **💼 应用层**: 业务服务、用例编排
 - **🎯 领域层**: 实体、领域事件、Repository接口
-- **🔧 基础设施层**: 代理安全、翻译、存储、插件
+- **🔧 基础设施层**: 翻译、存储、插件
 
 #### 核心组件
 - **📡 EventBus**: 模块间解耦通信
@@ -434,12 +398,7 @@ whatsapp-desktop-translation/
 - **🔗 DependencyContainer**: 依赖注入
 - **🛡️ ErrorHandler**: 统一错误处理
 
-#### 代理安全模块 🔒
-- **ProxySecurityManager**: 安全策略管理
-- **KillSwitch**: 紧急断开机制
-- **ProxyHealthMonitor**: 健康监控
-- **IPProtectionInjector**: IP保护脚本注入
-- **IPLeakDetector**: IP泄露检测
+ 
 
 #### 性能优化
 - **⚡ 边界计算**: 智能缓存 + 防抖处理
@@ -489,7 +448,7 @@ whatsapp-desktop-translation/
 ### 🚀 新架构特性 (v2.0)
 - **v2.0.0**: 完整架构迁移
   - 🏗️ 分层架构（表现层、应用层、领域层、基础设施层）
-  - 🔒 企业级代理安全防护（零信任网络模型）
+  
   - 📡 事件总线系统
   - ⚙️ 配置管理统一化
   - 📊 状态管理优化
@@ -532,7 +491,7 @@ npm test -- --testPathPattern="property"
 
 - **[🚀 架构迁移完成报告](ARCHITECTURE_MIGRATION_COMPLETE.md)** - 新架构完整说明
   - 📊 新架构目录结构
-  - 🔒 代理安全模块说明
+  
   - 🧪 测试验证结果
   - 🛠️ 启动和运行指南
 
@@ -599,22 +558,11 @@ A: 每个账号实例大约占用：
 **Q: 账号之间的数据会互相影响吗？**
 A: 不会。每个账号运行在独立的进程中，拥有独立的存储空间，完全隔离。
 
-**Q: 可以为不同账号配置不同的代理吗？**
-A: 可以。每个账号都可以配置独立的代理服务器，实现 IP 隔离。
 
 **Q: 如果一个账号崩溃，会影响其他账号吗？**
 A: 不会。每个账号在独立进程中运行，单个账号崩溃不会影响其他账号。系统会自动尝试重启崩溃的账号（最多 3 次）。
 
-### 代理配置
-
-**Q: 支持哪些类型的代理？**
-A: 支持 SOCKS5、HTTP 和 HTTPS 代理，推荐使用 SOCKS5。
-
-**Q: 代理配置错误会怎样？**
-A: 如果代理无法连接，账号实例将无法启动，系统会显示错误提示。
-
-**Q: 可以不使用代理吗？**
-A: 可以。代理配置是可选的，不配置代理时使用直连网络。
+ 
 
 ### 翻译功能
 
@@ -636,7 +584,7 @@ sudo apt-get install -y chromium fonts-liberation libasound2 libatk-bridge2.0-0
 **问题：账号实例启动失败**
 
 **解决方案**：
-1. 检查代理配置是否正确
+ 
 2. 确保系统资源充足（内存、CPU）
 3. 查看错误日志了解具体原因
 4. 尝试删除并重新创建账号
@@ -684,14 +632,14 @@ sudo apt-get install -y chromium fonts-liberation libasound2 libatk-bridge2.0-0
     │ (独立)  │ │ (独立)  │ │ (独立)  │
     └────────┘ └────────┘ └────────┘
     ├─ 会话   ├─ 会话   ├─ 会话
-    ├─ 代理   ├─ 代理   ├─ 代理
+ 
     └─ 翻译   └─ 翻译   └─ 翻译
 ```
 
 **隔离优势**：
 - ✅ 数据完全隔离，互不影响
 - ✅ 单个账号崩溃不影响其他账号
-- ✅ 独立的代理和翻译配置
+- ✅ 独立的翻译配置
 - ✅ 独立的会话和认证令牌
 
 ### 事件驱动架构
@@ -700,16 +648,12 @@ sudo apt-get install -y chromium fonts-liberation libasound2 libatk-bridge2.0-0
 
 ```javascript
 // 发送事件
-eventBus.emit('proxy:connected', { accountId, ip });
 
 // 监听事件
-eventBus.on('proxy:connected', (data) => {
-  console.log(`账号 ${data.accountId} 已连接，IP: ${data.ip}`);
-});
 ```
 
 **事件类型**：
-- `proxy:*` - 代理相关事件
+ 
 - `translation:*` - 翻译相关事件
 - `account:*` - 账号相关事件
 - `window:*` - 窗口相关事件
@@ -720,11 +664,9 @@ eventBus.on('proxy:connected', (data) => {
 
 ```javascript
 // 注册依赖
-container.register('ProxyService', ProxyService);
 container.register('TranslationService', TranslationService);
 
 // 获取依赖
-const proxyService = container.get('ProxyService');
 const translationService = container.get('TranslationService');
 ```
 
@@ -734,110 +676,11 @@ const translationService = container.get('TranslationService');
 - ✅ 易于替换实现
 - ✅ 支持生命周期管理
 
-## 🔒 代理安全防护
+ 
 
-### 零信任网络模型
+ 
 
-新架构实现了企业级代理安全防护，参考 AdsPower/Multilogin 设计：
-
-| 功能 | 说明 |
-|------|------|
-| **禁止回退直连** | 代理失败时阻断网络而非回退到直连 |
-| **Kill-Switch** | 代理断开时立即阻断所有网络请求 |
-| **WebRTC阻断** | 完全禁用WebRTC防止IP泄露 |
-| **DNS泄露防护** | 确保DNS请求通过代理 |
-| **IP验证** | 连接前验证出口IP |
-| **健康监控** | 实时监控代理状态 |
-| **自动重连** | 3次指数退避重连机制 |
-
-### 安全流程
-
-**场景1：打开WhatsApp前失败**
-1. 代理预检测（测试连通性）
-2. IP验证（验证出口IP）
-3. 预检测失败 → ⚠️ 显示错误提示，❌ 不创建视图
-4. 连接成功 → ✅ 创建BrowserView
-5. 注入IP保护脚本
-6. 启动健康监控
-
-**场景2：WhatsApp已打开后失败**
-1. 健康监控检测到代理失败
-2. 触发Kill-Switch → ❌ 禁止网络请求，✅ 保持视图
-3. 启动自动重连机制（3次重试）
-4. 重连成功 → 解除Kill-Switch，恢复网络
-5. 重连失败 → 保持Kill-Switch，等待用户操作
-
-### IP保护脚本
-
-自动注入以下保护：
-- 禁用 `RTCPeerConnection`、`RTCDataChannel`、`RTCSessionDescription`
-- 禁用 `mediaDevices.getUserMedia`
-- 覆盖 `navigator.connection` 返回 undefined
-- 禁用 `navigator.getBattery`
-
-## 代理配置示例
-
-### SOCKS5 代理（推荐）
-
-```javascript
-{
-  enabled: true,
-  protocol: 'socks5',
-  host: '127.0.0.1',
-  port: 1080,
-  // 新增安全属性
-  killSwitchEnabled: true,        // 启用Kill-Switch
-  verifyIPBeforeConnect: true,    // 连接前验证IP
-  healthCheckInterval: 30000,     // 健康检查间隔（毫秒）
-  maxConsecutiveFailures: 3       // 最大连续失败次数
-}
-```
-
-### 带认证的 SOCKS5 代理
-
-```javascript
-{
-  enabled: true,
-  protocol: 'socks5',
-  host: 'proxy.example.com',
-  port: 1080,
-  username: 'your_username',
-  password: 'your_password'
-}
-```
-
-### HTTP 代理
-
-```javascript
-{
-  enabled: true,
-  protocol: 'http',
-  host: 'proxy.example.com',
-  port: 8080,
-  username: 'your_username',  // 可选
-  password: 'your_password'   // 可选
-}
-```
-
-### 绕过本地地址
-
-```javascript
-{
-  enabled: true,
-  protocol: 'socks5',
-  host: '127.0.0.1',
-  port: 1080,
-  bypass: 'localhost,127.0.0.1,*.local'
-}
-```
-
-### 代理配置最佳实践
-
-1. **使用 SOCKS5**：相比 HTTP 代理，SOCKS5 性能更好，支持 UDP
-2. **测试代理**：配置前先测试代理是否可用
-3. **IP 隔离**：为每个账号配置不同的代理 IP，避免关联
-4. **代理稳定性**：使用稳定的代理服务，避免频繁断线
-5. **认证安全**：代理密码会加密存储，但仍建议使用强密码
+ 
 
 ## 🗺️ 未来计划
 
@@ -853,7 +696,7 @@ const translationService = container.get('TranslationService');
 
 - [ ] ☁️ **云同步** - 账号配置云端同步
 - [ ] 🤖 **自动化** - 自动化消息处理和回复
-- [ ] 🔀 **代理轮换** - 高级代理轮换策略
+ 
 - [ ] 📈 **性能工具** - 性能分析和优化工具
 - [ ] 🎨 **主题系统** - 自定义主题和皮肤
 
@@ -886,8 +729,7 @@ MIT
 |------|----------|
 | 主入口 | `src/main-refactored.js` |
 | 应用引导 | `src/app/bootstrap.js` |
-| 代理服务 | `src/application/services/ProxyService.js` |
-| 代理安全 | `src/infrastructure/proxy/` |
+ 
 | IPC路由 | `src/presentation/ipc/IPCRouter.js` |
 | 视图管理 | `src/presentation/windows/view-manager/` |
 | 翻译服务 | `src/translation/translationService.js` |
@@ -925,7 +767,7 @@ MIT
 | `npm run format` | 代码格式化 |
 | `npm run version` | 显示版本信息 |
 | `DEBUG=* npm start` | 启用详细日志 |
-| `DEBUG=proxy:* npm start` | 启用代理调试 |
+ 
 
 ## 🔧 故障排除和调试
 
@@ -938,8 +780,7 @@ DEBUG=* npm start
 # 启用特定模块日志
 DEBUG=whatsapp:* npm start
 
-# 启用代理调试
-DEBUG=proxy:* npm start
+ 
 ```
 
 ### 快速故障排除
@@ -975,38 +816,22 @@ npm start
 - 清理旧的会话数据
 - 检查磁盘 I/O 性能
 
-#### 问题：代理连接失败
-
-**诊断步骤**：
-1. 测试代理连通性：`npm run test:proxy`
-2. 验证代理配置：检查 host、port、protocol
-3. 查看代理日志：启用 `DEBUG=proxy:*`
-4. 检查防火墙设置
-
-**解决方案**：
-- 确认代理服务器正在运行
-- 检查代理用户名/密码
-- 尝试不同的代理协议（SOCKS5 vs HTTP）
-- 检查网络连接
-
 #### 问题：账号频繁掉线
 
 **诊断步骤**：
 1. 检查网络稳定性
 2. 查看会话数据完整性
-3. 检查代理健康状态
-4. 查看错误日志
+3. 查看错误日志
 
 **解决方案**：
 - 检查网络连接质量
 - 增加健康检查间隔
-- 更换更稳定的代理
 - 清除账号缓存后重启
 
 ### 日志位置
 
 - **应用日志**：`./logs/app.log`
-- **代理日志**：`./logs/proxy.log`
+ 
 - **翻译日志**：`./logs/translation.log`
 - **错误日志**：`./logs/error.log`
 
@@ -1024,8 +849,7 @@ cat ./logs/app.log >> debug-info.txt
 # 收集会话信息
 npm run test:session >> debug-info.txt 2>&1
 
-# 收集代理信息
-DEBUG=proxy:* npm start 2>&1 | head -100 >> debug-info.txt
+ 
 ```
 
 ## ⚡ 性能优化
@@ -1048,9 +872,9 @@ npm run test:setup
 
 ### 网络优化
 
-1. **使用高速代理**：选择低延迟的代理服务器
+1. **选择稳定网络**：确保网络延迟和带宽稳定
 2. **启用 DNS 缓存**：减少 DNS 查询
-3. **优化代理连接池**：调整连接数量
+3. **优化请求并发**：合理设置并发数量
 
 ### 磁盘优化
 
@@ -1131,7 +955,7 @@ npm run test:coverage
 
 **示例**：
 ```
-feat(proxy): add IP leak detection
+feat(security): add IP leak detection
 
 - Implement IPLeakDetector class
 - Add WebRTC blocking
@@ -1234,7 +1058,6 @@ npm test -- --testPathPattern="property"
 └─ 配置文件：~200 行
 
 主要模块：
-├─ 代理安全模块：~1,200 行
 ├─ 翻译服务：~800 行
 ├─ IPC 路由系统：~600 行
 ├─ 视图管理器：~700 行
@@ -1258,8 +1081,6 @@ npm test -- --testPathPattern="property"
 | 内存占用（单账号） | 200-400MB | 空闲状态 |
 | CPU 使用率（空闲） | <1% | 无活动时 |
 | CPU 使用率（活跃） | 2-5% | 正常使用时 |
-| 代理连接延迟 | <100ms | 平均连接时间 |
-| 代理重连时间 | <5 秒 | 自动重连机制 |
 | 磁盘占用（单账号） | 50-200MB | 包括缓存和会话 |
 
 ### 🎯 质量指标
@@ -1308,7 +1129,6 @@ npm test -- --testPathPattern="property"
 ### 项目参考
 
 - [AdsPower 多账号管理](https://www.adspower.com/)
-- [Multilogin 代理隔离](https://multilogin.com/)
 - [Electron 多进程架构](https://www.electronjs.org/docs/tutorial/process-model)
 
 ## 📝 版本历史
@@ -1317,7 +1137,6 @@ npm test -- --testPathPattern="property"
 
 **🎉 主要更新**
 - ✅ 完整的 Clean Architecture 迁移
-- ✅ 企业级代理安全防护（零信任网络模型）
 - ✅ 事件总线系统（模块解耦通信）
 - ✅ 依赖注入容器（IoC 管理）
 - ✅ 56 个属性测试覆盖（正确性保证）
@@ -1326,14 +1145,8 @@ npm test -- --testPathPattern="property"
 - ⚡ 性能提升 30%（启动速度、响应时间）
 - 💾 内存占用降低 20%（优化内存管理）
 - 🚀 启动时间减少 40%（从 8-10s 到 3-5s）
-- 🔗 代理连接更稳定（自动重连机制）
 
 **�️ 档安全增强**
-- Kill-Switch 机制（代理失败时阻断网络）
-- WebRTC 完全禁用（防止 IP 泄露）
-- DNS 泄露防护（确保 DNS 通过代理）
-- IP 验证机制（连接前验证出口 IP）
-- 健康监控系统（实时代理状态监控）
 
 **📚 文档完善**
 - 完整的架构文档
@@ -1354,7 +1167,7 @@ npm test -- --testPathPattern="property"
 - 多账号同时运行
 - 手动账户控制（按需打开/关闭）
 - 账号分组管理
-- 独立代理配置
+ 
 
 **改进**
 - 内存管理优化
@@ -1381,7 +1194,7 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ### 核心团队
 
 - 🎯 **项目维护者** - 架构设计和核心功能
-- 🔒 **安全团队** - 代理安全防护
+- 🔒 **安全团队** - 安全策略与防护
 - 🧪 **测试团队** - 属性测试和质量保证
 - 📖 **文档团队** - 文档编写和维护
 
@@ -1403,7 +1216,7 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 - [Node.js](https://nodejs.org/) - JavaScript 运行时
 - [WhatsApp Web](https://web.whatsapp.com/) - 官方 Web 版本
 - [AdsPower](https://www.adspower.com/) - 多账号管理参考
-- [Multilogin](https://multilogin.com/) - 代理隔离参考
+ 
 - [Property-Based Testing](https://hypothesis.works/) - 测试方法论
 
 ## 📞 联系方式
@@ -1462,29 +1275,14 @@ Made with ❤️ by the WhatsApp Desktop Team
 2. **监控账号状态**
    - 定期检查账号连接状态
    - 及时处理错误提示
-   - 保持代理连接稳定
+   - 保持网络连接稳定
 
 3. **资源管理**
    - 根据系统配置调整并发账号数
    - 定期清理缓存和日志
    - 监控内存使用情况
 
-### 代理配置
-
-1. **选择稳定的代理**
-   - 使用商业代理服务
-   - 避免免费代理
-   - 定期测试代理连通性
-
-2. **IP 隔离策略**
-   - 为每个账号配置不同的代理 IP
-   - 避免多个账号使用同一 IP
-   - 定期轮换代理 IP
-
-3. **安全认证**
-   - 使用强密码
-   - 定期更新代理密码
-   - 不要在代码中硬编码密码
+ 
 
 ### 翻译配置
 
@@ -1511,9 +1309,9 @@ Made with ❤️ by the WhatsApp Desktop Team
    - 及时关闭不使用的账号
 
 3. **网络优化**
-   - 使用高速代理
+   - 使用稳定网络连接
    - 启用 DNS 缓存
-   - 优化代理连接池
+   - 优化请求并发
 
 ## 安全性说明
 
@@ -1541,8 +1339,7 @@ Made with ❤️ by the WhatsApp Desktop Team
 | 问题 | 症状 | 解决方案 |
 |------|------|---------|
 | 应用无法启动 | 启动后立即崩溃 | 检查 Node.js 版本、清理缓存、重新安装依赖 |
-| 账号加载失败 | 账号显示错误状态 | 检查代理配置、验证网络连接、查看日志 |
-| 代理连接失败 | 无法连接到代理 | 测试代理连通性、检查防火墙、验证代理配置 |
+| 账号加载失败 | 账号显示错误状态 | 检查网络配置、验证网络连接、查看日志 |
 | 翻译不工作 | 翻译功能无响应 | 检查 API 密钥、验证网络连接、查看翻译日志 |
 | 内存占用过高 | 应用变得缓慢 | 关闭不必要的账号、清理缓存、重启应用 |
 | 会话频繁过期 | 需要重复登录 | 检查会话数据完整性、避免多设备登录、清除缓存 |
@@ -1571,9 +1368,6 @@ DEBUG=* npm start
 ```bash
 # 查看最新错误
 tail -f ./logs/error.log
-
-# 查看代理日志
-tail -f ./logs/proxy.log
 
 # 查看应用日志
 tail -f ./logs/app.log
@@ -1611,33 +1405,15 @@ npm test
 const eventBus = container.get('EventBus');
 
 // 发送事件
-eventBus.emit('proxy:connected', { accountId, ip });
+eventBus.emit('session:ready', { accountId });
 
 // 监听事件
-eventBus.on('proxy:connected', (data) => {
-  console.log(`账号 ${data.accountId} 已连接`);
+eventBus.on('session:ready', (data) => {
+  console.log(`账号 ${data.accountId} 已就绪`);
 });
 
 // 移除监听
-eventBus.off('proxy:connected', handler);
-```
-
-#### ProxyService（代理服务）
-
-```javascript
-const proxyService = container.get('ProxyService');
-
-// 启用代理
-await proxyService.enableProxy(accountId, proxyConfig);
-
-// 禁用代理
-await proxyService.disableProxy(accountId);
-
-// 获取代理状态
-const status = await proxyService.getProxyStatus(accountId);
-
-// 验证 IP
-const ip = await proxyService.verifyIP(accountId);
+eventBus.off('session:ready', handler);
 ```
 
 #### TranslationService（翻译服务）
@@ -1683,13 +1459,16 @@ stateManager.subscribe((newState) => {
 
 ```javascript
 // 在主进程中注册 IPC 处理器
-ipcMain.handle('proxy:enable', async (event, accountId, config) => {
-  const proxyService = container.get('ProxyService');
-  return await proxyService.enableProxy(accountId, config);
+ipcMain.handle('translation:apply', async (event, payload) => {
+  const translationService = container.get('TranslationService');
+  return await translationService.translate(payload);
 });
 
 // 在渲染进程中调用
-const result = await ipcRenderer.invoke('proxy:enable', accountId, config);
+const result = await ipcRenderer.invoke('translation:apply', {
+  text: '你好',
+  targetLanguage: 'en'
+});
 ```
 
 ### 添加新的 IPC 处理器
@@ -1778,7 +1557,7 @@ const result = await ipcRenderer.invoke('myFeature:action', data);
 
 - [ ] 所有敏感信息已从代码中移除
 - [ ] 环境变量已正确配置
-- [ ] 代理密码已加密存储
+- [ ] 敏感密码已加密存储
 - [ ] API 密钥已安全管理
 - [ ] 日志中不包含敏感信息
 - [ ] 所有依赖已更新到最新版本
@@ -1831,12 +1610,12 @@ const result = await ipcRenderer.invoke('myFeature:action', data);
 ### 网络性能
 
 ```
-代理连接延迟：<100ms
+网络延迟：<100ms
 ├─ DNS 查询：<20ms
 ├─ TCP 连接：<50ms
 └─ TLS 握手：<30ms
 
-代理重连时间：<5 秒
+重连时间：<5 秒
 ├─ 检测失败：<1 秒
 ├─ 重连尝试：<3 秒
 └─ 恢复：<1 秒
@@ -1876,7 +1655,6 @@ const result = await ipcRenderer.invoke('myFeature:action', data);
    - 提交 Pull Request
 
 3. **深入学习**
-   - 研究代理安全模块
    - 学习属性测试
    - 参与代码审查
 
@@ -1997,7 +1775,7 @@ A: 请参考 [贡献指南](#贡献指南) 部分。
 ### 相关项目
 
 - [AdsPower - 多账号管理工具](https://www.adspower.com/)
-- [Multilogin - 代理隔离工具](https://multilogin.com/)
+ 
 - [Electron 示例应用](https://github.com/electron/electron-quick-start)
 
 ---
@@ -2048,46 +1826,14 @@ npm start
 # 在 UI 中：
 # 1. 点击 "添加账号"
 # 2. 输入账号名称（如 "工作账号"）
-# 3. 配置代理（可选）
+# 3. 配置翻译（可选）
 # 4. 配置翻译（可选）
 # 5. 点击 "创建"
 # 6. 点击 "打开" 启动账号
 # 7. 扫描二维码登录
 ```
 
-### 场景 2: 为不同账号配置不同的代理
-
-```javascript
-// 账号 1 - 使用代理 A
-{
-  accountId: 'account-1',
-  proxy: {
-    enabled: true,
-    protocol: 'socks5',
-    host: 'proxy-a.example.com',
-    port: 1080
-  }
-}
-
-// 账号 2 - 使用代理 B
-{
-  accountId: 'account-2',
-  proxy: {
-    enabled: true,
-    protocol: 'socks5',
-    host: 'proxy-b.example.com',
-    port: 1080
-  }
-}
-
-// 账号 3 - 不使用代理
-{
-  accountId: 'account-3',
-  proxy: {
-    enabled: false
-  }
-}
-```
+ 
 
 ### 场景 3: 为不同账号配置不同的翻译
 
@@ -2137,7 +1883,7 @@ tail -f ./logs/app.log | grep "account"
 # 输出示例：
 # [INFO] account-1: 已连接，IP: 1.2.3.4
 # [INFO] account-2: 已连接，IP: 5.6.7.8
-# [INFO] account-3: 代理连接失败，重试中...
+# [INFO] account-3: 网络连接失败，重试中...
 ```
 
 ---
@@ -2168,14 +1914,6 @@ module.exports = {
     author: 'Your Name'
   },
   
-  proxy: {
-    timeout: 30000,
-    retries: 3,
-    killSwitchEnabled: true,
-    verifyIPBeforeConnect: true,
-    healthCheckInterval: 30000
-  },
-  
   translation: {
     timeout: 10000,
     defaultEngine: 'google',
@@ -2201,30 +1939,7 @@ module.exports = {
 
 ## 📱 IPC 通信完整参考
 
-### 代理相关 IPC
-
-```javascript
-// 启用代理
-ipcRenderer.invoke('proxy:enable', accountId, config)
-
-// 禁用代理
-ipcRenderer.invoke('proxy:disable', accountId)
-
-// 获取代理状态
-ipcRenderer.invoke('proxy:getStatus', accountId)
-
-// 验证 IP
-ipcRenderer.invoke('proxy:verifyIP', accountId)
-
-// 测试代理连通性
-ipcRenderer.invoke('proxy:test', config)
-
-// 获取代理列表
-ipcRenderer.invoke('proxy:list')
-
-// 更新代理配置
-ipcRenderer.invoke('proxy:update', accountId, config)
-```
+ 
 
 ### 翻译相关 IPC
 
@@ -2258,7 +1973,6 @@ ipcRenderer.invoke('translation:getConfig', accountId)
 // 创建账号
 ipcRenderer.invoke('account:create', {
   name: '账号名称',
-  proxy: {...},
   translation: {...}
 })
 
@@ -2299,11 +2013,6 @@ ipcRenderer.invoke('account:getStatus', accountId)
   ip: '1.2.3.4',
   unreadCount: 5,
   lastActivity: '2025-11-27 10:30:00',
-  proxy: {
-    enabled: true,
-    protocol: 'socks5',
-    host: 'proxy.example.com'
-  },
   translation: {
     enabled: true,
     engine: 'google',
@@ -2318,7 +2027,7 @@ ipcRenderer.invoke('account:getStatus', accountId)
 🟢 已连接 (Connected)
   - 账号正在运行
   - 可以发送/接收消息
-  - 代理连接正常
+  - 网络连接正常
 
 ⚪ 未启动 (Disconnected)
   - 账号未运行
@@ -2340,30 +2049,12 @@ ipcRenderer.invoke('account:getStatus', accountId)
 
 ## 🔐 安全最佳实践详解
 
-### 1. 代理安全
+### 1. 网络安全
 
 ```javascript
 // ✅ 正确的做法
-const proxyConfig = {
-  enabled: true,
-  protocol: 'socks5',
-  host: process.env.PROXY_HOST,
-  port: parseInt(process.env.PROXY_PORT),
-  username: process.env.PROXY_USER,
-  password: process.env.PROXY_PASS,
-  killSwitchEnabled: true,
-  verifyIPBeforeConnect: true
-};
-
-// ❌ 错误的做法
-const badConfig = {
-  enabled: true,
-  protocol: 'http',
-  host: '127.0.0.1',
-  port: 8080,
-  username: 'admin',
-  password: 'password123', // 硬编码密码！
-  killSwitchEnabled: false // 禁用 Kill-Switch！
+const networkConfig = {
+  protocol: 'https'
 };
 ```
 
@@ -2373,7 +2064,7 @@ const badConfig = {
 // 所有敏感数据都应该加密存储
 const encryptedData = {
   accountId: 'account-1',
-  proxyPassword: encrypt(password), // 加密
+  password: encrypt(password), // 加密
   apiKey: encrypt(apiKey), // 加密
   sessionToken: encrypt(token) // 加密
 };
@@ -2384,10 +2075,8 @@ const encryptedData = {
 ```javascript
 // ✅ 正确的做法 - 不记录敏感信息
 logger.info(`账号 ${accountId} 已连接`);
-logger.info(`代理 IP: ${ip}`);
 
 // ❌ 错误的做法 - 记录敏感信息
-logger.info(`代理密码: ${password}`); // 不要这样做！
 logger.info(`API 密钥: ${apiKey}`); // 不要这样做！
 logger.info(`会话令牌: ${token}`); // 不要这样做！
 ```
@@ -2456,20 +2145,18 @@ kill -9 <PID>  # macOS/Linux
 taskkill /PID <PID> /F  # Windows
 ```
 
-### 错误 4: "Proxy connection timeout"
+### 错误 4: "Network connection timeout"
 
-**原因**: 代理连接超时
+**原因**: 网络连接超时
 
 **解决方案**:
 ```javascript
 // 增加超时时间
 const config = {
-  ...proxyConfig,
   timeout: 60000 // 从 30000 增加到 60000
 };
 
-// 或者检查代理是否可用
-npm run test:proxy
+ 
 ```
 
 ### 错误 5: "Out of memory"
@@ -2515,8 +2202,7 @@ npm run test:setup > diagnostic-report.txt 2>&1
 # 检查会话数据
 npm run test:session
 
-# 检查代理配置
-DEBUG=proxy:* npm start 2>&1 | head -50
+ 
 
 # 检查翻译配置
 DEBUG=translation:* npm start 2>&1 | head -50
@@ -2564,11 +2250,11 @@ cat profile.txt | head -100
 1. 创建多个账号
    - 点击 "添加账号"
    - 输入账号名称
-   - 配置代理和翻译
+   - 配置翻译
    - 点击 "创建"
 
 2. 配置账号
-   - 为每个账号设置不同的代理
+   - 为每个账号设置不同的翻译引擎
    - 为每个账号设置不同的翻译引擎
 
 3. 启动账号
@@ -2667,27 +2353,7 @@ class CustomTranslationEngine {
 container.register('CustomEngine', CustomTranslationEngine);
 ```
 
-### 主题 2: 自定义代理策略
-
-```javascript
-// 创建自定义代理策略
-class CustomProxyStrategy {
-  async selectProxy(accountId) {
-    // 实现代理选择逻辑
-    return selectedProxy;
-  }
-  
-  async rotateProxy(accountId) {
-    // 实现代理轮换逻辑
-    return newProxy;
-  }
-  
-  async verifyProxy(proxy) {
-    // 实现代理验证逻辑
-    return isValid;
-  }
-}
-```
+ 
 
 ### 主题 3: 事件系统扩展
 
@@ -2697,11 +2363,7 @@ eventBus.on('account:created', (data) => {
   console.log(`账号已创建: ${data.accountId}`);
 });
 
-eventBus.on('proxy:failed', (data) => {
-  console.log(`代理连接失败: ${data.accountId}`);
-  // 自动切换代理
-  switchProxy(data.accountId);
-});
+ 
 
 eventBus.on('translation:error', (data) => {
   console.log(`翻译错误: ${data.error}`);
@@ -2757,7 +2419,7 @@ eventBus.on('translation:error', (data) => {
 - ✅ 文档更新
 
 **2025-11-25**
-- ✅ 代理安全模块完成
+ 
 - ✅ 属性测试覆盖 56 个
 - ✅ 性能优化完成
 

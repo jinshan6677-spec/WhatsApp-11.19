@@ -15,7 +15,6 @@ module.exports = {
   getPaths: () => APP_CONSTANTS.PATHS,
   getWindowConfig: () => APP_CONSTANTS.WINDOW_CONFIG,
   getAccountConfig: () => APP_CONSTANTS.ACCOUNT_CONFIG,
-  getProxyConfig: () => APP_CONSTANTS.PROXY_CONFIG,
   getTranslationConfig: () => APP_CONSTANTS.TRANSLATION_CONFIG,
   getErrorCodes: () => APP_CONSTANTS.ERROR_CODES,
   getEvents: () => APP_CONSTANTS.EVENTS,

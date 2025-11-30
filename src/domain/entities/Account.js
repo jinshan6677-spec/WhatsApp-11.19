@@ -43,7 +43,6 @@ class Account {
     this.lastActiveAt = config.lastActiveAt ? new Date(config.lastActiveAt) : null;
     
     // Optional nested configurations (stored as IDs or embedded objects)
-    this.proxyId = config.proxyId || null;
     this.translationConfigId = config.translationConfigId || null;
     
     // Session directory for data isolation
@@ -103,13 +102,7 @@ class Account {
     return this.status === AccountStatus.Loading;
   }
 
-  /**
-   * Updates the proxy configuration reference
-   * @param {string|null} proxyId - Proxy configuration ID
-   */
-  updateProxy(proxyId) {
-    this.proxyId = proxyId;
-  }
+  
 
   /**
    * Updates the translation configuration reference
@@ -202,7 +195,6 @@ class Account {
       autoStart: this.autoStart,
       createdAt: this.createdAt instanceof Date ? this.createdAt.toISOString() : this.createdAt,
       lastActiveAt: this.lastActiveAt instanceof Date ? this.lastActiveAt.toISOString() : this.lastActiveAt,
-      proxyId: this.proxyId,
       translationConfigId: this.translationConfigId,
       sessionDir: this.sessionDir,
       profileName: this.profileName,
@@ -229,7 +221,6 @@ class Account {
       autoStart: json.autoStart,
       createdAt: json.createdAt,
       lastActiveAt: json.lastActiveAt,
-      proxyId: json.proxyId,
       translationConfigId: json.translationConfigId,
       sessionDir: json.sessionDir,
       profileName: json.profileName,
@@ -258,7 +249,6 @@ class Account {
       `│ Created:      ${(account.createdAt instanceof Date ? account.createdAt.toISOString() : String(account.createdAt)).substring(0, 44).padEnd(44)} │`,
       `│ Last Active:  ${(account.lastActiveAt instanceof Date ? account.lastActiveAt.toISOString() : String(account.lastActiveAt || 'Never')).substring(0, 44).padEnd(44)} │`,
       `│ Session Dir:  ${(account.sessionDir || 'N/A').substring(0, 44).padEnd(44)} │`,
-      `│ Proxy ID:     ${(account.proxyId || 'None').substring(0, 44).padEnd(44)} │`,
       `│ Translation:  ${(account.translationConfigId || 'None').substring(0, 44).padEnd(44)} │`,
       '└─────────────────────────────────────────────────────────────┘'
     ];

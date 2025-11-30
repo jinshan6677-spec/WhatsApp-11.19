@@ -57,41 +57,7 @@ describe('AccountConfigManager', () => {
       expect(result3.account.order).toBe(2);
     });
 
-    test('should create account with custom configuration', async () => {
-      const config = {
-        name: 'Custom Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      };
-      
-      const result = await manager.createAccount(config);
-      
-      expect(result.success).toBe(true);
-      expect(result.account.proxy.enabled).toBe(true);
-      expect(result.account.proxy.host).toBe('127.0.0.1');
-    });
-
-    test('should fail with invalid proxy configuration', async () => {
-      const config = {
-        name: 'Invalid Proxy',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '',
-          port: 0
-        }
-      };
-      
-      const result = await manager.createAccount(config);
-      
-      expect(result.success).toBe(false);
-      expect(result.errors).toBeDefined();
-      expect(result.errors.length).toBeGreaterThan(0);
-    });
+    
   });
 
   describe('loadAccounts', () => {
@@ -189,39 +155,7 @@ describe('AccountConfigManager', () => {
   });
 
   describe('validateConfig', () => {
-    test('should validate valid configuration', () => {
-      const account = new AccountConfig({
-        name: 'Valid Account',
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080
-        }
-      });
-      
-      const validation = manager.validateConfig(account);
-      
-      expect(validation.valid).toBe(true);
-      expect(validation.errors).toEqual([]);
-    });
-
-    test('should detect invalid proxy configuration', () => {
-      const account = new AccountConfig({
-        name: 'Invalid Proxy',
-        proxy: {
-          enabled: true,
-          protocol: 'invalid',
-          host: '',
-          port: 99999
-        }
-      });
-      
-      const validation = manager.validateConfig(account);
-      
-      expect(validation.valid).toBe(false);
-      expect(validation.errors.length).toBeGreaterThan(0);
-    });
+    
   });
 
   describe('exportAccounts and importAccounts', () => {

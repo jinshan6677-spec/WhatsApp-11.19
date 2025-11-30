@@ -37,7 +37,6 @@ describe('ViewManager', () => {
     // Mock SessionManager
     mockSessionManager = {
       getInstanceSession: jest.fn(() => ({
-        setProxy: jest.fn(),
         webRequest: {
           onBeforeSendHeaders: jest.fn()
         }

@@ -222,12 +222,6 @@ textarea.form-input {
 }
 
 /* ===== Conditional Fields ===== */
-.proxy-fields,
-.proxy-auth-fields {
-  margin-top: 16px;
-  padding-left: 16px;
-  border-left: 3px solid #e0e0e0;
-}
 
 /* ===== Form Errors Section ===== */
 .form-errors {

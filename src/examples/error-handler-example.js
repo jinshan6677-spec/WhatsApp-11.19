@@ -39,9 +39,6 @@ async function exampleWithErrorHandler() {
   // 4. 创建测试账号
   const testAccount = new AccountConfig({
     name: 'Test Account with Error Handling',
-    proxy: {
-      enabled: false
-    },
     translation: {
       enabled: false
     }
@@ -156,13 +153,7 @@ async function exampleErrorTypes() {
   
   const testInstanceId = 'test-instance-123';
   
-  // 1. 代理错误
-  console.log('1. 处理代理错误...');
-  await errorHandler.handleProxyError(
-    testInstanceId,
-    new Error('Proxy connection timeout')
-  );
-  console.log('✓ 代理错误已记录\n');
+  
   
   // 2. 翻译错误
   console.log('2. 处理翻译错误...');

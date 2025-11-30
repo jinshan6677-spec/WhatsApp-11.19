@@ -118,7 +118,6 @@ class MockAccountManager {
     this.accounts.set('test-account-1', {
       id: 'test-account-1',
       name: 'Test Account 1',
-      proxy: { enabled: false },
       translation: { enabled: false }
     });
   }

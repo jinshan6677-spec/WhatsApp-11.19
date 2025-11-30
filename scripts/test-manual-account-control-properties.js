@@ -109,7 +109,6 @@ async function createTestAccount(name) {
   const result = await accountManager.createAccount({
     name: uniqueName,
     note: 'Property test account',
-    proxy: { enabled: false },
     translation: { enabled: false },
     autoStart: false
   });
@@ -265,7 +264,6 @@ async function testProperty4_OpenAccountCreatesWebView() {
         for (const account of accounts) {
           const result = await viewManager.openAccount(account.id, {
             url: 'https://web.whatsapp.com',
-            proxy: { enabled: false },
             translation: { enabled: false }
           });
 
@@ -318,7 +316,6 @@ async function testProperty7_CloseAccountDestroysWebView() {
           
           await viewManager.openAccount(account.id, {
             url: 'https://web.whatsapp.com',
-            proxy: { enabled: false },
             translation: { enabled: false }
           });
           

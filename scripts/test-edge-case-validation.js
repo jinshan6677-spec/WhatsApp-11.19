@@ -4,7 +4,7 @@
  * Tests validation and error handling for:
  * - Account configuration validation
  * - Duplicate account names
- * - Invalid proxy configurations
+ * - Network failures and error handling
  * - Network failures
  * - BrowserView creation failures
  * - Account switching to non-existent accounts
@@ -12,7 +12,6 @@
 
 const {
   validateAccountConfig,
-  validateProxyConfig,
   validateTranslationConfig,
   checkDuplicateAccountName,
   validateAccountId,
@@ -65,7 +64,6 @@ test('Valid account configuration should pass', () => {
     name: 'Test Account',
     note: 'Test note',
     order: 0,
-    proxy: { enabled: false },
     translation: { enabled: false },
     sessionDir: 'session-data/test',
     createdAt: new Date(),
@@ -116,81 +114,7 @@ test('Invalid order (negative) should fail', () => {
   assert(result.errors.some(e => e.includes('order')), 'Should have order error');
 });
 
-// Test 2: Proxy configuration validation
-console.log('\n2. Proxy Configuration Validation');
-console.log('-'.repeat(80));
-
-test('Valid proxy configuration should pass', () => {
-  const config = {
-    enabled: true,
-    protocol: 'http',
-    host: '127.0.0.1',
-    port: 8080
-  };
-  const result = validateProxyConfig(config);
-  assert(result.valid === true, 'Should be valid');
-  assert(result.errors.length === 0, 'Should have no errors');
-});
-
-test('Invalid proxy protocol should fail', () => {
-  const config = {
-    enabled: true,
-    protocol: 'invalid',
-    host: '127.0.0.1',
-    port: 8080
-  };
-  const result = validateProxyConfig(config);
-  assert(result.valid === false, 'Should be invalid');
-  assert(result.errors.some(e => e.includes('protocol')), 'Should have protocol error');
-});
-
-test('Invalid proxy host should fail', () => {
-  const config = {
-    enabled: true,
-    protocol: 'http',
-    host: 'invalid@host!',
-    port: 8080
-  };
-  const result = validateProxyConfig(config);
-  assert(result.valid === false, 'Should be invalid');
-  assert(result.errors.some(e => e.includes('host')), 'Should have host error');
-});
-
-test('Invalid proxy port (out of range) should fail', () => {
-  const config = {
-    enabled: true,
-    protocol: 'http',
-    host: '127.0.0.1',
-    port: 70000
-  };
-  const result = validateProxyConfig(config);
-  assert(result.valid === false, 'Should be invalid');
-  assert(result.errors.some(e => e.includes('port')), 'Should have port error');
-});
-
-test('Proxy with username but no password should fail', () => {
-  const config = {
-    enabled: true,
-    protocol: 'http',
-    host: '127.0.0.1',
-    port: 8080,
-    username: 'user'
-  };
-  const result = validateProxyConfig(config);
-  assert(result.valid === false, 'Should be invalid');
-  assert(result.errors.some(e => e.includes('password')), 'Should have auth error');
-});
-
-test('Disabled proxy should skip validation', () => {
-  const config = {
-    enabled: false,
-    protocol: 'invalid',
-    host: '',
-    port: 0
-  };
-  const result = validateProxyConfig(config);
-  assert(result.valid === true, 'Should be valid when disabled');
-});
+  
 
 // Test 3: Translation configuration validation
 console.log('\n3. Translation Configuration Validation');
@@ -340,8 +264,7 @@ console.log('-'.repeat(80));
 
 test('Valid view creation params should pass', () => {
   const result = validateViewCreationParams('test-account', {
-    url: 'https://web.whatsapp.com',
-    proxy: { enabled: false }
+    url: 'https://web.whatsapp.com'
   });
   assert(result.valid === true, 'Should be valid');
 });
@@ -414,11 +337,10 @@ test('Handle session error', () => {
   assert(result.suggestedAction.length > 0, 'Should have suggested action');
 });
 
-test('Handle proxy error', () => {
-  const error = new Error('Proxy connection failed');
+test('Handle connection error', () => {
+  const error = new Error('Network connection failed');
   const result = handleViewCreationFailure(error, 'test-account');
   assert(result.handled === true, 'Should be handled');
-  assert(result.userMessage.includes('proxy'), 'Should mention proxy');
 });
 
 // Test 11: Operation safety validation

@@ -64,11 +64,7 @@ Optional monitoring of session health:
 Creates an isolated session for an account.
 
 ```javascript
-const result = await sessionManager.createSession('account-001', {
-  proxy: {
-    enabled: false
-  }
-});
+const result = await sessionManager.createSession('account-001', {});
 ```
 
 #### `hasSessionData(accountId)`
@@ -431,7 +427,7 @@ const monitor = viewManager.startSessionHealthMonitoring(accountId);
 ### Session Expiring Frequently
 
 1. Check network connectivity
-2. Verify proxy configuration (if using proxy)
+2. Verify network stability and connectivity
 3. Check WhatsApp Web service status
 4. Consider implementing session health monitoring
 

@@ -6,7 +6,7 @@
  * 
  * 支持新架构的Repository模式适配器
  * 
- * 注意：ProxyConfigManager已被移除，请使用ProxyRepository或ProxyConfigManagerAdapter
+ * 注意：已移除相关旧模块
  */
 
 // 基础管理器
@@ -16,7 +16,7 @@ const SessionManager = require('../../managers/SessionManager');
 const NotificationManager = require('../../managers/NotificationManager');
 const TrayManager = require('../../managers/TrayManager');
 
-// 增强管理器（ProxyConfigManager已被ProxyRepository替代）
+// 增强管理器
 const MigrationManager = require('../../managers/MigrationManager');
 const ResourceManager = require('../../managers/ResourceManager');
 
@@ -25,10 +25,8 @@ const TranslationIntegration = require('../../managers/TranslationIntegration');
 
 // 新架构适配器
 const AccountConfigManagerAdapter = require('../../managers/AccountConfigManagerAdapter');
-const ProxyConfigManagerAdapter = require('../../managers/ProxyConfigManagerAdapter');
 
-// 新架构代理模块
-const ProxyRepository = require('../../infrastructure/repositories/ProxyRepository');
+ 
 
 // 导出统一接口
 module.exports = {
@@ -48,10 +46,7 @@ module.exports = {
   
   // 新架构适配器
   AccountConfigManagerAdapter,
-  ProxyConfigManagerAdapter,
   
-  // 新架构代理模块
-  ProxyRepository,
   
   // 便捷方法 - 传统模式
   createAccountConfigManager: (options) => new AccountConfigManager(options),
@@ -65,6 +60,5 @@ module.exports = {
   
   // 便捷方法 - 新架构模式（使用Repository）
   createAccountConfigManagerWithRepository: (options) => new AccountConfigManagerAdapter({ ...options, useRepository: true }),
-  createProxyConfigManagerWithRepository: (options) => new ProxyConfigManagerAdapter({ ...options, useRepository: true }),
-  createProxyRepository: (options) => new ProxyRepository(options)
+  
 };

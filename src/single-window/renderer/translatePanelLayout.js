@@ -14,10 +14,6 @@
   const fingerprintSettingsHost = document.getElementById('fingerprint-settings-host');
   const fingerprintPanelBody = document.getElementById('fingerprint-panel-body');
   
-  // Proxy settings
-  const proxyPlaceholderEl = document.getElementById('proxy-panel-placeholder');
-  const proxySettingsHost = document.getElementById('proxy-settings-host');
-  const proxyPanelBody = document.getElementById('proxy-panel-body');
   
   // Menu buttons
   const menuButtons = panel.querySelectorAll('.panel-menu-btn[data-panel]');
@@ -51,11 +47,6 @@
     console.warn('[translatePanelLayout] FingerprintSettingsPanel not available');
   }
 
-  const proxySettingsPanel = new ProxySettingsPanel({
-    host: proxySettingsHost,
-    placeholderEl: proxyPlaceholderEl,
-    onCollapse: () => toggleSection('proxy')
-  });
 
   init();
 
@@ -82,7 +73,6 @@
     if (fingerprintSettingsPanel) {
       await fingerprintSettingsPanel.init();
     }
-    await proxySettingsPanel.init();
 
     const activeAccountId = await getActiveAccountId();
     if (activeAccountId) {
@@ -90,13 +80,13 @@
       if (fingerprintSettingsPanel) {
         await fingerprintSettingsPanel.setAccount(activeAccountId);
       }
-      await proxySettingsPanel.setAccount(activeAccountId);
+      
     } else {
       translateSettingsPanel.setAccount(null);
       if (fingerprintSettingsPanel) {
         fingerprintSettingsPanel.setAccount(null);
       }
-      proxySettingsPanel.setAccount(null);
+      
     }
 
     bindSectionToggles();
@@ -166,7 +156,6 @@
     if (fingerprintPanelBody) {
       fingerprintPanelBody.style.display = targetPanel === 'fingerprint' ? 'block' : 'none';
     }
-    proxyPanelBody.style.display = targetPanel === 'proxy' ? 'block' : 'none';
   }
 
   function setState(state) {
@@ -244,7 +233,7 @@
         if (fingerprintSettingsPanel) {
           fingerprintSettingsPanel.setAccount(data.toAccountId);
         }
-        proxySettingsPanel.setAccount(data.toAccountId);
+        
       }
     });
 
@@ -254,7 +243,7 @@
         if (fingerprintSettingsPanel) {
           fingerprintSettingsPanel.setAccount(data.accountId);
         }
-        proxySettingsPanel.setAccount(data.accountId);
+        
       }
     });
 

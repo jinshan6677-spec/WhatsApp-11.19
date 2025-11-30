@@ -28,7 +28,6 @@ module.exports = {
   AccountIPCHandlers: handlers.AccountIPCHandlers,
   ViewIPCHandlers: handlers.ViewIPCHandlers,
   SystemIPCHandlers: handlers.SystemIPCHandlers,
-  ProxyIPCHandlers: handlers.ProxyIPCHandlers,
   TranslationIPCHandlers: handlers.TranslationIPCHandlers,
   
   // Aggregated handler registration

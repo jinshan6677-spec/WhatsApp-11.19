@@ -29,9 +29,7 @@ jest.mock('electron', () => {
         getOSProcessId: jest.fn().mockReturnValue(Math.floor(Math.random() * 10000) + 10000),
         executeJavaScript: jest.fn().mockResolvedValue(true),
         on: jest.fn(),
-        session: {
-          resolveProxy: jest.fn().mockResolvedValue('DIRECT')
-        }
+        session: {}
       };
       this.loadURL = jest.fn().mockResolvedValue(undefined);
       this.isDestroyed = jest.fn(() => this.destroyed);
@@ -83,8 +81,6 @@ jest.mock('electron', () => {
     },
     session: {
       fromPartition: jest.fn((partition) => ({
-        setProxy: jest.fn().mockResolvedValue(undefined),
-        resolveProxy: jest.fn().mockResolvedValue('DIRECT'),
         webRequest: {
           onBeforeSendHeaders: jest.fn()
         }
@@ -386,13 +382,7 @@ describe('Performance Tests', () => {
       // Create accounts
       for (let i = 0; i < instanceCount; i++) {
         const account = new AccountConfig({
-          name: `Concurrent Instance ${i + 1}`,
-          proxy: {
-            enabled: i % 3 === 0, // Enable proxy for every 3rd instance
-            protocol: 'socks5',
-            host: '127.0.0.1',
-            port: 1080 + i
-          }
+          name: `Concurrent Instance ${i + 1}`
         });
         accounts.push(account);
       }

@@ -1,7 +1,5 @@
 /**
  * PasswordEncryption - 密码加密工具
- * 
- * 使用 AES-256-CBC 加密代理密码
  */
 
 const crypto = require('crypto');
@@ -19,7 +17,7 @@ class PasswordEncryption {
     const machineId = os.hostname() + os.platform() + os.arch();
     const hash = crypto.createHash('sha256');
     hash.update(machineId);
-    hash.update('whatsapp-proxy-encryption-key-v1');
+    hash.update('whatsapp-encryption-key-v1');
     return hash.digest();
   }
 
@@ -143,7 +141,7 @@ class PasswordEncryption {
 
     const encrypted = { ...config };
 
-    // 加密代理密码
+  // 加密密码
     if (encrypted.password) {
       encrypted.password = this.encryptIfNeeded(encrypted.password);
     }
@@ -163,7 +161,7 @@ class PasswordEncryption {
 
     const decrypted = { ...config };
 
-    // 解密代理密码
+  // 解密密码
     if (decrypted.password && this.isEncrypted(decrypted.password)) {
       decrypted.password = this.decryptPassword(decrypted.password);
     }

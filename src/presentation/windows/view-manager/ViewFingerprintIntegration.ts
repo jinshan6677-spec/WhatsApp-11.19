@@ -21,7 +21,6 @@ export interface FingerprintIntegrationOptions {
 export interface FingerprintInjectionConfig {
   enabled: boolean;
   profile?: FingerprintProfile;
-  proxyPort?: number;
 }
 
 export interface FingerprintInjectionResult {
@@ -58,7 +57,7 @@ export class ViewFingerprintIntegration {
     
     try {
       const injector = this._getOrCreateInjector(accountId, config.profile);
-      const chromiumArgs = injector.getChromiumArgs(config.proxyPort);
+      const chromiumArgs = injector.getChromiumArgs();
       
       this.logger('info', `[Fingerprint] Generated Chromium args for account ${accountId}`);
       

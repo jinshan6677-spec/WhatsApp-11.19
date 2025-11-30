@@ -128,7 +128,6 @@ async function testStateSaving(managers) {
       const account = await accountManager.createAccount({
         name: `Test Account ${i}`,
         note: `Test account for lifecycle testing`,
-        proxy: { enabled: false },
         translation: { enabled: false }
       });
       

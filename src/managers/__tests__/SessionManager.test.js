@@ -1,6 +1,6 @@
 /**
  * SessionManager 单元测试
- * 测试会话创建、隔离、代理配置和登录状态检测
+ * 测试会话创建、隔离和登录状态检测
  */
 
 const SessionManager = require('../SessionManager');
@@ -10,7 +10,6 @@ const fs = require('fs').promises;
 
 // Create mock session object
 const mockSessionInstance = {
-  setProxy: jest.fn().mockResolvedValue(undefined),
   clearStorageData: jest.fn().mockResolvedValue(undefined),
   clearCache: jest.fn().mockResolvedValue(undefined),
   webRequest: {
@@ -48,7 +47,6 @@ describe('SessionManager', () => {
 
     // Reset mock session
     mockSession = mockSessionInstance;
-    mockSession.setProxy.mockClear();
     mockSession.clearStorageData.mockClear();
     mockSession.clearCache.mockClear();
     mockSession.webRequest.onBeforeSendHeaders.mockClear();
@@ -110,90 +108,7 @@ describe('SessionManager', () => {
     });
   });
 
-  describe('代理配置', () => {
-    beforeEach(async () => {
-      await sessionManager.createSession('test-account');
-    });
-
-    test('应该成功配置有效的代理', async () => {
-      const proxyConfig = {
-        protocol: 'socks5',
-        host: '127.0.0.1',
-        port: 1080
-      };
-
-      const result = await sessionManager.configureProxy('test-account', proxyConfig);
-
-      expect(result.success).toBe(true);
-      expect(mockSession.setProxy).toHaveBeenCalledWith({
-        proxyRules: 'socks5://127.0.0.1:1080',
-        proxyBypassRules: '<local>'
-      });
-    });
-
-    test('应该验证代理配置格式', async () => {
-      const invalidConfigs = [
-        { protocol: 'invalid', host: '127.0.0.1', port: 1080 },
-        { protocol: 'socks5', host: '', port: 1080 },
-        { protocol: 'socks5', host: '127.0.0.1', port: 99999 },
-        { protocol: 'socks5', host: '127.0.0.1', port: -1 }
-      ];
-
-      for (const config of invalidConfigs) {
-        const result = await sessionManager.configureProxy('test-account', config);
-        // 代理配置失败时会应用回退策略，所以 success 可能是 true
-        // 但应该有 fallbackApplied 标志或 error 信息
-        if (result.success) {
-          expect(result.fallbackApplied || result.error).toBeDefined();
-        } else {
-          expect(result.error).toBeDefined();
-        }
-      }
-    });
-
-    test('应该支持代理认证', async () => {
-      const proxyConfig = {
-        protocol: 'http',
-        host: 'proxy.example.com',
-        port: 8080,
-        username: 'user',
-        password: 'pass'
-      };
-
-      const result = await sessionManager.configureProxy('test-account', proxyConfig);
-
-      expect(result.success).toBe(true);
-      expect(mockSession.webRequest.onBeforeSendHeaders).toHaveBeenCalled();
-    });
-
-    test('应该缓存代理配置', async () => {
-      const proxyConfig = {
-        protocol: 'socks5',
-        host: '127.0.0.1',
-        port: 1080
-      };
-
-      await sessionManager.configureProxy('test-account', proxyConfig);
-      const cached = sessionManager.getProxyConfig('test-account');
-
-      expect(cached).toEqual(proxyConfig);
-    });
-
-    test('应该成功清除代理配置', async () => {
-      const proxyConfig = {
-        protocol: 'socks5',
-        host: '127.0.0.1',
-        port: 1080
-      };
-
-      await sessionManager.configureProxy('test-account', proxyConfig);
-      const result = await sessionManager.clearProxy('test-account');
-
-      expect(result.success).toBe(true);
-      expect(mockSession.setProxy).toHaveBeenCalledWith({ proxyRules: 'direct://' });
-      expect(sessionManager.getProxyConfig('test-account')).toBeNull();
-    });
-  });
+  
 
   describe('登录状态检测', () => {
     let mockWebContents;
@@ -314,12 +229,10 @@ describe('SessionManager', () => {
   describe('缓存管理', () => {
     test('应该清除账号的所有缓存', () => {
       sessionManager.setLoginStatus('test-account', true);
-      sessionManager.proxyCache.set('test-account', { protocol: 'socks5' });
 
       sessionManager.clearAccountCache('test-account');
 
       expect(sessionManager.getCachedLoginStatus('test-account')).toBeNull();
-      expect(sessionManager.getProxyConfig('test-account')).toBeNull();
     });
 
     test('应该清除登录状态缓存', () => {

@@ -40,15 +40,7 @@ async function createOldConfigFile() {
           height: 800,
           minimized: false
         },
-        proxy: {
-          enabled: true,
-          protocol: 'socks5',
-          host: '127.0.0.1',
-          port: 1080,
-          username: 'user1',
-          password: 'pass1',
-          bypass: '<local>'
-        },
+        
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN',
@@ -84,15 +76,7 @@ async function createOldConfigFile() {
           height: 800,
           minimized: false
         },
-        proxy: {
-          enabled: false,
-          protocol: 'http',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
+        
         translation: {
           enabled: false,
           targetLanguage: 'en',
@@ -118,15 +102,7 @@ async function createOldConfigFile() {
           height: 800,
           minimized: false
         },
-        proxy: {
-          enabled: true,
-          protocol: 'https',
-          host: 'proxy.example.com',
-          port: 8080,
-          username: '',
-          password: '',
-          bypass: '*.local'
-        },
+        
         translation: {
           enabled: true,
           targetLanguage: 'es',
@@ -264,13 +240,7 @@ async function testConfigMigration(manager) {
       return false;
     }
     
-    // 验证代理配置保留
-    if (account.proxy) {
-      console.log(`    Proxy Enabled: ${account.proxy.enabled}`);
-      if (account.proxy.enabled) {
-        console.log(`    Proxy: ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port}`);
-      }
-    }
+    
     
     // 验证翻译配置保留
     if (account.translation) {

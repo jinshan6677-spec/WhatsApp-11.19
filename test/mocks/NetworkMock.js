@@ -468,107 +468,10 @@ class WebSocketMock {
   }
 }
 
-/**
- * Proxy configuration mock
- */
-class ProxyMock {
-  constructor() {
-    this._config = null;
-    this._isEnabled = false;
-    this._bypassList = [];
-  }
-
-  /**
-   * Set proxy configuration
-   * @param {Object} config - Proxy config
-   */
-  setConfig(config) {
-    this._config = config;
-    this._isEnabled = config && config.enabled !== false;
-  }
-
-  /**
-   * Get current proxy configuration
-   * @returns {Object|null}
-   */
-  getConfig() {
-    return this._config;
-  }
-
-  /**
-   * Check if proxy is enabled
-   * @returns {boolean}
-   */
-  isEnabled() {
-    return this._isEnabled;
-  }
-
-  /**
-   * Set bypass list
-   * @param {string[]} list - List of hosts to bypass
-   */
-  setBypassList(list) {
-    this._bypassList = list;
-  }
-
-  /**
-   * Check if URL should bypass proxy
-   * @param {string} url - URL to check
-   * @returns {boolean}
-   */
-  shouldBypass(url) {
-    try {
-      const urlObj = new URL(url);
-      return this._bypassList.some(pattern => {
-        if (pattern.startsWith('*.')) {
-          return urlObj.hostname.endsWith(pattern.slice(1));
-        }
-        return urlObj.hostname === pattern;
-      });
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Get proxy URL for a request
-   * @param {string} url - Request URL
-   * @returns {string|null}
-   */
-  getProxyUrl(url) {
-    if (!this._isEnabled || this.shouldBypass(url)) {
-      return null;
-    }
-    
-    if (!this._config) {
-      return null;
-    }
-    
-    const { protocol, host, port, username, password } = this._config;
-    let proxyUrl = `${protocol}://`;
-    
-    if (username && password) {
-      proxyUrl += `${username}:${password}@`;
-    }
-    
-    proxyUrl += `${host}:${port}`;
-    return proxyUrl;
-  }
-
-  /**
-   * Reset proxy configuration
-   */
-  reset() {
-    this._config = null;
-    this._isEnabled = false;
-    this._bypassList = [];
-  }
-}
 
 module.exports = {
   NetworkMock,
   MockResponse,
   MockHeaders,
-  WebSocketMock,
-  ProxyMock
+  WebSocketMock
 };

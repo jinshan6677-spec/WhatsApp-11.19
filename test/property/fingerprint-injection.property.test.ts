@@ -18,7 +18,7 @@ const { validFingerprintProfileArbitrary } = require('../arbitraries/fingerprint
 // Arbitraries for injection testing
 const platformArbitrary = fc.constantFrom<Platform>('Windows', 'MacOS', 'Linux');
 const webrtcModeArbitrary = fc.constantFrom<WebRTCMode>('disabled', 'replaced', 'real');
-const portArbitrary = fc.integer({ min: 10000, max: 60000 });
+ 
 
 // Set shorter timeout for property tests
 jest.setTimeout(30000);
@@ -175,8 +175,7 @@ describe('Fingerprint Injection Property Tests', () => {
     fc.assert(
       fc.property(
         validFingerprintProfileArbitrary,
-        portArbitrary,
-        (profileData: FingerprintProfileData, proxyPort: number) => {
+        (profileData: FingerprintProfileData) => {
           const modifiedData = {
             ...profileData,
             webrtc: {
@@ -187,7 +186,7 @@ describe('Fingerprint Injection Property Tests', () => {
           const profile = new FingerprintProfile(modifiedData);
           const injector = new FingerprintInjector(profile);
           
-          const chromiumArgs = injector.getChromiumArgs(proxyPort);
+          const chromiumArgs = injector.getChromiumArgs();
           
           // Verify WebRTC disable flags are present
           expect(chromiumArgs.args).toContain('--disable-webrtc');
@@ -201,32 +200,7 @@ describe('Fingerprint Injection Property Tests', () => {
     );
   });
 
-  /**
-   * Additional test: Chromium args include proxy configuration
-   */
-  test('Property 16 (Extended): Chromium args include proxy configuration', () => {
-    fc.assert(
-      fc.property(
-        validFingerprintProfileArbitrary,
-        portArbitrary,
-        (profileData: FingerprintProfileData, proxyPort: number) => {
-          const profile = new FingerprintProfile(profileData);
-          const injector = new FingerprintInjector(profile);
-          
-          const chromiumArgs = injector.getChromiumArgs(proxyPort);
-          
-          // Verify proxy configuration is present
-          expect(chromiumArgs.args).toContain(`--proxy-server=socks5://127.0.0.1:${proxyPort}`);
-          
-          // Verify User-Agent is set
-          expect(chromiumArgs.userAgent).toBe(profile.userAgent);
-          
-          return true;
-        }
-      ),
-      { numRuns: 100 }
-    );
-  });
+  
 
   /**
    * Additional test: Complete fingerprint script contains all enabled overrides

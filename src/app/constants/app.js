@@ -24,7 +24,6 @@ const PATHS = {
   
   // 配置文件
   CONFIG_FILE: 'config.json',
-  PROXY_CONFIG_FILE: 'proxy-config.json',
   ACCOUNTS_FILE: 'accounts.json',
   
   // 应用资源
@@ -90,36 +89,10 @@ const ACCOUNT_CONFIG = {
     ENABLE_TRANSLATION: true,
     TRANSLATION_ENGINE: 'google',
     TARGET_LANGUAGE: 'zh-CN',
-    PROXY_ENABLED: false
+    
   }
 };
 
-// 代理配置常量
-const PROXY_CONFIG = {
-  // 代理类型
-  TYPES: {
-    NONE: 'none',
-    HTTP: 'http',
-    HTTPS: 'https',
-    SOCKS4: 'socks4',
-    SOCKS5: 'socks5'
-  },
-  
-  // 默认端口
-  DEFAULT_PORTS: {
-    HTTP: 8080,
-    HTTPS: 8443,
-    SOCKS4: 1080,
-    SOCKS5: 1080
-  },
-  
-  // 超时配置
-  TIMEOUTS: {
-    CONNECTION: 10000,
-    RESPONSE: 30000,
-    TEST: 5000
-  }
-};
 
 // 翻译配置常量
 const TRANSLATION_CONFIG = {
@@ -181,13 +154,7 @@ const ERROR_CODES = {
     STOP_FAILED: 'ACCOUNT_STOP_FAILED'
   },
   
-  // 代理相关错误
-  PROXY: {
-    INVALID_CONFIG: 'INVALID_PROXY_CONFIG',
-    CONNECTION_FAILED: 'PROXY_CONNECTION_FAILED',
-    TIMEOUT: 'PROXY_TIMEOUT',
-    AUTH_FAILED: 'PROXY_AUTH_FAILED'
-  },
+  
   
   // 翻译相关错误
   TRANSLATION: {
@@ -255,7 +222,7 @@ const PERFORMANCE_CONFIG = {
   CONCURRENCY: {
     MAX_ACCOUNTS: 30,
     MAX_TRANSLATION_REQUESTS: 10,
-    MAX_PROXY_CONNECTIONS: 20
+    
   },
   
   // 缓存配置
@@ -272,7 +239,6 @@ module.exports = {
   ELECTRON,
   WINDOW_CONFIG,
   ACCOUNT_CONFIG,
-  PROXY_CONFIG,
   TRANSLATION_CONFIG,
   ERROR_CODES,
   EVENTS,

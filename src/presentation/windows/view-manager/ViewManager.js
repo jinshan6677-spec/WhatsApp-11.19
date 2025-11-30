@@ -8,7 +8,6 @@
  * - ViewResizeHandler: 窗口大小调整
  * - ViewMemoryManager: 内存管理
  * - ViewPerformanceOptimizer: 性能优化
- * - ViewProxyIntegration: 代理集成
  * - ViewTranslationIntegration: 翻译集成
  * 
  * @module presentation/windows/view-manager/ViewManager
@@ -20,7 +19,6 @@ const ViewBoundsManager = require('./ViewBoundsManager');
 const ViewResizeHandler = require('./ViewResizeHandler');
 const ViewMemoryManager = require('./ViewMemoryManager');
 const ViewPerformanceOptimizer = require('./ViewPerformanceOptimizer');
-const ViewProxyIntegration = require('./ViewProxyIntegration');
 const ViewTranslationIntegration = require('./ViewTranslationIntegration');
 const { validateViewCreationParams, validateAccountSwitch, handleViewCreationFailure } = require('../../../utils/ValidationHelper');
 
@@ -69,14 +67,12 @@ class ViewManager {
     this.resizeHandler = new ViewResizeHandler(this.boundsManager, { ...loggerOption, debounceDelay: this.options.debounceDelay });
     this.memoryManager = new ViewMemoryManager({ ...loggerOption, ...notifyOption, ...this.options });
     this.performanceOptimizer = new ViewPerformanceOptimizer({ ...loggerOption, ...this.options });
-    this.proxyIntegration = new ViewProxyIntegration({ ...loggerOption, ...notifyOption });
     this.translationIntegration = new ViewTranslationIntegration(options.translationIntegration, { ...loggerOption, ...notifyOption });
     
-    // Initialize ViewLifecycle with proxy integration for secure error handling
+    // Initialize ViewLifecycle
     this.viewLifecycle = new ViewLifecycle({ 
       ...loggerOption, 
-      ...notifyOption,
-      proxyIntegration: this.proxyIntegration
+      ...notifyOption
     });
 
     if (this.options.autoMemoryCleanup) {
@@ -119,6 +115,24 @@ class ViewManager {
     catch (error) { this.log('error', 'Failed to get saved active account ID:', error); return null; }
   }
 
+  async restoreActiveAccount(accountIds = []) {
+    try {
+      const savedId = this.getSavedActiveAccountId();
+      if (!savedId) return { success: false, reason: 'no_saved_account' };
+      if (!Array.isArray(accountIds) || accountIds.length === 0 || !accountIds.includes(savedId)) {
+        try { this.stateStore.delete('activeAccountId'); } catch (_) {}
+        return { success: false, reason: 'account_not_found', accountId: savedId };
+      }
+      await this.createView(savedId);
+      const shown = await this.showView(savedId);
+      if (shown) return { success: true, accountId: savedId };
+      return { success: false, reason: 'show_failed', accountId: savedId };
+    } catch (error) {
+      this.log('error', 'Failed to restore active account:', error);
+      return { success: false, reason: 'error', error: error.message };
+    }
+  }
+
   async createView(accountId, config = {}) {
     try {
       if (!accountId) throw new Error('Account ID is required');
@@ -131,25 +145,11 @@ class ViewManager {
       const isolationValidation = await this.viewFactory.validateSessionIsolation(accountId, accountSession, this.views);
       if (!isolationValidation.valid) this.log('warn', `Session isolation warning for ${accountId}: ${isolationValidation.message}`);
 
-      // Configure proxy if provided - 使用安全代理配置（零信任模型）
-      if (config.proxy && config.proxy.enabled) {
-        const proxyResult = await this.proxyIntegration.secureConfigureProxy(accountId, accountSession, config.proxy);
-        
-        if (!proxyResult.success) {
-          // 🔴 安全关键：代理配置失败时不创建视图，不回退到直连
-          this.log('error', `[安全代理] 账户 ${accountId} 代理配置失败，拒绝创建视图: ${proxyResult.error}`);
-          throw new Error(`代理配置失败: ${proxyResult.error}`);
-        }
-        
-        this.log('info', `[安全代理] 账户 ${accountId} 代理配置成功，出口IP: ${proxyResult.ip}`);
-      }
+      
 
       const view = this.viewFactory.createView(accountId, accountSession, config);
       
-      // 注入IP保护脚本（阻止WebRTC泄露）
-      if (config.proxy && config.proxy.enabled) {
-        await this.proxyIntegration.injectIPProtection(view.webContents);
-      }
+      
       const viewState = this.viewFactory.createViewState(accountId, view, accountSession, config);
       this.views.set(accountId, viewState);
 
@@ -222,7 +222,12 @@ class ViewManager {
   async hideView(accountId) {
     const viewState = this.views.get(accountId);
     const window = this.mainWindow.getWindow();
-    return this.viewLifecycle.hideView(accountId, viewState, window);
+    const result = await this.viewLifecycle.hideView(accountId, viewState, window);
+    if (result && this.activeAccountId === accountId) {
+      this.activeAccountId = null;
+      this._saveActiveAccountId();
+    }
+    return result;
   }
 
   async destroyView(accountId) {

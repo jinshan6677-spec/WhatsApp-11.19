@@ -1,14 +1,10 @@
 'use strict';
 
-const AddProxySecurityFields = require('./AddProxySecurityFields');
-
 /**
  * All available migrations in order
  * @type {Array<Object>}
  */
-const migrations = [
-  AddProxySecurityFields
-];
+const migrations = [];
 
 /**
  * Registers all migrations with a MigrationRunner
@@ -24,6 +20,4 @@ module.exports = {
   migrations,
   registerAllMigrations,
   
-  // Export individual migrations
-  AddProxySecurityFields
 };

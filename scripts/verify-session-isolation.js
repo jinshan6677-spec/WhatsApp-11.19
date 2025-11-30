@@ -180,33 +180,6 @@ function testSessionValidation() {
   );
 }
 
-/**
- * Test 4: Verify proxy isolation
- */
-function testProxyIsolation() {
-  log('\n4. Verifying proxy isolation...', 'blue');
-  
-  const sessionManagerPath = path.join(__dirname, '..', 'src', 'managers', 'SessionManager.js');
-  
-  checkFileContains(
-    sessionManagerPath,
-    [
-      'configureProxy',
-      'setProxy',
-      'proxyRules'
-    ],
-    'SessionManager supports per-account proxy configuration'
-  );
-  
-  checkFileContains(
-    sessionManagerPath,
-    [
-      'proxyCache',
-      'accountId'
-    ],
-    'SessionManager maintains separate proxy configs per account'
-  );
-}
 
 /**
  * Test 5: Verify storage isolation
@@ -311,7 +284,6 @@ function runVerification() {
     testSessionManagerPartitions();
     testViewManagerIsolation();
     testSessionValidation();
-    testProxyIsolation();
     testStorageIsolation();
     testSessionPersistence();
     testIsolationVerification();
@@ -331,7 +303,6 @@ function runVerification() {
       log('\nKey Features Verified:', 'cyan');
       log('  • Unique session partitions per account', 'green');
       log('  • Isolated cookies, localStorage, and IndexedDB', 'green');
-      log('  • Per-account proxy configuration', 'green');
       log('  • Session validation on view creation', 'green');
       log('  • Separate user data directories', 'green');
       log('  • Session persistence support', 'green');

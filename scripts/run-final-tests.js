@@ -14,7 +14,6 @@ const testScripts = [
   { name: 'Account Management', script: 'test-setup.js', critical: true },
   { name: 'Session Isolation', script: 'test-session-isolation.js', critical: true },
   { name: 'Session Persistence', script: 'test-session-persistence.js', critical: true },
-  { name: 'Proxy Configuration', script: 'test-proxy-config.js', critical: true },
   { name: 'Translation Integration', script: 'test-translation-integration.js', critical: true },
   { name: 'Translation Routing', script: 'test-translation-routing.js', critical: true },
   { name: 'Status Monitoring', script: 'test-status-monitoring.js', critical: true },

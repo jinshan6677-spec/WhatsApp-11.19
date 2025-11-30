@@ -8,7 +8,6 @@
 
 - 创建独立的浏览器实例（BrowserWindow）
 - 配置独立的用户数据目录和 session
-- 应用代理配置
 - 监控实例状态
 - 处理实例崩溃和重启
 - 管理实例生命周期
@@ -21,7 +20,7 @@
 - 独立的操作系统进程
 - 独立的用户数据目录 (`profiles/account_{uuid}`)
 - 独立的 session 和存储空间
-- 独立的网络代理配置
+
 
 ### 2. 本地渲染
 
@@ -30,15 +29,7 @@
 - 流畅的动画和滚动
 - 完整的本地功能支持
 
-### 3. 代理支持
-
-支持为每个实例配置独立的代理：
-- SOCKS5、HTTP、HTTPS 协议
-- 代理认证（用户名/密码）
-- 代理绕过规则
-- 动态更新代理配置
-
-### 4. 状态监控
+### 3. 状态监控
 
 实时监控每个实例的：
 - 运行状态（stopped/starting/running/error/crashed）
@@ -66,12 +57,6 @@ const instanceManager = new InstanceManager({
 const accountConfig = {
   id: 'account-uuid',
   name: 'Work Account',
-  proxy: {
-    enabled: true,
-    protocol: 'socks5',
-    host: '127.0.0.1',
-    port: 1080
-  },
   translation: {
     enabled: true,
     targetLanguage: 'zh-CN',
@@ -114,22 +99,6 @@ runningInstances.forEach(instance => {
 });
 ```
 
-### 更新代理配置
-
-```javascript
-const result = await instanceManager.updateProxyConfig('account-uuid', {
-  enabled: true,
-  protocol: 'http',
-  host: 'proxy.example.com',
-  port: 8080,
-  username: 'user',
-  password: 'pass'
-});
-
-if (result.success) {
-  console.log('代理配置更新成功');
-}
-```
 
 ### 重启实例
 
@@ -258,21 +227,6 @@ new InstanceManager(options)
 
 **返回：** `boolean`
 
-#### updateProxyConfig(instanceId, proxyConfig)
-
-更新实例的代理配置。
-
-**参数：**
-- `instanceId` (string): 实例 ID
-- `proxyConfig` (Object): 新的代理配置
-
-**返回：**
-```javascript
-{
-  success: boolean,
-  error?: string
-}
-```
 
 #### destroyAllInstances()
 
@@ -383,26 +337,7 @@ setInterval(() => {
 }, 30000); // 每 30 秒检查一次
 ```
 
-### 4. 代理配置
-
-```javascript
-// 验证代理配置后再应用
-function validateProxyConfig(proxy) {
-  if (!proxy.host || !proxy.port) {
-    throw new Error('Invalid proxy configuration');
-  }
-  if (proxy.port < 1 || proxy.port > 65535) {
-    throw new Error('Invalid proxy port');
-  }
-}
-
-try {
-  validateProxyConfig(proxyConfig);
-  await instanceManager.updateProxyConfig(instanceId, proxyConfig);
-} catch (error) {
-  console.error('Proxy configuration error:', error);
-}
-```
+ 
 
 ## 示例
 
@@ -440,17 +375,7 @@ const session = session.fromPartition(partition, { cache: true });
 └── Session Storage/
 ```
 
-### 代理认证
-
-代理认证通过 `webRequest` 拦截器实现：
-
-```javascript
-session.webRequest.onBeforeSendHeaders((details, callback) => {
-  const authString = Buffer.from(`${username}:${password}`).toString('base64');
-  details.requestHeaders['Proxy-Authorization'] = `Basic ${authString}`;
-  callback({ requestHeaders: details.requestHeaders });
-});
-```
+ 
 
 ## 性能考虑
 
@@ -465,7 +390,6 @@ session.webRequest.onBeforeSendHeaders((details, callback) => {
 
 1. 检查是否达到最大实例数限制
 2. 检查用户数据目录权限
-3. 检查代理配置是否正确
 4. 查看日志中的详细错误信息
 
 ### 实例崩溃
@@ -475,12 +399,7 @@ session.webRequest.onBeforeSendHeaders((details, callback) => {
 3. 尝试重启实例
 4. 如果频繁崩溃，检查账号配置
 
-### 代理连接失败
-
-1. 验证代理服务器是否可达
-2. 检查代理认证信息
-3. 尝试使用不同的代理协议
-4. 查看网络日志
+ 
 
 ## 许可证
 
@@ -1043,7 +962,7 @@ TranslationIntegration 完全兼容现有的翻译系统：
 
 # Error Handler
 
-错误处理器 - 负责处理实例崩溃、代理错误、翻译错误等各种错误情况，并实现自动重启逻辑。
+错误处理器 - 负责处理实例崩溃、翻译错误等各种错误情况，并实现自动重启逻辑。
 
 ## 概述
 
@@ -1069,7 +988,6 @@ TranslationIntegration 完全兼容现有的翻译系统：
 ### 2. 多种错误类型支持
 
 - **实例崩溃** (CRASH): 渲染进程崩溃
-- **代理错误** (PROXY_ERROR): 代理连接失败
 - **翻译错误** (TRANSLATION_ERROR): 翻译服务错误
 - **页面加载错误** (PAGE_LOAD_ERROR): WhatsApp Web 加载失败
 - **实例无响应** (UNRESPONSIVE): 窗口无响应
@@ -1138,14 +1056,7 @@ await errorHandler.handleInstanceCrash(
    - 停止自动重启
    - 记录错误日志
 
-### 处理代理错误
-
-```javascript
-await errorHandler.handleProxyError(
-  instanceId,
-  new Error('Proxy connection timeout')
-);
-```
+ 
 
 ### 处理翻译错误
 
@@ -1224,7 +1135,6 @@ const recentLogs = await errorHandler.readErrorLogs({
 // 组合过滤
 const filteredLogs = await errorHandler.readErrorLogs({
   instanceId: 'account-uuid',
-  errorType: 'PROXY_ERROR',
   limit: 10
 });
 
@@ -1270,15 +1180,7 @@ new ErrorHandler(instanceManager, options)
 
 **返回：** `Promise<void>`
 
-#### handleProxyError(instanceId, error)
-
-处理代理错误。
-
-**参数：**
-- `instanceId` (string): 实例 ID
-- `error` (Object): 错误对象
-
-**返回：** `Promise<void>`
+ 
 
 #### handleTranslationError(instanceId, error)
 
@@ -1437,8 +1339,8 @@ new ErrorHandler(instanceManager, options)
 
 ```json
 {"timestamp":"2025-11-16T10:30:00.000Z","instanceId":"account-123","errorType":"CRASH","message":"Instance crashed","details":{"error":"Error: Renderer process crashed","killed":false}}
-{"timestamp":"2025-11-16T10:35:00.000Z","instanceId":"account-123","errorType":"RESTART_FAILED","message":"Failed to restart instance: Proxy connection timeout","details":{}}
-{"timestamp":"2025-11-16T10:40:00.000Z","instanceId":"account-456","errorType":"PROXY_ERROR","message":"Proxy connection timeout","details":{"error":"Error: Proxy connection timeout"}}
+{"timestamp":"2025-11-16T10:35:00.000Z","instanceId":"account-123","errorType":"RESTART_FAILED","message":"Failed to restart instance: Network timeout","details":{}}
+ 
 ```
 
 ## 最佳实践
@@ -1614,15 +1516,7 @@ window.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
   }
 });
 
-// 代理配置失败时
-try {
-  await this._applyProxyConfig(session, proxy, instanceId);
-} catch (error) {
-  if (this.errorHandler) {
-    await this.errorHandler.handleProxyError(instanceId, error);
-  }
-  throw error;
-}
+ 
 ```
 
 ## 故障排查
@@ -1633,7 +1527,7 @@ try {
 
 **解决方案：**
 1. 检查崩溃原因（查看错误日志）
-2. 修复根本问题（代理配置、内存不足等）
+2. 修复根本问题（内存不足等）
 3. 如果无法修复，手动停止实例
 4. 调整 `maxCrashCount` 或 `crashResetTime` 参数
 

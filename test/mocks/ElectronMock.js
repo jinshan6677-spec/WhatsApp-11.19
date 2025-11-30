@@ -585,14 +585,7 @@ class SessionMock {
     return Promise.resolve();
   }
 
-  setProxy(config) {
-    this._proxyConfig = config;
-    return Promise.resolve();
-  }
-
-  resolveProxy(url) {
-    return Promise.resolve('DIRECT');
-  }
+  
 
   setUserAgent(userAgent, acceptLanguages) {
     this._userAgent = userAgent;
@@ -606,7 +599,6 @@ class SessionMock {
   // For testing
   _reset() {
     this._cache.clear();
-    this._proxyConfig = null;
   }
 }
 

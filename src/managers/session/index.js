@@ -31,7 +31,7 @@ class SessionManager {
     // Expose caches for backward compatibility
     this.sessionCache = this.storage.sessionCache;
     this.loginStatusCache = this.recovery.loginStatusCache;
-    this.proxyCache = this.validator.proxyCache;
+    
   }
 
   /**
@@ -58,7 +58,7 @@ class SessionManager {
    * Create session for account
    * @param {string} accountId - Account ID
    * @param {Object} [config] - Configuration options
-   * @returns {Promise<{success: boolean, session?: Electron.Session, error?: string, proxyWarning?: string}>}
+   * @returns {Promise<{success: boolean, session?: Electron.Session, error?: string}>}
    */
   async createSession(accountId, config = {}) {
     try {
@@ -72,38 +72,17 @@ class SessionManager {
       // Create session
       const accountSession = this.storage.createSession(accountId);
 
-      let proxyWarning = null;
-
-      // Configure proxy if provided
-      if (config.proxy && config.proxy.enabled) {
-        const proxyResult = await this.validator.configureProxy(accountId, config.proxy);
-        if (!proxyResult.success) {
-          proxyWarning = `Proxy configuration failed: ${proxyResult.error}`;
-          this.log('warn', `Failed to configure proxy for account ${accountId}: ${proxyResult.error}`);
-
-          if (proxyResult.fallbackApplied) {
-            proxyWarning += ' (using direct connection as fallback)';
-          }
-        } else if (proxyResult.fallbackApplied) {
-          proxyWarning = proxyResult.error;
-        }
-      }
+      
 
       // Configure session persistence
       await this.storage.configureSessionPersistence(accountId);
 
       this.log('info', `Session created successfully for account ${accountId}`);
 
-      const result = {
+      return {
         success: true,
         session: accountSession
       };
-
-      if (proxyWarning) {
-        result.proxyWarning = proxyWarning;
-      }
-
-      return result;
     } catch (error) {
       this.log('error', `Failed to create session for account ${accountId}:`, error);
       return {
@@ -122,33 +101,7 @@ class SessionManager {
     return this.storage.getSession(accountId);
   }
 
-  /**
-   * Configure proxy for account
-   * @param {string} accountId - Account ID
-   * @param {Object} proxyConfig - Proxy configuration
-   * @returns {Promise<{success: boolean, error?: string, fallbackApplied?: boolean}>}
-   */
-  async configureProxy(accountId, proxyConfig) {
-    return this.validator.configureProxy(accountId, proxyConfig);
-  }
-
-  /**
-   * Get proxy configuration
-   * @param {string} accountId - Account ID
-   * @returns {Object|null}
-   */
-  getProxyConfig(accountId) {
-    return this.validator.getProxyConfig(accountId);
-  }
-
-  /**
-   * Clear proxy configuration
-   * @param {string} accountId - Account ID
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
-  async clearProxy(accountId) {
-    return this.validator.clearProxy(accountId);
-  }
+  
 
   /**
    * Get user data directory

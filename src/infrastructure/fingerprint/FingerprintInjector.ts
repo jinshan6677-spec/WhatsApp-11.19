@@ -53,13 +53,8 @@ export class FingerprintInjector {
    * Gets Chromium launch arguments for fingerprint configuration
    * Requirements: 27.1 (Before Launch stage)
    */
-  getChromiumArgs(proxyPort?: number): ChromiumArgs {
+  getChromiumArgs(): ChromiumArgs {
     const args: string[] = [];
-    
-    // Proxy configuration
-    if (proxyPort) {
-      args.push(`--proxy-server=socks5://127.0.0.1:${proxyPort}`);
-    }
     
     // Disable WebRTC if configured
     if (this.profile.webrtc.mode === 'disabled') {
@@ -328,8 +323,6 @@ export class FingerprintInjector {
           const isSensitivePort = sensitivePorts.includes(port);
           
           if (isLocal || isSensitivePort) {
-            // Allow requests to the proxy relay (127.0.0.1 with specific ports)
-            // This is handled by the proxy configuration, not direct requests
             callback({ cancel: true });
             return;
           }

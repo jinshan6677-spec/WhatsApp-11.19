@@ -55,9 +55,6 @@ async function runTests() {
     const createResult = await accountManager.createAccount({
       name: 'Test Account - Manual Control',
       note: 'Test account for manual control feature',
-      proxy: {
-        enabled: false
-      },
       translation: {
         enabled: false
       },
@@ -91,7 +88,6 @@ async function runTests() {
     console.log('4. Testing openAccount...');
     const openResult = await viewManager.openAccount(testAccountId, {
       url: 'https://web.whatsapp.com',
-      proxy: { enabled: false },
       translation: { enabled: false }
     });
 

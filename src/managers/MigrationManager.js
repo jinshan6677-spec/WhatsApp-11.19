@@ -287,15 +287,6 @@ class MigrationManager {
         name: 'Default Account',
         createdAt: new Date(),
         lastActiveAt: new Date(),
-        proxy: {
-          enabled: false,
-          protocol: 'socks5',
-          host: '',
-          port: 0,
-          username: '',
-          password: '',
-          bypass: ''
-        },
         translation: translationConfig,
         window: {
           width: 1200,

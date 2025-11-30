@@ -98,7 +98,6 @@ async function createTestAccount(name, config = {}) {
   const result = await accountManager.createAccount({
     name: uniqueName,
     note: 'Property test account',
-    proxy: { enabled: false },
     translation: { enabled: false },
     autoStart: false,
     ...config
@@ -139,7 +138,6 @@ async function testProperty10_SessionDataPersistence() {
           
           await viewManager.openAccount(account.id, {
             url: 'https://web.whatsapp.com',
-            proxy: { enabled: false },
             translation: { enabled: false }
           });
           
@@ -458,7 +456,6 @@ async function testProperty15_ErrorStateTransition() {
   try {
     await viewManager.openAccount(account.id, {
       url: 'invalid-url',
-      proxy: { enabled: false },
       translation: { enabled: false }
     });
     

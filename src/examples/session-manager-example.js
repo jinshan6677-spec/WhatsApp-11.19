@@ -32,7 +32,6 @@ async function sessionManagerExample() {
   const accountConfig = {
     id: testAccountId,
     name: 'Test Account',
-    proxy: { enabled: false },
     translation: { enabled: false },
     window: { width: 1200, height: 800 }
   };

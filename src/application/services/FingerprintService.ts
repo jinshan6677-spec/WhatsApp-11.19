@@ -50,13 +50,7 @@ export interface BatchProgress {
   status: 'processing' | 'success' | 'failed' | 'skipped';
 }
 
-export interface ProxyConfig {
-  protocol: 'socks5' | 'http' | 'https';
-  host: string;
-  port: number;
-  username?: string;
-  password?: string;
-}
+ 
 
 export interface FingerprintTemplateInfo {
   name: string;

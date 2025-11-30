@@ -4,7 +4,7 @@
  * Monitors account profiles for health issues and automatically recovers from:
  * - Browser freezes (via heartbeat detection)
  * - Browser crashes
- * - Proxy failures
+ * 
  * - Resource overload (CPU/memory)
  * 
  * Validates: Requirements 28.1-28.6, 29.1-29.6, 30.1-30.9, 36.1-36.7
@@ -24,7 +24,7 @@ export interface BrowserViewLike {
   webContents: WebContentsLike;
 }
 
-export type RecoveryReason = 'frozen' | 'crashed' | 'proxy-failed' | 'manual';
+export type RecoveryReason = 'frozen' | 'crashed' | 'manual';
 
 export interface HeartbeatResult {
   success: boolean;
@@ -41,7 +41,6 @@ export interface SupervisionStatus {
   cpuUsage: number;
   memoryUsage: number;
   status: 'healthy' | 'warning' | 'frozen' | 'crashed' | 'recovering';
-  proxyStatus: 'connected' | 'disconnected' | 'reconnecting' | 'unknown';
   reconnectAttempts: number;
 }
 
@@ -63,8 +62,6 @@ export interface ProfileSupervisorOptions {
   systemCpuThreshold?: number; // percentage, default 80
   systemMemoryMinimum?: number; // MB, default 2048 (2GB)
   getViewForAccount?: (accountId: string) => BrowserViewLike | null;
-  proxyRelayService?: any;
-  killSwitch?: any;
 }
 
 interface SupervisionState {
@@ -77,12 +74,10 @@ interface SupervisionState {
   cpuUsage: number;
   memoryUsage: number;
   resourceHistory: ResourceUsage[];
-  proxyStatus: 'connected' | 'disconnected' | 'reconnecting' | 'unknown';
   reconnectAttempts: number;
   reconnectTimer: NodeJS.Timeout | null;
   recoveryInProgress: boolean;
   fingerprintConfig: any | null;
-  proxyConfig: any | null;
 }
 
 
@@ -90,7 +85,7 @@ interface SupervisionState {
 export interface SecurityLogEntry {
   timestamp: Date;
   accountId: string;
-  type: 'direct_connection_blocked' | 'ip_verification_failed' | 'killswitch_triggered' | 'proxy_reconnect';
+  type: 'direct_connection_blocked' | 'ip_verification_failed' | 'killswitch_triggered';
   details: {
     targetAddress?: string;
     expectedIP?: string;
@@ -111,8 +106,7 @@ export class ProfileSupervisor {
   private readonly systemCpuThreshold: number;
   private readonly systemMemoryMinimum: number;
   private readonly getViewForAccount: (accountId: string) => BrowserViewLike | null;
-  private readonly proxyRelayService: any;
-  private readonly killSwitch: any;
+  
 
   // Track supervision state per account
   private supervisionStates: Map<string, SupervisionState>;
@@ -139,8 +133,6 @@ export class ProfileSupervisor {
     this.systemCpuThreshold = options.systemCpuThreshold || 80;
     this.systemMemoryMinimum = options.systemMemoryMinimum || 2048; // 2GB
     this.getViewForAccount = options.getViewForAccount || (() => null);
-    this.proxyRelayService = options.proxyRelayService || null;
-    this.killSwitch = options.killSwitch || null;
 
     this.supervisionStates = new Map();
     this.securityLog = [];
@@ -177,7 +169,6 @@ export class ProfileSupervisor {
    */
   startSupervision(accountId: string, options: {
     fingerprintConfig?: any;
-    proxyConfig?: any;
   } = {}): void {
     if (!accountId) {
       throw new Error('Account ID is required to start supervision');
@@ -205,12 +196,11 @@ export class ProfileSupervisor {
       cpuUsage: 0,
       memoryUsage: 0,
       resourceHistory: [],
-      proxyStatus: 'unknown',
       reconnectAttempts: 0,
       reconnectTimer: null,
       recoveryInProgress: false,
       fingerprintConfig: options.fingerprintConfig || null,
-      proxyConfig: options.proxyConfig || null
+      
     };
 
     this.supervisionStates.set(accountId, state);
@@ -292,7 +282,6 @@ export class ProfileSupervisor {
       cpuUsage: state.cpuUsage,
       memoryUsage: state.memoryUsage,
       status: state.status,
-      proxyStatus: state.proxyStatus,
       reconnectAttempts: state.reconnectAttempts
     };
   }
@@ -311,7 +300,6 @@ export class ProfileSupervisor {
         cpuUsage: state.cpuUsage,
         memoryUsage: state.memoryUsage,
         status: state.status,
-        proxyStatus: state.proxyStatus,
         reconnectAttempts: state.reconnectAttempts
       });
     }
@@ -563,9 +551,6 @@ export class ProfileSupervisor {
         case 'crashed':
           await this.recoverFromCrash(accountId);
           break;
-        case 'proxy-failed':
-          await this.recoverFromProxyFailure(accountId);
-          break;
         case 'manual':
           await this.recoverManually(accountId);
           break;
@@ -624,7 +609,6 @@ export class ProfileSupervisor {
 
     // Store current configuration for restoration
     const fingerprintConfig = state.fingerprintConfig;
-    const proxyConfig = state.proxyConfig;
 
     // Emit event to request browser restart (handled by ViewManager)
     if (this.eventBus) {
@@ -633,7 +617,6 @@ export class ProfileSupervisor {
         reason: 'frozen',
         preserveConfig: true,
         fingerprintConfig,
-        proxyConfig,
         timestamp: new Date().toISOString()
       });
     }
@@ -656,7 +639,6 @@ export class ProfileSupervisor {
 
     // Store current configuration for restoration
     const fingerprintConfig = state.fingerprintConfig;
-    const proxyConfig = state.proxyConfig;
 
     // Emit event to request browser restart
     if (this.eventBus) {
@@ -665,7 +647,6 @@ export class ProfileSupervisor {
         reason: 'crashed',
         preserveConfig: true,
         fingerprintConfig,
-        proxyConfig,
         timestamp: new Date().toISOString()
       });
     }
@@ -674,30 +655,7 @@ export class ProfileSupervisor {
     await this.waitForRestart(accountId, 30000);
   }
 
-  /**
-   * Recovers from a proxy failure
-   * Validates: Requirements 30.1-30.6
-   * 
-   * @param accountId - Account identifier
-   */
-  private async recoverFromProxyFailure(accountId: string): Promise<void> {
-    const state = this.supervisionStates.get(accountId);
-    if (!state) return;
-
-    this.log('info', `Recovering from proxy failure for account: ${accountId}`);
-
-    // Trigger KillSwitch to block all network requests
-    if (this.killSwitch) {
-      await this.killSwitch.trigger(accountId, 'PROXY_DISCONNECTED', {
-        message: 'Proxy connection lost, initiating recovery'
-      });
-    }
-
-    state.proxyStatus = 'reconnecting';
-
-    // Attempt reconnection with exponential backoff
-    await this.attemptProxyReconnect(accountId);
-  }
+  
 
   /**
    * Manual recovery trigger
@@ -717,7 +675,6 @@ export class ProfileSupervisor {
         reason: 'manual',
         preserveConfig: true,
         fingerprintConfig: state.fingerprintConfig,
-        proxyConfig: state.proxyConfig,
         timestamp: new Date().toISOString()
       });
     }
@@ -755,121 +712,7 @@ export class ProfileSupervisor {
   }
 
 
-  // ==================== Proxy Reconnection Methods ====================
-
-  /**
-   * Attempts to reconnect proxy with exponential backoff
-   * Validates: Requirements 30.1-30.4
-   * 
-   * @param accountId - Account identifier
-   */
-  async attemptProxyReconnect(accountId: string): Promise<void> {
-    const state = this.supervisionStates.get(accountId);
-    if (!state) return;
-
-    // Check if max attempts reached
-    if (state.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.log('error', `Max reconnect attempts (${this.maxReconnectAttempts}) reached for account: ${accountId}`);
-      state.proxyStatus = 'disconnected';
-      
-      // Emit max attempts reached event
-      if (this.eventBus) {
-        this.eventBus.emit('supervision:proxy:max_attempts', {
-          accountId,
-          attempts: state.reconnectAttempts,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      return;
-    }
-
-    state.reconnectAttempts++;
-    
-    // Calculate delay using exponential backoff: 1s, 2s, 4s, 8s, 16s
-    const delay = this.calculateExponentialBackoff(state.reconnectAttempts);
-    
-    this.log('info', `Proxy reconnect attempt ${state.reconnectAttempts}/${this.maxReconnectAttempts} for ${accountId} (delay: ${delay}ms)`);
-
-    // Schedule reconnection attempt
-    state.reconnectTimer = setTimeout(async () => {
-      try {
-        // Attempt to reconnect via ProxyRelayService
-        if (this.proxyRelayService && state.proxyConfig) {
-          await this.proxyRelayService.reloadProxy(accountId, state.proxyConfig);
-          
-          // Verify exit IP after reconnection
-          const exitIP = await this.verifyExitIP(accountId);
-          
-          if (exitIP) {
-            // Reconnection successful
-            state.proxyStatus = 'connected';
-            state.reconnectAttempts = 0;
-            
-            // Reset KillSwitch
-            if (this.killSwitch) {
-              await this.killSwitch.reset(accountId, true);
-            }
-            
-            this.log('info', `✓ Proxy reconnected for account ${accountId} (IP: ${exitIP})`);
-            
-            // Emit reconnection success event
-            if (this.eventBus) {
-              this.eventBus.emit('supervision:proxy:reconnected', {
-                accountId,
-                exitIP,
-                attempts: state.reconnectAttempts,
-                timestamp: new Date().toISOString()
-              });
-            }
-          } else {
-            throw new Error('Exit IP verification failed');
-          }
-        } else {
-          throw new Error('ProxyRelayService or proxy config not available');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.log('warn', `Proxy reconnect failed for ${accountId}: ${errorMessage}`);
-        
-        // Try again
-        await this.attemptProxyReconnect(accountId);
-      }
-    }, delay);
-  }
-
-  /**
-   * Calculates exponential backoff delay
-   * Validates: Requirements 30.2
-   * 
-   * @param attempt - Current attempt number (1-based)
-   * @returns Delay in milliseconds
-   */
-  calculateExponentialBackoff(attempt: number): number {
-    // 1s, 2s, 4s, 8s, 16s
-    const baseDelay = 1000;
-    const maxDelay = 16000;
-    const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
-    return delay;
-  }
-
-  /**
-   * Resets the reconnect counter for an account
-   * Validates: Requirements 30.5
-   * 
-   * @param accountId - Account identifier
-   */
-  resetReconnectCounter(accountId: string): void {
-    const state = this.supervisionStates.get(accountId);
-    if (state) {
-      state.reconnectAttempts = 0;
-      if (state.reconnectTimer) {
-        clearTimeout(state.reconnectTimer);
-        state.reconnectTimer = null;
-      }
-      this.log('info', `Reconnect counter reset for account: ${accountId}`);
-    }
-  }
+  
 
   // ==================== Resource Monitoring Methods ====================
 
@@ -1054,60 +897,7 @@ export class ProfileSupervisor {
 
   // ==================== Zero-Trust Network Model Methods ====================
 
-  /**
-   * Verifies exit IP matches expected proxy IP
-   * Validates: Requirements 36.3, 36.4
-   * 
-   * @param accountId - Account identifier
-   * @returns Exit IP if verification passes, null otherwise
-   */
-  async verifyExitIP(accountId: string): Promise<string | null> {
-    const state = this.supervisionStates.get(accountId);
-    if (!state) return null;
-
-    try {
-      if (!this.proxyRelayService) {
-        throw new Error('ProxyRelayService not available');
-      }
-
-      const exitIP = await this.proxyRelayService.getExitIP(accountId);
-      
-      // Log successful verification
-      this.addSecurityLog({
-        timestamp: new Date(),
-        accountId,
-        type: 'proxy_reconnect',
-        details: {
-          actualIP: exitIP,
-          reason: 'Exit IP verified successfully'
-        }
-      });
-
-      return exitIP;
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Log verification failure
-      this.addSecurityLog({
-        timestamp: new Date(),
-        accountId,
-        type: 'ip_verification_failed',
-        details: {
-          reason: errorMessage
-        }
-      });
-
-      // Trigger KillSwitch on verification failure
-      if (this.killSwitch) {
-        await this.killSwitch.trigger(accountId, 'IP_MISMATCH', {
-          message: 'Exit IP verification failed'
-        });
-      }
-
-      return null;
-    }
-  }
+  
 
   /**
    * Blocks a direct connection attempt
@@ -1178,67 +968,9 @@ export class ProfileSupervisor {
       .slice(-limit);
   }
 
-  /**
-   * Checks if proxy is enabled for an account (zero-trust check)
-   * Validates: Requirements 36.1, 36.2
-   * 
-   * @param accountId - Account identifier
-   * @returns true if proxy is enabled and connected
-   */
-  isProxyEnabled(accountId: string): boolean {
-    const state = this.supervisionStates.get(accountId);
-    if (!state) return false;
-    
-    return state.proxyConfig !== null && state.proxyStatus === 'connected';
-  }
+  
 
-  /**
-   * Handles proxy disable request with warning
-   * Validates: Requirements 30.7-30.9
-   * 
-   * @param accountId - Account identifier
-   * @param userConfirmed - Whether user has confirmed the action
-   * @returns true if proxy was disabled
-   */
-  async handleProxyDisableRequest(accountId: string, userConfirmed: boolean): Promise<boolean> {
-    const state = this.supervisionStates.get(accountId);
-    if (!state) return false;
-
-    if (!userConfirmed) {
-      // Emit warning event for UI to show confirmation dialog
-      if (this.eventBus) {
-        this.eventBus.emit('supervision:proxy:disable_warning', {
-          accountId,
-          message: '禁用代理将暴露本机 IP，是否继续？',
-          timestamp: new Date().toISOString()
-        });
-      }
-      return false;
-    }
-
-    // User confirmed - disable proxy
-    this.log('warn', `⚠️ User confirmed proxy disable for account ${accountId} - IP exposure risk accepted`);
-
-    state.proxyConfig = null;
-    state.proxyStatus = 'disconnected';
-
-    // Reset KillSwitch to allow direct connections
-    if (this.killSwitch) {
-      await this.killSwitch.reset(accountId, true);
-    }
-
-    // Log the action
-    this.addSecurityLog({
-      timestamp: new Date(),
-      accountId,
-      type: 'killswitch_triggered',
-      details: {
-        reason: 'User disabled proxy - accepting IP exposure risk'
-      }
-    });
-
-    return true;
-  }
+  
 
   // ==================== Configuration Management ====================
 
@@ -1256,20 +988,7 @@ export class ProfileSupervisor {
     }
   }
 
-  /**
-   * Updates proxy configuration for an account
-   * 
-   * @param accountId - Account identifier
-   * @param config - New proxy configuration
-   */
-  updateProxyConfig(accountId: string, config: any): void {
-    const state = this.supervisionStates.get(accountId);
-    if (state) {
-      state.proxyConfig = config;
-      state.proxyStatus = config ? 'connected' : 'disconnected';
-      this.log('info', `Proxy config updated for account: ${accountId}`);
-    }
-  }
+  
 
   /**
    * Gets the stored fingerprint configuration for an account
@@ -1282,16 +1001,7 @@ export class ProfileSupervisor {
     return state?.fingerprintConfig || null;
   }
 
-  /**
-   * Gets the stored proxy configuration for an account
-   * 
-   * @param accountId - Account identifier
-   * @returns Proxy configuration or null
-   */
-  getProxyConfig(accountId: string): any | null {
-    const state = this.supervisionStates.get(accountId);
-    return state?.proxyConfig || null;
-  }
+  
 
   // ==================== Lifecycle Methods ====================
 
@@ -1320,39 +1030,7 @@ export class ProfileSupervisor {
     await this.recoverProfile(accountId, 'crashed');
   }
 
-  /**
-   * Handles proxy failure event
-   * Validates: Requirements 30.1
-   * 
-   * @param accountId - Account identifier
-   */
-  async handleProxyFailure(accountId: string): Promise<void> {
-    const state = this.supervisionStates.get(accountId);
-    if (!state) return;
-
-    this.log('error', `🔴 Proxy failed for account: ${accountId}`);
-    state.proxyStatus = 'disconnected';
-
-    // Trigger KillSwitch immediately
-    if (this.killSwitch) {
-      await this.killSwitch.trigger(accountId, 'PROXY_DISCONNECTED', {
-        message: 'Proxy connection lost'
-      });
-    }
-
-    // Log the event
-    this.addSecurityLog({
-      timestamp: new Date(),
-      accountId,
-      type: 'killswitch_triggered',
-      details: {
-        reason: 'Proxy connection lost'
-      }
-    });
-
-    // Trigger recovery
-    await this.recoverProfile(accountId, 'proxy-failed');
-  }
+  
 
   /**
    * Cleans up all resources
