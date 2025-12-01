@@ -1,8 +1,12 @@
 /**
  * Environment IPC Handlers
  * 
- * Handles IPC communication for environment settings (proxy and fingerprint).
- * Provides handlers for configuration management, proxy testing, and fingerprint generation.
+ * Handles IPC communication for environment settings (proxy).
+ * Provides handlers for configuration management and proxy testing.
+ * 
+ * Note: Fingerprint IPC handlers have been removed as part of the professional
+ * fingerprint system refactoring. New fingerprint IPC handlers will be added
+ * when the new fingerprint system is implemented.
  * 
  * @module presentation/ipc/handlers/EnvironmentIPCHandlers
  */
@@ -14,8 +18,7 @@ const {
     EnvironmentConfigManager,
     ProxyManager,
     ProxyConfigStore,
-    ProxyValidator,
-    FingerprintGenerator
+    ProxyValidator
 } = require('../../../environment');
 
 // Singleton instances
@@ -135,23 +138,8 @@ function register(dependencies) {
         }
     });
 
-    // Generate random fingerprint
-    ipcMain.handle('env:generate-fingerprint', async (event, options) => {
-        try {
-            const fingerprint = FingerprintGenerator.generateFingerprint(options || {});
-
-            return {
-                success: true,
-                fingerprint: fingerprint
-            };
-        } catch (error) {
-            console.error('[EnvironmentIPCHandlers] env:generate-fingerprint error:', error);
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    });
+    // Note: env:generate-fingerprint handler removed as part of fingerprint system refactoring
+    // New fingerprint handlers will be added in the new fingerprint system implementation
 
     // Get list of saved proxy configurations
     ipcMain.handle('env:get-proxy-configs', async (event) => {
@@ -290,7 +278,7 @@ function unregister() {
     ipcMain.removeHandler('env:save-config');
     ipcMain.removeHandler('env:test-proxy');
     ipcMain.removeHandler('env:detect-network');
-    ipcMain.removeHandler('env:generate-fingerprint');
+    // Note: env:generate-fingerprint removed as part of fingerprint system refactoring
     ipcMain.removeHandler('env:get-proxy-configs');
     ipcMain.removeHandler('env:save-proxy-config');
     ipcMain.removeHandler('env:delete-proxy-config');

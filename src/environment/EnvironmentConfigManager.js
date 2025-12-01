@@ -1,8 +1,13 @@
 /**
  * Environment Configuration Manager
  * 
- * Manages environment configurations (proxy + fingerprint) for each account.
+ * Manages environment configurations (proxy) for each account.
  * Handles loading, saving, encryption, and validation of environment settings.
+ * 
+ * Note: Fingerprint configuration has been removed as part of the professional
+ * fingerprint system refactoring. The new fingerprint system will be implemented
+ * in src/domain/fingerprint, src/application/services/fingerprint, and
+ * src/infrastructure/fingerprint directories.
  * 
  * @module environment/EnvironmentConfigManager
  */
@@ -13,6 +18,7 @@ const Store = require('electron-store');
 const { encryptFields, decryptFields } = require('../utils/encryption');
 
 // Default environment configuration
+// Note: fingerprint配置已移除，将在新指纹系统中实现
 const DEFAULT_CONFIG = {
     proxy: {
         enabled: false,
@@ -22,69 +28,8 @@ const DEFAULT_CONFIG = {
         port: '',
         username: '',
         password: ''
-    },
-    fingerprint: {
-        browser: 'chrome-108',
-        os: 'windows',
-        userAgent: '',
-        webgl: {
-            mode: 'real',
-            vendor: 'Google Inc.',
-            renderer: 'ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)',
-            image: 'real'
-        },
-        webrtc: {
-            mode: 'real'
-        },
-        canvas: 'real',
-        audio: 'real',
-        clientRects: 'real',
-        timezone: {
-            mode: 'real',
-            value: ''
-        },
-        geolocation: {
-            mode: 'ask',
-            latitude: null,
-            longitude: null
-        },
-        language: {
-            mode: 'real',
-            value: ''
-        },
-        resolution: {
-            mode: 'real',
-            width: 1920,
-            height: 1080
-        },
-        fonts: {
-            mode: 'system'
-        },
-        deviceInfo: {
-            name: {
-                mode: 'real',
-                value: ''
-            },
-            mac: {
-                mode: 'real',
-                value: ''
-            },
-            cpu: {
-                mode: 'real',
-                cores: 8
-            },
-            memory: {
-                mode: 'real',
-                size: 16
-            }
-        },
-        hardware: {
-            bluetooth: true,
-            battery: 'real',
-            portScanProtection: true
-        },
-        cookies: []
     }
+    // TODO: 新的指纹配置将在新指纹系统实现后通过FingerprintRepository管理
 };
 
 // Fields to encrypt
@@ -227,30 +172,9 @@ class EnvironmentConfigManager {
         const defaults = this._getDefaultConfig();
 
         return {
-            proxy: { ...defaults.proxy, ...(config.proxy || {}) },
-            fingerprint: this._deepMerge(defaults.fingerprint, config.fingerprint || {})
+            proxy: { ...defaults.proxy, ...(config.proxy || {}) }
+            // Note: fingerprint合并已移除，将在新指纹系统中实现
         };
-    }
-
-    /**
-     * Deep merge two objects
-     * @param {Object} target - Target object
-     * @param {Object} source - Source object
-     * @returns {Object} Merged object
-     * @private
-     */
-    _deepMerge(target, source) {
-        const result = { ...target };
-
-        for (const key in source) {
-            if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                result[key] = this._deepMerge(target[key] || {}, source[key]);
-            } else {
-                result[key] = source[key];
-            }
-        }
-
-        return result;
     }
 
     /**
@@ -260,30 +184,19 @@ class EnvironmentConfigManager {
      * @private
      */
     _validateConfig(config) {
-        if (!config.proxy || typeof config.proxy !== 'object') {
+        // 代理配置验证（可选，因为代理可能未启用）
+        if (config.proxy && typeof config.proxy !== 'object') {
             throw new Error('Invalid proxy configuration');
         }
 
-        if (!config.fingerprint || typeof config.fingerprint !== 'object') {
-            throw new Error('Invalid fingerprint configuration');
-        }
-
         // Validate proxy fields
-        if (config.proxy.enabled) {
+        if (config.proxy && config.proxy.enabled) {
             if (config.proxy.protocol && !['http', 'https'].includes(config.proxy.protocol)) {
                 throw new Error('Invalid proxy protocol');
             }
         }
 
-        // Validate fingerprint fields
-        if (config.fingerprint.browser && typeof config.fingerprint.browser !== 'string') {
-            throw new Error('Invalid browser type');
-        }
-
-        if (config.fingerprint.os && !['windows', 'macos'].includes(config.fingerprint.os)) {
-            throw new Error('Invalid OS type');
-        }
-
+        // Note: fingerprint验证已移除，将在新指纹系统中实现
         return true;
     }
 }

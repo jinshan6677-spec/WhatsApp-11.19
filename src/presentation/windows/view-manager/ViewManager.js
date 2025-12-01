@@ -158,11 +158,8 @@ class ViewManager {
               enabled: environmentConfig.proxy.enabled,
               host: environmentConfig.proxy.host,
               port: environmentConfig.proxy.port
-            } : 'none',
-            fingerprint: environmentConfig.fingerprint ? {
-              userAgent: environmentConfig.fingerprint.userAgent,
-              os: environmentConfig.fingerprint.os
             } : 'none'
+            // Note: fingerprint日志已移除，作为专业指纹系统重构的一部分
           });
         } else {
           this.log('warn', `[ENV_DEBUG] No config found for ${accountId}`);
@@ -172,11 +169,12 @@ class ViewManager {
       }
 
       // Merge environment config with provided config
+      // Note: fingerprint配置已移除，作为专业指纹系统重构的一部分
+      // TODO: 新的指纹配置将在新指纹系统实现后添加
       const viewConfig = {
         ...config,
-        userAgent: environmentConfig?.fingerprint?.userAgent || config.userAgent,
-        proxy: environmentConfig?.proxy,
-        fingerprint: environmentConfig?.fingerprint
+        userAgent: config.userAgent, // 使用默认userAgent，新指纹系统将提供自定义UA
+        proxy: environmentConfig?.proxy
       };
 
       this.log('info', `[ENV_DEBUG] Final view config for ${accountId}:`, {

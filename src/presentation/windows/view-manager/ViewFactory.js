@@ -50,7 +50,6 @@ class ViewFactory {
    * @param {Object} [config] - View configuration
    * @param {string} [config.userAgent] - Custom user agent
    * @param {Object} [config.proxy] - Proxy configuration
-   * @param {Object} [config.fingerprint] - Fingerprint configuration
    * @returns {Promise<BrowserView>} Created BrowserView instance
    */
   async createView(accountId, accountSession, config = {}) {
@@ -140,21 +139,16 @@ class ViewFactory {
       });
     }
 
-    // Inject fingerprint script if provided
-    if (config.fingerprint) {
-      const FingerprintInjector = require('../../../environment/FingerprintInjector');
-
-      view.webContents.on('did-finish-load', () => {
-        try {
-          this.log('info', `Injecting fingerprint for ${accountId}`);
-          const script = FingerprintInjector.getInjectionScript(config.fingerprint);
-          view.webContents.executeJavaScript(script);
-          this.log('info', `Fingerprint injected successfully for ${accountId}`);
-        } catch (error) {
-          this.log('error', `Failed to inject fingerprint for ${accountId}:`, error);
-        }
-      });
-    }
+    // Fingerprint injection point
+    // Note: Old fingerprint injection code has been removed as part of the professional
+    // fingerprint system refactoring. The new fingerprint system will be integrated here
+    // using the new FingerprintInjector from src/infrastructure/fingerprint/
+    // 
+    // TODO: Integrate new fingerprint system here when implemented
+    // if (config.fingerprint) {
+    //   const { FingerprintInjector } = require('../../../infrastructure/fingerprint');
+    //   // New fingerprint injection logic will be added here
+    // }
 
     // Enable DevTools for debugging
     // This allows F12 to work on the BrowserView

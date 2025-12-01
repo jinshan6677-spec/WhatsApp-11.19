@@ -9,7 +9,7 @@
  * - ViewIPCHandlers: View management, session, monitoring
  * - SystemIPCHandlers: Sidebar, window resize, layout
  * - TranslationIPCHandlers: Translation panel, chat info
- * - EnvironmentIPCHandlers: Proxy and fingerprint settings
+ * - EnvironmentIPCHandlers: Proxy settings (fingerprint已移除，将在新系统中实现)
  * 
  * @module single-window/ipcHandlers
  */

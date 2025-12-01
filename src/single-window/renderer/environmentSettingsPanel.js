@@ -1,7 +1,10 @@
 /**
- * 环境设置面板 - 代理和指纹配置
+ * 环境设置面板 - 代理配置
  * 
- * 为每个账号提供独立的代理和浏览器指纹配置界面
+ * 为每个账号提供独立的代理配置界面
+ * 
+ * Note: 指纹设置UI已移除，作为专业指纹系统重构的一部分。
+ * 新的指纹设置UI将在新指纹系统实现后添加。
  */
 
 (function () {
@@ -118,187 +121,10 @@
           </div>
         </section>
 
-        <!-- 指纹设置区域 -->
-        <section class="env-section">
-          <h3 class="env-section-title">指纹设置</h3>
-
-          <div class="env-section-content">
-            <!-- 浏览器和系统 -->
-            <div class="env-form-row">
-              <div class="env-form-group">
-                <label>浏览器</label>
-                <select id="fp-browser">
-                  <option value="chrome-108">Chrome 108</option>
-                  <option value="chrome-110">Chrome 110</option>
-                  <option value="chrome-115">Chrome 115</option>
-                  <option value="edge-110">Edge 110</option>
-                  <option value="firefox-115">Firefox 115</option>
-                </select>
-              </div>
-              <div class="env-form-group">
-                <label>操作系统</label>
-                <select id="fp-os">
-                  <option value="windows">Windows</option>
-                  <option value="macos">MacOS</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- User Agent -->
-            <div class="env-form-group">
-              <label>User Agent</label>
-              <div class="env-input-group">
-                <input type="text" id="fp-user-agent" placeholder="自动生成">
-                <button class="env-btn-icon" id="generate-ua-btn" title="随机生成">🎲</button>
-              </div>
-            </div>
-
-            <!-- WebGL 设置 -->
-            <div class="env-collapsible">
-              <button class="env-collapsible-header">WebGL 设置</button>
-              <div class="env-collapsible-content">
-                <div class="env-form-group">
-                  <label>模式</label>
-                  <select id="fp-webgl-mode">
-                    <option value="real">真实</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                </div>
-                <div class="env-form-group">
-                  <label>厂商</label>
-                  <input type="text" id="fp-webgl-vendor" placeholder="Google Inc.">
-                </div>
-                <div class="env-form-group">
-                  <label>渲染器</label>
-                  <input type="text" id="fp-webgl-renderer" placeholder="ANGLE (Intel...)">
-                </div>
-                <div class="env-form-group">
-                  <label>WebGL 图像</label>
-                  <select id="fp-webgl-image">
-                    <option value="random">随机</option>
-                    <option value="real">真实</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Canvas & Audio -->
-            <div class="env-collapsible">
-              <button class="env-collapsible-header">Canvas & Audio</button>
-              <div class="env-collapsible-content">
-                <div class="env-form-row">
-                  <div class="env-form-group">
-                    <label>Canvas</label>
-                    <select id="fp-canvas">
-                      <option value="random">随机</option>
-                      <option value="real">真实</option>
-                    </select>
-                  </div>
-                  <div class="env-form-group">
-                    <label>Audio</label>
-                    <select id="fp-audio">
-                      <option value="random">随机</option>
-                      <option value="real">真实</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="env-form-group">
-                  <label>ClientRects</label>
-                  <select id="fp-client-rects">
-                    <option value="random">随机</option>
-                    <option value="real">真实</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- 环境属性 -->
-            <div class="env-collapsible">
-              <button class="env-collapsible-header">环境属性</button>
-              <div class="env-collapsible-content">
-                <div class="env-form-group">
-                  <label>时区</label>
-                  <select id="fp-timezone-mode">
-                    <option value="auto">基于IP自动</option>
-                    <option value="real">真实</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                  <input type="text" id="fp-timezone-value" placeholder="Asia/Shanghai" class="hidden">
-                </div>
-                <div class="env-form-group">
-                  <label>语言</label>
-                  <select id="fp-language-mode">
-                    <option value="auto">基于IP自动</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                  <input type="text" id="fp-language-value" placeholder="zh-CN,zh;q=0.9" class="hidden">
-                </div>
-                <div class="env-form-group">
-                  <label>分辨率</label>
-                  <select id="fp-resolution-mode">
-                    <option value="real">真实</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                  <div id="fp-resolution-custom" class="env-form-row hidden">
-                    <input type="number" id="fp-resolution-width" placeholder="1920" style="width: 100px;">
-                    <span>×</span>
-                    <input type="number" id="fp-resolution-height" placeholder="1080" style="width: 100px;">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 设备信息 -->
-            <div class="env-collapsible">
-              <button class="env-collapsible-header">设备信息</button>
-              <div class="env-collapsible-content">
-                <div class="env-form-group">
-                  <label>CPU 核心数</label>
-                  <select id="fp-cpu-mode">
-                    <option value="real">真实</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                  <select id="fp-cpu-cores" class="hidden">
-                    <option value="2">2核</option>
-                    <option value="4">4核</option>
-                    <option value="8">8核</option>
-                    <option value="16">16核</option>
-                  </select>
-                </div>
-                <div class="env-form-group">
-                  <label>内存大小</label>
-                  <select id="fp-memory-mode">
-                    <option value="real">真实</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                  <select id="fp-memory-size" class="hidden">
-                    <option value="2">2GB</option>
-                    <option value="4">4GB</option>
-                    <option value="8">8GB</option>
-                    <option value="16">16GB</option>
-                    <option value="32">32GB</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Cookie 管理 -->
-            <div class="env-collapsible">
-              <button class="env-collapsible-header">Cookie 管理</button>
-              <div class="env-collapsible-content">
-                <div class="env-form-group">
-                  <label>Cookie JSON（格式: [{"name":"xx","value":"yy","domain":"zz"}]）</label>
-                  <textarea id="fp-cookies" rows="4" placeholder='[{"name":"session","value":"abc123","domain":".example.com"}]'></textarea>
-                </div>
-              </div>
-            </div>
-
-            <!-- 全局操作 -->
-            <div class="env-button-group">
-              <button class="env-btn-primary" id="generate-fingerprint-btn">🎲 一键生成指纹</button>
-            </div>
-          </div>
-        </section>
+        <!-- 指纹设置区域占位符 -->
+        <!-- Note: 指纹设置UI已移除，作为专业指纹系统重构的一部分。
+             新的指纹设置UI将在新指纹系统实现后添加到此处。
+             TODO: 集成新的指纹设置UI -->
       </div>
 
       <div class="env-panel-footer">
@@ -334,9 +160,8 @@
     container.querySelector('#detect-network-btn').addEventListener('click', detectNetwork);
     container.querySelector('#save-proxy-config-btn').addEventListener('click', saveProxyConfig);
 
-    // 指纹生成
-    container.querySelector('#generate-ua-btn').addEventListener('click', generateUserAgent);
-    container.querySelector('#generate-fingerprint-btn').addEventListener('click', generateFingerprint);
+    // Note: 指纹生成事件监听器已移除，作为专业指纹系统重构的一部分
+    // TODO: 新的指纹事件监听器将在新指纹系统实现后添加
 
     // 折叠面板
     container.querySelectorAll('.env-collapsible-header').forEach(header => {
@@ -356,37 +181,12 @@
 
   /**
    * 设置条件显示的字段
+   * Note: 指纹相关的条件字段已移除，作为专业指纹系统重构的一部分
+   * TODO: 新的指纹条件字段将在新指纹系统实现后添加
    */
   function setupConditionalFields() {
-    // 时区模式
-    container.querySelector('#fp-timezone-mode').addEventListener('change', (e) => {
-      const valueInput = container.querySelector('#fp-timezone-value');
-      valueInput.classList.toggle('hidden', e.target.value !== 'custom');
-    });
-
-    // 语言模式
-    container.querySelector('#fp-language-mode').addEventListener('change', (e) => {
-      const valueInput = container.querySelector('#fp-language-value');
-      valueInput.classList.toggle('hidden', e.target.value !== 'custom');
-    });
-
-    // 分辨率模式
-    container.querySelector('#fp-resolution-mode').addEventListener('change', (e) => {
-      const customDiv = container.querySelector('#fp-resolution-custom');
-      customDiv.classList.toggle('hidden', e.target.value !== 'custom');
-    });
-
-    // CPU模式
-    container.querySelector('#fp-cpu-mode').addEventListener('change', (e) => {
-      const coresSelect = container.querySelector('#fp-cpu-cores');
-      coresSelect.classList.toggle('hidden', e.target.value !== 'custom');
-    });
-
-    // 内存模式
-    container.querySelector('#fp-memory-mode').addEventListener('change', (e) => {
-      const sizeSelect = container.querySelector('#fp-memory-size');
-      sizeSelect.classList.toggle('hidden', e.target.value !== 'custom');
-    });
+    // 指纹相关的条件字段已移除
+    // 新的指纹系统将在此处添加条件字段设置
   }
 
   /**
@@ -451,72 +251,14 @@
       container.querySelector('#proxy-password').value = config.proxy.password || '';
     }
 
-    // 指纹设置
-    if (config.fingerprint) {
-      const fp = config.fingerprint;
-
-      container.querySelector('#fp-browser').value = fp.browser || 'chrome-108';
-      container.querySelector('#fp-os').value = fp.os || 'windows';
-      container.querySelector('#fp-user-agent').value = fp.userAgent || '';
-
-      // WebGL
-      if (fp.webgl) {
-        container.querySelector('#fp-webgl-mode').value = fp.webgl.mode || 'real';
-        container.querySelector('#fp-webgl-vendor').value = fp.webgl.vendor || '';
-        container.querySelector('#fp-webgl-renderer').value = fp.webgl.renderer || '';
-        container.querySelector('#fp-webgl-image').value = fp.webgl.image || 'real';
-      }
-
-      // Canvas & Audio
-      container.querySelector('#fp-canvas').value = fp.canvas || 'real';
-      container.querySelector('#fp-audio').value = fp.audio || 'real';
-      container.querySelector('#fp-client-rects').value = fp.clientRects || 'real';
-
-      // 时区
-      if (fp.timezone) {
-        container.querySelector('#fp-timezone-mode').value = fp.timezone.mode || 'real';
-        container.querySelector('#fp-timezone-value').value = fp.timezone.value || '';
-        container.querySelector('#fp-timezone-value').classList.toggle('hidden', fp.timezone.mode !== 'custom');
-      }
-
-      // 语言
-      if (fp.language) {
-        container.querySelector('#fp-language-mode').value = fp.language.mode || 'real';
-        container.querySelector('#fp-language-value').value = fp.language.value || '';
-        container.querySelector('#fp-language-value').classList.toggle('hidden', fp.language.mode !== 'custom');
-      }
-
-      // 分辨率
-      if (fp.resolution) {
-        container.querySelector('#fp-resolution-mode').value = fp.resolution.mode || 'real';
-        container.querySelector('#fp-resolution-width').value = fp.resolution.width || 1920;
-        container.querySelector('#fp-resolution-height').value = fp.resolution.height || 1080;
-        container.querySelector('#fp-resolution-custom').classList.toggle('hidden', fp.resolution.mode !== 'custom');
-      }
-
-      // CPU
-      if (fp.deviceInfo && fp.deviceInfo.cpu) {
-        container.querySelector('#fp-cpu-mode').value = fp.deviceInfo.cpu.mode || 'real';
-        container.querySelector('#fp-cpu-cores').value = fp.deviceInfo.cpu.cores || 8;
-        container.querySelector('#fp-cpu-cores').classList.toggle('hidden', fp.deviceInfo.cpu.mode !== 'custom');
-      }
-
-      // 内存
-      if (fp.deviceInfo && fp.deviceInfo.memory) {
-        container.querySelector('#fp-memory-mode').value = fp.deviceInfo.memory.mode || 'real';
-        container.querySelector('#fp-memory-size').value = fp.deviceInfo.memory.size || 16;
-        container.querySelector('#fp-memory-size').classList.toggle('hidden', fp.deviceInfo.memory.mode !== 'custom');
-      }
-
-      // Cookies
-      if (fp.cookies && fp.cookies.length > 0) {
-        container.querySelector('#fp-cookies').value = JSON.stringify(fp.cookies, null, 2);
-      }
-    }
+    // Note: 指纹设置表单填充已移除，作为专业指纹系统重构的一部分
+    // TODO: 新的指纹表单填充将在新指纹系统实现后添加
   }
 
   /**
    * 从表单收集配置
+   * Note: 指纹配置收集已移除，作为专业指纹系统重构的一部分
+   * TODO: 新的指纹配置收集将在新指纹系统实现后添加
    */
   function collectFormData() {
     const config = {
@@ -527,74 +269,9 @@
         port: container.querySelector('#proxy-port').value,
         username: container.querySelector('#proxy-username').value,
         password: container.querySelector('#proxy-password').value
-      },
-      fingerprint: {
-        browser: container.querySelector('#fp-browser').value,
-        os: container.querySelector('#fp-os').value,
-        userAgent: container.querySelector('#fp-user-agent').value,
-        webgl: {
-          mode: container.querySelector('#fp-webgl-mode').value,
-          vendor: container.querySelector('#fp-webgl-vendor').value,
-          renderer: container.querySelector('#fp-webgl-renderer').value,
-          image: container.querySelector('#fp-webgl-image').value
-        },
-        webrtc: {
-          mode: 'real'
-        },
-        canvas: container.querySelector('#fp-canvas').value,
-        audio: container.querySelector('#fp-audio').value,
-        clientRects: container.querySelector('#fp-client-rects').value,
-        timezone: {
-          mode: container.querySelector('#fp-timezone-mode').value,
-          value: container.querySelector('#fp-timezone-value').value
-        },
-        geolocation: {
-          mode: 'ask',
-          latitude: null,
-          longitude: null
-        },
-        language: {
-          mode: container.querySelector('#fp-language-mode').value,
-          value: container.querySelector('#fp-language-value').value
-        },
-        resolution: {
-          mode: container.querySelector('#fp-resolution-mode').value,
-          width: parseInt(container.querySelector('#fp-resolution-width').value) || 1920,
-          height: parseInt(container.querySelector('#fp-resolution-height').value) || 1080
-        },
-        fonts: {
-          mode: 'system'
-        },
-        deviceInfo: {
-          name: { mode: 'real', value: '' },
-          mac: { mode: 'real', value: '' },
-          cpu: {
-            mode: container.querySelector('#fp-cpu-mode').value,
-            cores: parseInt(container.querySelector('#fp-cpu-cores').value) || 8
-          },
-          memory: {
-            mode: container.querySelector('#fp-memory-mode').value,
-            size: parseInt(container.querySelector('#fp-memory-size').value) || 16
-          }
-        },
-        hardware: {
-          bluetooth: true,
-          battery: 'real',
-          portScanProtection: true
-        },
-        cookies: []
       }
+      // Note: fingerprint配置将在新指纹系统实现后添加
     };
-
-    // 解析 Cookies
-    const cookiesText = container.querySelector('#fp-cookies').value.trim();
-    if (cookiesText) {
-      try {
-        config.fingerprint.cookies = JSON.parse(cookiesText);
-      } catch (error) {
-        console.warn('[EnvironmentPanel] Cookie JSON 解析失败:', error);
-      }
-    }
 
     return config;
   }
@@ -1184,62 +861,8 @@
     });
   }
 
-  /**
-   * 生成 User Agent
-   */
-  async function generateUserAgent() {
-    const browser = container.querySelector('#fp-browser').value;
-    const os = container.querySelector('#fp-os').value;
-
-    if (!window.electronAPI) return;
-
-    try {
-      const result = await window.electronAPI.generateFingerprint({ browser, os });
-
-      if (result.success && result.fingerprint) {
-        container.querySelector('#fp-user-agent').value = result.fingerprint.userAgent;
-        showSuccess('User Agent 已生成！');
-      }
-    } catch (error) {
-      console.error('[EnvironmentPanel] 生成 UA 失败:', error);
-    }
-  }
-
-  /**
-   * 一键生成指纹
-   */
-  async function generateFingerprint() {
-    if (!window.electronAPI) return;
-
-    const browser = container.querySelector('#fp-browser').value;
-    const os = container.querySelector('#fp-os').value;
-
-    showLoading('正在生成随机指纹...');
-
-    try {
-      const result = await window.electronAPI.generateFingerprint({ browser, os });
-
-      if (result.success && result.fingerprint) {
-        const fp = result.fingerprint;
-
-        // 填充所有字段
-        container.querySelector('#fp-user-agent').value = fp.userAgent;
-        container.querySelector('#fp-webgl-vendor').value = fp.webgl.vendor;
-        container.querySelector('#fp-webgl-renderer').value = fp.webgl.renderer;
-        container.querySelector('#fp-resolution-width').value = fp.resolution.width;
-        container.querySelector('#fp-resolution-height').value = fp.resolution.height;
-        container.querySelector('#fp-cpu-cores').value = fp.deviceInfo.cpu.cores;
-        container.querySelector('#fp-memory-size').value = fp.deviceInfo.memory.size;
-
-        showSuccess('指纹已随机生成！');
-      } else {
-        showError('生成失败: ' + (result.error || '未知错误'));
-      }
-    } catch (error) {
-      console.error('[EnvironmentPanel] 生成指纹失败:', error);
-      showError('生成失败: ' + error.message);
-    }
-  }
+  // Note: generateUserAgent和generateFingerprint函数已移除，作为专业指纹系统重构的一部分
+  // TODO: 新的指纹生成函数将在新指纹系统实现后添加
 
 
 

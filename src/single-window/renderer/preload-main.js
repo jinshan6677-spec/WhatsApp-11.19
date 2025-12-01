@@ -491,14 +491,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('env:detect-network');
   },
 
-  /**
-   * Generate a new fingerprint
-   * @param {Object} options - Generation options
-   * @returns {Promise<Object>} Generated fingerprint
-   */
-  generateFingerprint: (options) => {
-    return ipcRenderer.invoke('env:generate-fingerprint', options);
-  },
+  // Note: generateFingerprint API已移除，作为专业指纹系统重构的一部分
+  // TODO: 新的指纹API将在新指纹系统实现后添加
 
   /**
    * Get saved named proxy configurations
@@ -613,7 +607,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'env:save-config',
       'env:test-proxy',
       'env:detect-network',
-      'env:generate-fingerprint',
+      // Note: env:generate-fingerprint已移除，作为专业指纹系统重构的一部分
       'env:get-proxy-configs',
       'env:save-proxy-config',
       'env:delete-proxy-config',
