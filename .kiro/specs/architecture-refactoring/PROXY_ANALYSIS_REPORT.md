@@ -89,7 +89,6 @@ this.ipApiEndpoints = [
 
 ### 4.3 支持的代理协议
 
-- SOCKS5 (使用 `socks-proxy-agent`)
 - HTTP
 - HTTPS
 

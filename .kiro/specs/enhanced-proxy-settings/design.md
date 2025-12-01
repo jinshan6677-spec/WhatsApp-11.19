@@ -187,8 +187,8 @@ class ProxyConfigManager {
   "proxyConfigs": {
     "proxy-uuid-1": {
       "id": "proxy-uuid-1",
-      "name": "US Proxy - SOCKS5",
-      "protocol": "socks5",
+      "name": "US Proxy - HTTPS",
+      "protocol": "https",
       "host": "us-proxy.example.com",
       "port": 1080,
       "username": "user",

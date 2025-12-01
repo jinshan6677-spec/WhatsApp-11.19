@@ -68,17 +68,9 @@ class ViewFactory {
     if (config.proxy && config.proxy.enabled) {
       try {
         // Sanitize host: remove protocol prefix if user accidentally included it
-        let host = config.proxy.host.replace(/^https?:\/\//, '').replace(/^socks[45]?:\/\//, '');
+        let host = config.proxy.host.replace(/^https?:\/\//, '');
 
-        const hasCreds = !!(config.proxy.username && config.proxy.password);
-        const creds = hasCreds ? `${config.proxy.username}:${config.proxy.password}@` : '';
-
-        let proxyRules;
-        if (config.proxy.protocol === 'socks5') {
-          proxyRules = `socks5://${creds}${host}:${config.proxy.port}`;
-        } else {
-          proxyRules = `${config.proxy.protocol}://${host}:${config.proxy.port}`;
-        }
+        const proxyRules = `${config.proxy.protocol}://${host}:${config.proxy.port}`;
 
         this.log('info', `Applying proxy for ${accountId}: ${proxyRules}`);
 
@@ -139,8 +131,7 @@ class ViewFactory {
       config.proxy &&
       config.proxy.enabled &&
       config.proxy.username &&
-      config.proxy.password &&
-      config.proxy.protocol !== 'socks5'
+      config.proxy.password
     ) {
       view.webContents.on('login', (event, request, authInfo, callback) => {
         event.preventDefault();

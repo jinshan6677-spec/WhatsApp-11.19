@@ -46,7 +46,7 @@
 
 #### Acceptance Criteria
 
-1. WHEN the user selects a protocol from the dropdown THEN the System SHALL accept HTTP, HTTPS, or SOCKS5 as valid options
+1. WHEN the user selects a protocol from the dropdown THEN the System SHALL accept HTTP or HTTPS as valid options
 2. WHEN the user enters a host address THEN the System SHALL validate the format as a valid hostname or IP address
 3. WHEN the user enters a port number THEN the System SHALL validate it as a number between 1 and 65535
 4. WHEN the user saves the configuration THEN the System SHALL store the protocol, host, and port values

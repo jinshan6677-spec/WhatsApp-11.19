@@ -2,7 +2,7 @@
  * Proxy Manager
  * 
  * Handles proxy configuration and application to Electron sessions.
- * Supports HTTP, HTTPS, and SOCKS5 proxies with authentication.
+ * Supports HTTP and HTTPS proxies with authentication.
  * 
  * @module environment/ProxyManager
  */
@@ -18,7 +18,7 @@ class ProxyManager {
      * @param {Electron.Session} session - Electron session
      * @param {Object} proxyConfig - Proxy configuration
      * @param {boolean} proxyConfig.enabled - Whether proxy is enabled
-     * @param {string} proxyConfig.protocol - Proxy protocol (http, https, socks5)
+     * @param {string} proxyConfig.protocol - Proxy protocol (http, https)
      * @param {string} proxyConfig.host - Proxy host
      * @param {string} proxyConfig.port - Proxy port
      * @param {string} [proxyConfig.username] - Proxy username (optional)
@@ -50,13 +50,7 @@ class ProxyManager {
             }
 
             // Build proxy URL
-            let proxyUrl;
-            if (protocol === 'socks5') {
-                proxyUrl = `socks5://${host}:${port}`;
-            } else {
-                // http or https
-                proxyUrl = `${protocol || 'http'}://${host}:${port}`;
-            }
+            const proxyUrl = `${protocol || 'http'}://${host}:${port}`;
 
             // Set proxy rules
             const proxyRules = proxyUrl;
@@ -120,7 +114,7 @@ class ProxyManager {
                     return null;
                 }
 
-                if (!['http', 'https', 'socks5'].includes(protocol)) {
+                if (!['http', 'https'].includes(protocol)) {
                     return null;
                 }
 
@@ -205,8 +199,8 @@ class ProxyManager {
 
         if (proxyConfig.enabled) {
             // Validate protocol
-            if (proxyConfig.protocol && !['http', 'https', 'socks5'].includes(proxyConfig.protocol)) {
-                errors.push('Invalid proxy protocol. Must be http, https, or socks5');
+            if (proxyConfig.protocol && !['http', 'https'].includes(proxyConfig.protocol)) {
+                errors.push('Invalid proxy protocol. Must be http or https');
             }
 
             // Validate host
@@ -248,12 +242,7 @@ class ProxyManager {
 
         const { protocol, host, port, username, password } = proxyConfig;
 
-        let url;
-        if (protocol === 'socks5') {
-            url = 'socks5://';
-        } else {
-            url = `${protocol || 'http'}://`;
-        }
+        let url = `${protocol || 'http'}://`;
 
         // Add authentication if provided
         if (username && password) {

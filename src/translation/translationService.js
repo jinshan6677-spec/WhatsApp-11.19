@@ -14,7 +14,6 @@ const {
 const StatsManager = require('./managers/StatsManager');
 const { EnvironmentConfigManager, ProxyConfigStore } = require('../environment');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const { SocksProxyAgent } = require('socks-proxy-agent');
 
 class TranslationService {
   constructor() {
@@ -363,11 +362,6 @@ class TranslationService {
         : '';
 
       const url = `${protocol}://${creds}${host}:${port}`;
-
-      if (protocol === 'socks5') {
-        return new SocksProxyAgent(url);
-      }
-
       return new HttpsProxyAgent(url);
     } catch (_) {
       return null;

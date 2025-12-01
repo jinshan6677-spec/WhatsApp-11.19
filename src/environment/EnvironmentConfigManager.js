@@ -270,7 +270,7 @@ class EnvironmentConfigManager {
 
         // Validate proxy fields
         if (config.proxy.enabled) {
-            if (config.proxy.protocol && !['http', 'https', 'socks5'].includes(config.proxy.protocol)) {
+            if (config.proxy.protocol && !['http', 'https'].includes(config.proxy.protocol)) {
                 throw new Error('Invalid proxy protocol');
             }
         }

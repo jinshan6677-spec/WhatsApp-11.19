@@ -10,7 +10,6 @@
 'use strict';
 
 const axios = require('axios');
-const { SocksProxyAgent } = require('socks-proxy-agent');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
 /**
@@ -41,26 +40,13 @@ class ProxyValidator {
 
             let proxyUrl;
             if (username && password) {
-                if (protocol === 'socks5') {
-                    proxyUrl = `socks5://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
-                } else {
-                    proxyUrl = `${protocol || 'http'}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
-                }
+                proxyUrl = `${protocol || 'http'}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
             } else {
-                if (protocol === 'socks5') {
-                    proxyUrl = `socks5://${host}:${port}`;
-                } else {
-                    proxyUrl = `${protocol || 'http'}://${host}:${port}`;
-                }
+                proxyUrl = `${protocol || 'http'}://${host}:${port}`;
             }
 
             // Create proxy agent
-            let agent;
-            if (protocol === 'socks5') {
-                agent = new SocksProxyAgent(proxyUrl);
-            } else {
-                agent = new HttpsProxyAgent(proxyUrl);
-            }
+            const agent = new HttpsProxyAgent(proxyUrl);
 
             // Try multiple providers
             const providers = [
@@ -96,22 +82,7 @@ class ProxyValidator {
                         isp: data.connection?.isp
                     })
                 },
-                {
-                    url: 'http://ip-api.com/json/',
-                    adapter: (data) => ({
-                        ip: data.query,
-                        location: {
-                            country: data.country,
-                            countryCode: data.countryCode,
-                            city: data.city,
-                            region: data.regionName,
-                            latitude: data.lat,
-                            longitude: data.lon
-                        },
-                        timezone: data.timezone,
-                        isp: data.isp
-                    })
-                }
+                
             ];
 
             let lastError;
@@ -487,8 +458,8 @@ class ProxyValidator {
             }
         }
 
-        if (proxyConfig.protocol && !['http', 'https', 'socks5'].includes(proxyConfig.protocol)) {
-            errors.push('Invalid proxy protocol. Must be http, https, or socks5');
+        if (proxyConfig.protocol && !['http', 'https'].includes(proxyConfig.protocol)) {
+            errors.push('Invalid proxy protocol. Must be http or https');
         }
 
         return {
