@@ -32,7 +32,7 @@ class ViewFactory {
     return (level, message, ...args) => {
       const timestamp = new Date().toISOString();
       const logMessage = `[${timestamp}] [ViewFactory] [${level.toUpperCase()}] ${message}`;
-      
+
       if (level === 'error') {
         console.error(logMessage, ...args);
       } else if (level === 'warn') {
@@ -49,9 +49,11 @@ class ViewFactory {
    * @param {Electron.Session} accountSession - Isolated session for the account
    * @param {Object} [config] - View configuration
    * @param {string} [config.userAgent] - Custom user agent
-   * @returns {BrowserView} Created BrowserView instance
+   * @param {Object} [config.proxy] - Proxy configuration
+   * @param {Object} [config.fingerprint] - Fingerprint configuration
+   * @returns {Promise<BrowserView>} Created BrowserView instance
    */
-  createView(accountId, accountSession, config = {}) {
+  async createView(accountId, accountSession, config = {}) {
     if (!accountId) {
       throw new Error('Account ID is required');
     }
@@ -62,31 +64,59 @@ class ViewFactory {
 
     this.log('info', `Creating BrowserView for account ${accountId}`);
 
-    // Create BrowserView with isolated session
+    // Apply proxy configuration to session if provided
+    if (config.proxy && config.proxy.enabled) {
+      try {
+        // Sanitize host: remove protocol prefix if user accidentally included it
+        let host = config.proxy.host.replace(/^https?:\/\//, '').replace(/^socks[45]?:\/\//, '');
+
+        const hasCreds = !!(config.proxy.username && config.proxy.password);
+        const creds = hasCreds ? `${config.proxy.username}:${config.proxy.password}@` : '';
+
+        let proxyRules;
+        if (config.proxy.protocol === 'socks5') {
+          proxyRules = `socks5://${creds}${host}:${config.proxy.port}`;
+        } else {
+          proxyRules = `${config.proxy.protocol}://${host}:${config.proxy.port}`;
+        }
+
+        this.log('info', `Applying proxy for ${accountId}: ${proxyRules}`);
+
+        await accountSession.setProxy({
+          proxyRules,
+          proxyBypassRules: '<local>'
+        });
+
+        this.log('info', `Proxy applied successfully for ${accountId}`);
+      } catch (error) {
+        this.log('error', `Failed to apply proxy for ${accountId}:`, error);
+      }
+    }
+
     // Set account ID in environment for preload script
     process.env.ACCOUNT_ID = accountId;
-    
+
     // Remove CSP to allow script injection for translation
     accountSession.webRequest.onHeadersReceived((details, callback) => {
       if (details.url.includes('web.whatsapp.com')) {
         const headers = details.responseHeaders;
-        
+
         // Remove CSP entirely to allow our translation script
         delete headers['content-security-policy'];
         delete headers['content-security-policy-report-only'];
-        
+
         this.log('info', `CSP removed for translation injection: ${details.url}`);
-        
+
         callback({ responseHeaders: headers });
       } else {
         callback({ responseHeaders: details.responseHeaders });
       }
     });
-    
+
     // IMPORTANT: Do NOT set both 'partition' and 'session' - they are mutually exclusive!
     // When both are set, 'session' is ignored and a new session is created from 'partition'.
-    
-    
+
+
     const view = new BrowserView({
       webPreferences: {
         nodeIntegration: false,
@@ -105,12 +135,42 @@ class ViewFactory {
     const userAgent = config.userAgent || this._getDefaultUserAgent();
     view.webContents.setUserAgent(userAgent);
 
+    if (
+      config.proxy &&
+      config.proxy.enabled &&
+      config.proxy.username &&
+      config.proxy.password &&
+      config.proxy.protocol !== 'socks5'
+    ) {
+      view.webContents.on('login', (event, request, authInfo, callback) => {
+        event.preventDefault();
+        this.log('info', `Providing proxy credentials for ${accountId}`);
+        callback(config.proxy.username, config.proxy.password);
+      });
+    }
+
+    // Inject fingerprint script if provided
+    if (config.fingerprint) {
+      const FingerprintInjector = require('../../../environment/FingerprintInjector');
+
+      view.webContents.on('did-finish-load', () => {
+        try {
+          this.log('info', `Injecting fingerprint for ${accountId}`);
+          const script = FingerprintInjector.getInjectionScript(config.fingerprint);
+          view.webContents.executeJavaScript(script);
+          this.log('info', `Fingerprint injected successfully for ${accountId}`);
+        } catch (error) {
+          this.log('error', `Failed to inject fingerprint for ${accountId}:`, error);
+        }
+      });
+    }
+
     // Enable DevTools for debugging
     // This allows F12 to work on the BrowserView
     view.webContents.on('before-input-event', (event, input) => {
       // F12 or Ctrl+Shift+I to toggle DevTools
-      if (input.key === 'F12' || 
-          (input.control && input.shift && input.key === 'I')) {
+      if (input.key === 'F12' ||
+        (input.control && input.shift && input.key === 'I')) {
         if (view.webContents.isDevToolsOpened()) {
           view.webContents.closeDevTools();
         } else {
@@ -185,7 +245,7 @@ class ViewFactory {
       // Check if session has correct partition
       const expectedPartition = `persist:account_${accountId}`;
       const actualPartition = accountSession.partition;
-      
+
       if (actualPartition !== expectedPartition) {
         return {
           valid: false,

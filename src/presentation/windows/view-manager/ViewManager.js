@@ -68,10 +68,10 @@ class ViewManager {
     this.memoryManager = new ViewMemoryManager({ ...loggerOption, ...notifyOption, ...this.options });
     this.performanceOptimizer = new ViewPerformanceOptimizer({ ...loggerOption, ...this.options });
     this.translationIntegration = new ViewTranslationIntegration(options.translationIntegration, { ...loggerOption, ...notifyOption });
-    
+
     // Initialize ViewLifecycle
-    this.viewLifecycle = new ViewLifecycle({ 
-      ...loggerOption, 
+    this.viewLifecycle = new ViewLifecycle({
+      ...loggerOption,
       ...notifyOption
     });
 
@@ -120,7 +120,7 @@ class ViewManager {
       const savedId = this.getSavedActiveAccountId();
       if (!savedId) return { success: false, reason: 'no_saved_account' };
       if (!Array.isArray(accountIds) || accountIds.length === 0 || !accountIds.includes(savedId)) {
-        try { this.stateStore.delete('activeAccountId'); } catch (_) {}
+        try { this.stateStore.delete('activeAccountId'); } catch (_) { }
         return { success: false, reason: 'account_not_found', accountId: savedId };
       }
       await this.createView(savedId);
@@ -145,12 +145,49 @@ class ViewManager {
       const isolationValidation = await this.viewFactory.validateSessionIsolation(accountId, accountSession, this.views);
       if (!isolationValidation.valid) this.log('warn', `Session isolation warning for ${accountId}: ${isolationValidation.message}`);
 
-      
+      // Load environment configuration for this account
+      let environmentConfig = null;
+      try {
+        const EnvironmentConfigManager = require('../../../environment/EnvironmentConfigManager');
+        const envManager = new EnvironmentConfigManager();
+        environmentConfig = envManager.getConfig(accountId);
 
-      const view = this.viewFactory.createView(accountId, accountSession, config);
-      
-      
-      const viewState = this.viewFactory.createViewState(accountId, view, accountSession, config);
+        if (environmentConfig) {
+          this.log('info', `[ENV_DEBUG] Loaded config for ${accountId}`, {
+            proxy: environmentConfig.proxy ? {
+              enabled: environmentConfig.proxy.enabled,
+              host: environmentConfig.proxy.host,
+              port: environmentConfig.proxy.port
+            } : 'none',
+            fingerprint: environmentConfig.fingerprint ? {
+              userAgent: environmentConfig.fingerprint.userAgent,
+              os: environmentConfig.fingerprint.os
+            } : 'none'
+          });
+        } else {
+          this.log('warn', `[ENV_DEBUG] No config found for ${accountId}`);
+        }
+      } catch (envError) {
+        this.log('error', `[ENV_DEBUG] Failed to load environment config for ${accountId}:`, envError);
+      }
+
+      // Merge environment config with provided config
+      const viewConfig = {
+        ...config,
+        userAgent: environmentConfig?.fingerprint?.userAgent || config.userAgent,
+        proxy: environmentConfig?.proxy,
+        fingerprint: environmentConfig?.fingerprint
+      };
+
+      this.log('info', `[ENV_DEBUG] Final view config for ${accountId}:`, {
+        userAgent: viewConfig.userAgent,
+        proxyEnabled: viewConfig.proxy?.enabled
+      });
+
+      const view = await this.viewFactory.createView(accountId, accountSession, viewConfig);
+
+
+      const viewState = this.viewFactory.createViewState(accountId, view, accountSession, viewConfig);
       this.views.set(accountId, viewState);
 
       this.viewLifecycle.setupViewEventHandlers(accountId, view, viewState, {
@@ -172,8 +209,22 @@ class ViewManager {
         await view.webContents.loadURL(url);
       } catch (loadError) {
         this.log('error', `Failed to load URL for account ${accountId}:`, loadError);
+
+        // Enhance error message for proxy failures
+        let userMessage = loadError.message;
+        if (loadError.code === 'ERR_PROXY_CONNECTION_FAILED' ||
+          loadError.code === 'ERR_SOCKS_CONNECTION_FAILED' ||
+          loadError.code === 'ERR_TUNNEL_CONNECTION_FAILED' ||
+          loadError.code === 'ERR_TIMED_OUT') {
+          userMessage = `Unable to connect via proxy (${loadError.code}). Please check your proxy settings and network connection.`;
+        }
+
         viewState.status = 'error';
-        viewState.errorInfo = { message: loadError.message, code: loadError.code, timestamp: Date.now() };
+        viewState.errorInfo = {
+          message: userMessage,
+          code: loadError.code,
+          timestamp: Date.now()
+        };
         this._notifyRenderer('view-error', { accountId, status: 'error', error: viewState.errorInfo });
       }
 
@@ -280,14 +331,12 @@ class ViewManager {
   }
 
   resizeViews(sidebarWidth, options = {}) {
-    // Get current sidebar width for delta calculation
     const currentSidebarWidth = this.mainWindow.getSidebarWidth();
     const resizeOptions = {
       ...options,
       lastWidth: currentSidebarWidth
     };
-    
-    // Update resizeDebounceTimer for backward compatibility
+
     this.resizeDebounceTimer = this.resizeHandler.resizeDebounceTimer;
     this.resizeHandler.resizeViews(this.views, sidebarWidth, resizeOptions);
     this.resizeDebounceTimer = this.resizeHandler.resizeDebounceTimer;
@@ -300,7 +349,7 @@ class ViewManager {
   async destroyAllViews() {
     this.memoryManager.stopMemoryMonitoring();
     this.resizeHandler.cleanup();
-    this.resizeDebounceTimer = null; // Backward compatibility
+    this.resizeDebounceTimer = null;
     this.stopAllConnectionMonitoring();
     this.stopAllLoginStatusMonitoring();
     for (const accountId of Array.from(this.views.keys())) await this.destroyView(accountId);
@@ -367,7 +416,7 @@ class ViewManager {
     let isMonitoring = true, timeoutId = null;
     const checkStatus = async () => {
       if (!isMonitoring) return;
-      try { await this._detectLoginStatus(accountId, viewState.view); } catch (e) {}
+      try { await this._detectLoginStatus(accountId, viewState.view); } catch (e) { }
       if (isMonitoring) timeoutId = setTimeout(checkStatus, interval);
     };
     checkStatus();
@@ -465,10 +514,8 @@ class ViewManager {
 
   isAccountRunning(accountId) { return this.hasView(accountId); }
 
-  // Private detection methods (simplified - full implementation in original file)
+  // Private detection methods
   async _detectLoginStatus(accountId, view) {
-    // Implementation delegated to original ViewManager for now
-    // This will be fully migrated in a future iteration
     const viewState = this.views.get(accountId);
     if (!viewState) return false;
     try {
@@ -514,41 +561,19 @@ class ViewManager {
     // Simplified - full implementation in original file
   }
 
-  // ============================================================================
-  // BACKWARD COMPATIBILITY METHODS
-  // These methods are provided for backward compatibility with existing code
-  // ============================================================================
-
-  /**
-   * Calculate view bounds based on sidebar width and window size
-   * @param {number} [sidebarWidth] - Sidebar width in pixels
-   * @returns {Object} Bounds object {x, y, width, height}
-   */
+  // Backward compatibility methods
   _calculateViewBounds(sidebarWidth) {
     return this.boundsManager.calculateViewBounds(sidebarWidth);
   }
 
-  /**
-   * Perform the actual resize operation
-   * @param {number} sidebarWidth - New sidebar width in pixels
-   */
   _performResize(sidebarWidth) {
     this.boundsManager.updateAllViewBounds(this.views, sidebarWidth);
   }
 
-  /**
-   * Get default user agent for WhatsApp Web compatibility
-   * @returns {string}
-   */
   _getDefaultUserAgent() {
     return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   }
 
-  /**
-   * Switch to account by index (for keyboard shortcuts)
-   * @param {number} index - Account index (0-based)
-   * @returns {Promise<Object>} Result object with success status
-   */
   async switchViewByIndex(index) {
     try {
       if (typeof index !== 'number' || index < 0) {
@@ -564,10 +589,6 @@ class ViewManager {
     }
   }
 
-  /**
-   * Switch to next account in the list
-   * @returns {Promise<Object>} Result object with success status
-   */
   async switchToNextView() {
     try {
       const accountIds = Array.from(this.views.keys());
@@ -581,10 +602,6 @@ class ViewManager {
     }
   }
 
-  /**
-   * Switch to previous account in the list
-   * @returns {Promise<Object>} Result object with success status
-   */
   async switchToPreviousView() {
     try {
       const accountIds = Array.from(this.views.keys());

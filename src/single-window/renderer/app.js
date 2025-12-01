@@ -3,7 +3,7 @@
  * Handles sidebar resizing and layout management
  */
 
-(function() {
+(function () {
   'use strict';
 
   // State
@@ -28,12 +28,12 @@
     setupKeyboardShortcuts();
     setupViewSwitchingFeedback();
     applySidebarWidth(sidebarWidth);
-    
+
     // Initialize error display
     if (typeof errorDisplay !== 'undefined') {
       errorDisplay.initialize();
     }
-    
+
     // Notify main process that UI is ready
     if (window.electronAPI) {
       window.electronAPI.send('ui-ready');
@@ -58,7 +58,7 @@
     } catch (error) {
       console.warn('Failed to load sidebar width from main process:', error);
     }
-    
+
     // Fallback to localStorage for backward compatibility
     const saved = localStorage.getItem('sidebarWidth');
     if (saved) {
@@ -85,11 +85,11 @@
   function applySidebarWidth(width) {
     sidebar.style.width = `${width}px`;
     document.documentElement.style.setProperty('--sidebar-width', `${width}px`);
-    
+
     // Throttle IPC calls during resize for better performance
     const now = Date.now();
     const shouldSend = isResizing ? (now - lastIpcSendTime >= IPC_THROTTLE_DELAY) : true;
-    
+
     if (window.electronAPI && shouldSend) {
       window.electronAPI.send('sidebar-resized', width);
       lastIpcSendTime = now;
@@ -123,7 +123,7 @@
     if (!isResizing) return;
 
     const newWidth = e.clientX;
-    
+
     // Constrain width within min/max bounds
     if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
       sidebarWidth = newWidth;
@@ -136,12 +136,12 @@
    */
   function stopResize() {
     if (!isResizing) return;
-    
+
     isResizing = false;
     resizeHandle.classList.remove('resizing');
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
-    
+
     // Save the new width
     saveSidebarWidth();
   }
@@ -153,7 +153,7 @@
     // Ensure sidebar width is still valid
     const windowWidth = window.innerWidth;
     const maxAllowed = Math.min(MAX_SIDEBAR_WIDTH, windowWidth * 0.5);
-    
+
     if (sidebarWidth > maxAllowed) {
       sidebarWidth = maxAllowed;
       applySidebarWidth(sidebarWidth);
@@ -174,16 +174,16 @@
       // Check for Ctrl+Number (1-9) shortcuts
       if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
         const key = e.key;
-        
+
         // Ctrl+1 through Ctrl+9 for switching to accounts 1-9
         if (key >= '1' && key <= '9') {
           e.preventDefault();
           const index = parseInt(key, 10) - 1; // Convert to 0-based index
-          
+
           try {
             if (window.electronAPI) {
               const result = await window.electronAPI.invoke('switch-account-by-index', index);
-              
+
               if (!result.success && result.error === 'Account index out of range') {
                 // Silently ignore if account doesn't exist at that index
                 console.log(`No account at position ${key}`);
@@ -194,11 +194,11 @@
           }
           return;
         }
-        
+
         // Ctrl+Tab for next account
         if (key === 'Tab') {
           e.preventDefault();
-          
+
           try {
             if (window.electronAPI) {
               await window.electronAPI.invoke('switch-to-next-account');
@@ -209,11 +209,11 @@
           return;
         }
       }
-      
+
       // Ctrl+Shift+Tab for previous account
       if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key === 'Tab') {
         e.preventDefault();
-        
+
         try {
           if (window.electronAPI) {
             await window.electronAPI.invoke('switch-to-previous-account');
@@ -240,7 +240,7 @@
     // Hide loading indicator when switching completes
     window.electronAPI.on('view-manager:view-switched', (data) => {
       hideSwitchingFeedback();
-      
+
       // Update active state in sidebar if needed
       if (window.sidebar && window.sidebar.setActiveAccount) {
         window.sidebar.setActiveAccount(data.toAccountId);
@@ -251,9 +251,18 @@
     window.electronAPI.on('view-manager:view-switch-failed', (data) => {
       hideSwitchingFeedback();
       console.error('View switch failed:', data.error);
-      
+
       // Show error notification
       showNotification('切换账号失败', 'error');
+    });
+
+    // Handle view errors (e.g. proxy connection failure)
+    window.electronAPI.on('view-manager:view-error', (data) => {
+      hideSwitchingFeedback();
+      console.error('View error:', data.error);
+
+      const errorMessage = data.error && data.error.message ? data.error.message : '未知错误';
+      showNotification(`视图错误: ${errorMessage}`, 'error');
     });
 
     // Handle window resize events from main process
@@ -297,7 +306,7 @@
       <div class="switching-spinner"></div>
       <div class="switching-text">Switching account...</div>
     `;
-    
+
     viewContainer.appendChild(overlay);
 
     // Add CSS if not already present
@@ -393,10 +402,10 @@
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
-    
+
     // Add to body
     document.body.appendChild(notification);
-    
+
     // Add CSS if not already present
     if (!document.getElementById('notification-styles')) {
       const style = document.createElement('style');
@@ -458,7 +467,7 @@
       `;
       document.head.appendChild(style);
     }
-    
+
     // Remove after animation
     setTimeout(() => {
       notification.remove();

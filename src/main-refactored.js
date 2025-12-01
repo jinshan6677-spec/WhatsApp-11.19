@@ -85,7 +85,6 @@ async function registerAllIPCHandlers() {
     const mainWindow = appBootstrap.getMainWindow();
     const translationIntegration = appBootstrap.getManager('translationIntegration');
     const ipcRouter = appBootstrap.getIPCRouter();
-    const eventBus = appBootstrap.getEventBus();
 
     // 注册单窗口架构IPC处理器
     registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);

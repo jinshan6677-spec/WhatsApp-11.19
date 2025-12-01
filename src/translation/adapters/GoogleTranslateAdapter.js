@@ -46,7 +46,7 @@ class GoogleTranslateAdapter extends TranslationAdapter {
       }
 
       // 调用 Google Translate API
-      const result = await this.callGoogleTranslateAPI(text, source, target);
+      const result = await this.callGoogleTranslateAPI(text, source, target, options.agent);
 
       return {
         translatedText: result.translatedText,
@@ -66,7 +66,7 @@ class GoogleTranslateAdapter extends TranslationAdapter {
    * @param {string} target - 目标语言
    * @returns {Promise<Object>} API 响应
    */
-  async callGoogleTranslateAPI(text, source, target) {
+  async callGoogleTranslateAPI(text, source, target, agent = null) {
     const params = {
       client: 'gtx',
       sl: source === 'auto' ? 'auto' : source,
@@ -84,7 +84,8 @@ class GoogleTranslateAdapter extends TranslationAdapter {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        },
+        agent: agent || undefined
       };
 
       const req = https.request(options, (res) => {

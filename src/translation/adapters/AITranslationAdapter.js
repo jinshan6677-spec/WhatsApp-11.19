@@ -52,7 +52,7 @@ class AITranslationAdapter extends TranslationAdapter {
       }
 
       // 调用 AI API
-      const translatedText = await this.callAIAPI(prompt, style);
+      const translatedText = await this.callAIAPI(prompt, style, options.agent);
 
       return {
         translatedText: translatedText.trim(),
@@ -178,7 +178,7 @@ ${text}
    * @param {string} style - 翻译风格（用于调整 temperature）
    * @returns {Promise<string>} 翻译结果
    */
-  async callAIAPI(prompt, style = '通用') {
+  async callAIAPI(prompt, style = '通用', agent = null) {
     const url = new URL(this.apiEndpoint);
 
     // 根据风格调整 temperature：需要创造性的风格使用更高的值
@@ -224,7 +224,8 @@ ${text}
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Length': Buffer.byteLength(requestBody)
-        }
+        },
+        agent: agent || undefined
       };
 
       const req = https.request(options, (res) => {

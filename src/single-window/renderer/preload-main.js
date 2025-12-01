@@ -452,6 +452,92 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // ============================================================================
+  // Environment Settings Methods
+  // ============================================================================
+
+  /**
+   * Get environment configuration for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Environment configuration
+   */
+  getEnvironmentConfig: (accountId) => {
+    return ipcRenderer.invoke('env:get-config', accountId);
+  },
+
+  /**
+   * Save environment configuration for an account
+   * @param {string} accountId - Account ID
+   * @param {Object} config - Configuration object
+   * @returns {Promise<Object>} Result
+   */
+  saveEnvironmentConfig: (accountId, config) => {
+    return ipcRenderer.invoke('env:save-config', accountId, config);
+  },
+
+  /**
+   * Test a proxy configuration
+   * @param {Object} config - Proxy configuration
+   * @returns {Promise<Object>} Test result
+   */
+  testProxy: (config) => {
+    return ipcRenderer.invoke('env:test-proxy', config);
+  },
+
+  /**
+   * Detect current network (test without proxy)
+   * @returns {Promise<Object>} Test result
+   */
+  detectNetwork: () => {
+    return ipcRenderer.invoke('env:detect-network');
+  },
+
+  /**
+   * Generate a new fingerprint
+   * @param {Object} options - Generation options
+   * @returns {Promise<Object>} Generated fingerprint
+   */
+  generateFingerprint: (options) => {
+    return ipcRenderer.invoke('env:generate-fingerprint', options);
+  },
+
+  /**
+   * Get saved named proxy configurations
+   * @returns {Promise<Array>} Array of proxy configs
+   */
+  getProxyConfigs: () => {
+    return ipcRenderer.invoke('env:get-proxy-configs');
+  },
+
+  /**
+   * Save a named proxy configuration
+   * @param {string} name - Configuration name
+   * @param {Object} config - Proxy configuration
+   * @returns {Promise<Object>} Result
+   */
+  saveProxyConfig: (name, config) => {
+    return ipcRenderer.invoke('env:save-proxy-config', name, config);
+  },
+
+  /**
+   * Delete a named proxy configuration
+   * @param {string} name - Configuration name
+   * @returns {Promise<Object>} Result
+   */
+  deleteNamedProxy: (name) => {
+    return ipcRenderer.invoke('env:delete-proxy-config', name);
+  },
+
+  /**
+   * Parse proxy string
+   * @param {string} proxyString - Proxy string
+   * @returns {Promise<Object>} Result
+   */
+  parseProxyString: (proxyString) => {
+    return ipcRenderer.invoke('env:parse-proxy-string', proxyString);
+  },
+
+  // ============================================================================
+
   // Translation Helpers
   // ============================================================================
 
@@ -462,20 +548,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getActiveChatInfo: () => {
     return ipcRenderer.invoke('translation:get-active-chat');
   },
-
-  /**
-   * Apply translation configuration to the active view
-   * @param {string} accountId - Account ID
-   * @param {Object} config - Translation configuration
-   * @returns {Promise<Object>} Result with success status
-   */
-  applyTranslationConfig: (accountId, config) => {
-    return ipcRenderer.invoke('translation:apply-config', accountId, config);
-  },
-
-  // ============================================================================
-  // Generic IPC Methods (for backward compatibility)
-  // ============================================================================
 
   /**
    * Generic invoke method for IPC communication
@@ -537,6 +609,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'recovery:reconnect',
       'recovery:start-auto-reconnect',
       'recovery:stop-auto-reconnect',
+      'env:get-config',
+      'env:save-config',
+      'env:test-proxy',
+      'env:detect-network',
+      'env:generate-fingerprint',
+      'env:get-proxy-configs',
+      'env:save-proxy-config',
+      'env:delete-proxy-config',
+      'env:parse-proxy-string',
       'recovery:start-monitor',
       'recovery:stop-monitor',
       'recovery:get-status',

@@ -12,6 +12,9 @@ const {
   CustomAPIAdapter
 } = require('./index');
 const StatsManager = require('./managers/StatsManager');
+const { EnvironmentConfigManager, ProxyConfigStore } = require('../environment');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
 class TranslationService {
   constructor() {
@@ -20,6 +23,8 @@ class TranslationService {
     this.statsManager = null;
     this.translationManager = null;
     this.initialized = false;
+    this.environmentManager = null;
+    this.proxyConfigStore = null;
   }
 
   /**
@@ -45,6 +50,9 @@ class TranslationService {
         this.configManager,
         this.cacheManager
       );
+
+      this.environmentManager = new EnvironmentConfigManager();
+      this.proxyConfigStore = new ProxyConfigStore();
 
       // 注册翻译引擎
       this.registerEngines();
@@ -205,12 +213,16 @@ class TranslationService {
       throw new Error('Translation manager not available');
     }
 
+    const accountId = options.accountId || null;
+    const agent = this._getProxyAgentForAccount(accountId);
+    const mergedOptions = agent ? { ...options, agent } : { ...options };
+
     return await this.translationManager.translate(
       text,
       sourceLang,
       targetLang,
       engineName,
-      options
+      mergedOptions
     );
   }
 
@@ -316,6 +328,50 @@ class TranslationService {
     }
 
     return this.translationManager.getPrivacyReport();
+  }
+
+  _getProxyAgentForAccount(accountId) {
+    try {
+      if (!accountId || !this.environmentManager) {
+        return null;
+      }
+
+      const envConfig = this.environmentManager.getConfig(accountId);
+      const proxy = envConfig && envConfig.proxy ? envConfig.proxy : null;
+      if (!proxy || !proxy.enabled) {
+        return null;
+      }
+
+      let effective = { ...proxy };
+      if (proxy.configName && this.proxyConfigStore) {
+        const named = this.proxyConfigStore.getProxyConfig(proxy.configName);
+        if (named) {
+          effective = { ...named, ...effective };
+        }
+      }
+
+      const protocol = (effective.protocol || 'http').toLowerCase();
+      const host = (effective.host || '').trim();
+      const port = String(effective.port || '').trim();
+      if (!host || !port) {
+        return null;
+      }
+
+      const hasCreds = effective.username && effective.password;
+      const creds = hasCreds
+        ? `${encodeURIComponent(effective.username)}:${encodeURIComponent(effective.password)}@`
+        : '';
+
+      const url = `${protocol}://${creds}${host}:${port}`;
+
+      if (protocol === 'socks5') {
+        return new SocksProxyAgent(url);
+      }
+
+      return new HttpsProxyAgent(url);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

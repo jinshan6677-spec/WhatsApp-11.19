@@ -8,7 +8,7 @@
  * - 单一职责：事件 -> 更新内存状态 -> 渲染 UI
  */
 
-(function() {
+(function () {
   'use strict';
 
   // State
@@ -158,17 +158,17 @@
    */
   function syncAccountStatusWithRunningStatus(account) {
     if (!account) return;
-    
+
     const runningStatus = account.runningStatus || 'not_started';
     const currentStatus = account.status || 'offline';
     const loginStatus = account.loginStatus;
     const hasQRCode = account.hasQRCode;
     const connectionDetails = account.connectionDetails || {};
-    
+
     // 根据状态优先级确定正确的显示状态
     let correctStatus = currentStatus;
     let statusReason = '';
-    
+
     // 第一优先级：明确的登录状态
     if (loginStatus === true) {
       // 仅当账号视图正在运行时，才将显示状态设为在线并修正运行状态
@@ -198,7 +198,7 @@
         correctStatus = 'offline';
         statusReason = 'logged out';
       }
-    } 
+    }
     // 第二优先级：明确的连接状态
     else if (connectionDetails.needsQRScan === true) {
       correctStatus = 'offline';
@@ -231,12 +231,12 @@
           statusReason = 'unknown running status';
       }
     }
-    
+
     // 只有在状态不一致时才更新
     if (currentStatus !== correctStatus) {
       console.log(`[Sidebar] Syncing account ${account.id} status from '${currentStatus}' to '${correctStatus}' (${statusReason}, running: ${runningStatus}, loggedIn: ${loginStatus}, hasQR: ${hasQRCode})`);
       account.status = correctStatus;
-      
+
       // 立即更新UI中的状态，确保状态同步
       updateAccountStatus(account.id, correctStatus);
     }
@@ -278,9 +278,9 @@
         // For now just show empty state or maybe a specific "no results" state
         emptyState.classList.remove('hidden');
         if (accounts.length > 0) {
-           // Optional: Change empty state text for search results
-           const emptyText = emptyState.querySelector('p');
-           if (emptyText) emptyText.textContent = '没有找到匹配的账号';
+          // Optional: Change empty state text for search results
+          const emptyText = emptyState.querySelector('p');
+          if (emptyText) emptyText.textContent = '没有找到匹配的账号';
         }
       }
       return;
@@ -319,20 +319,20 @@
     });
 
     accountList.appendChild(fragment);
-    
+
     // DOM更新完成后，确保所有账号状态正确显示
     // 这对于页面刷新和排序后的状态恢复特别重要
     setTimeout(() => {
       sortedAccounts.forEach((account) => {
         // 确保账号状态与运行状态同步
         syncAccountStatusWithRunningStatus(account);
-        
+
         // 如果账号已登录，确保显示在线状态
         if (account.loginStatus === true) {
           updateAccountStatus(account.id, 'online');
         }
       });
-      
+
       console.log(`[Sidebar] Status recovery completed for ${sortedAccounts.length} accounts`);
     }, 100); // 短暂延迟确保DOM完全更新
   }
@@ -364,12 +364,12 @@
     avatar.className = 'account-avatar';
     avatar.textContent = getAccountInitial(account.name);
     avatar.style.background = getAccountColor(account.id);
-    
+
     // Status Dot (Online/Offline indicator on avatar)
     const statusDot = document.createElement('div');
     statusDot.className = 'status-dot';
     renderStatusDot(account, statusDot);
-    
+
     avatarContainer.appendChild(avatar);
     avatarContainer.appendChild(statusDot);
 
@@ -384,21 +384,21 @@
     name.className = 'account-name';
     name.textContent = account.name || '未命名账号';
     name.title = account.name || '未命名账号';
-    
+
     header.appendChild(name);
 
     // Secondary info (Phone or Note)
     const secondary = document.createElement('div');
     secondary.className = 'account-secondary';
-    
+
     if (account.phoneNumber) {
-        secondary.textContent = account.phoneNumber;
-        secondary.title = account.phoneNumber;
+      secondary.textContent = account.phoneNumber;
+      secondary.title = account.phoneNumber;
     } else if (account.note) {
-        secondary.textContent = account.note;
-        secondary.title = account.note;
+      secondary.textContent = account.note;
+      secondary.title = account.note;
     } else {
-        secondary.textContent = '无号码';
+      secondary.textContent = '无号码';
     }
 
     info.appendChild(header);
@@ -407,13 +407,13 @@
     // Quick Actions (Hover only)
     const actions = document.createElement('div');
     actions.className = 'account-actions';
-    
+
     // 确保已登录账号的运行状态正确
     if (account.loginStatus === true && (account.runningStatus === 'loading' || account.runningStatus === 'not_started')) {
       account.runningStatus = 'connected';
       account.isRunning = true;
     }
-    
+
     renderQuickActions(account, actions);
 
     // Assemble
@@ -429,11 +429,11 @@
         handleAccountSelect(account.id);
       }
     });
-    
+
     // Context Menu
     item.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        handleContextMenu(e, account);
+      e.preventDefault();
+      handleContextMenu(e, account);
     });
 
     // Apply profile info (真实头像 / 昵称 / 号码）如果已知
@@ -490,15 +490,15 @@
     // 更新号码
     const secondaryEl = item.querySelector('.account-secondary');
     if (secondaryEl) {
-        if (account.phoneNumber) {
-            secondaryEl.textContent = account.phoneNumber;
-            secondaryEl.title = account.phoneNumber;
-        } else if (account.note) {
-            secondaryEl.textContent = account.note;
-            secondaryEl.title = account.note;
-        } else {
-            secondaryEl.textContent = '无号码';
-        }
+      if (account.phoneNumber) {
+        secondaryEl.textContent = account.phoneNumber;
+        secondaryEl.title = account.phoneNumber;
+      } else if (account.note) {
+        secondaryEl.textContent = account.note;
+        secondaryEl.title = account.note;
+      } else {
+        secondaryEl.textContent = '无号码';
+      }
     }
   }
 
@@ -511,7 +511,7 @@
    */
   function renderStatusDot(account, dotElement) {
     if (!dotElement || !account) return;
-    
+
     const statusValue = account.status || account.connectionStatus || 'offline';
     const loginStatus = account.loginStatus;
     const hasQRCode = account.hasQRCode;
@@ -519,22 +519,22 @@
     const error = account.connectionError;
 
     dotElement.className = 'status-dot';
-    
+
     if (statusValue === 'offline' && (loginStatus === false || hasQRCode || (details && details.needsQRScan))) {
-        dotElement.classList.add('warning');
-        dotElement.title = '需要登录';
+      dotElement.classList.add('warning');
+      dotElement.title = '需要登录';
     } else if (statusValue === 'online') {
-        dotElement.classList.add('online');
-        dotElement.title = '在线';
+      dotElement.classList.add('online');
+      dotElement.title = '在线';
     } else if (statusValue === 'loading') {
-        dotElement.classList.add('loading');
-        dotElement.title = '加载中...';
+      dotElement.classList.add('loading');
+      dotElement.title = '加载中...';
     } else if (statusValue === 'error') {
-        dotElement.classList.add('error');
-        dotElement.title = (error && error.message) || '连接错误';
+      dotElement.classList.add('error');
+      dotElement.title = (error && error.message) || '连接错误';
     } else {
-        dotElement.classList.add('offline');
-        dotElement.title = '离线';
+      dotElement.classList.add('offline');
+      dotElement.title = '离线';
     }
   }
 
@@ -552,38 +552,38 @@
     // Only show primary action button
     const actionBtn = document.createElement('button');
     actionBtn.className = 'action-btn';
-    
+
     if (runningStatus === 'not_started' || !isRunning) {
-        actionBtn.innerHTML = '▶'; // Play icon
-        actionBtn.title = '打开账号';
-        actionBtn.classList.add('start');
-        actionBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleOpenAccount(account.id);
-        });
-        actions.appendChild(actionBtn);
+      actionBtn.innerHTML = '▶'; // Play icon
+      actionBtn.title = '打开账号';
+      actionBtn.classList.add('start');
+      actionBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleOpenAccount(account.id);
+      });
+      actions.appendChild(actionBtn);
     } else if (runningStatus === 'loading') {
-        const spinner = document.createElement('div');
-        spinner.className = 'mini-spinner';
-        actions.appendChild(spinner);
+      const spinner = document.createElement('div');
+      spinner.className = 'mini-spinner';
+      actions.appendChild(spinner);
     } else if (runningStatus === 'connected' || isRunning) {
-        actionBtn.innerHTML = '⏹'; // Stop icon
-        actionBtn.title = '关闭账号';
-        actionBtn.classList.add('stop');
-        actionBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleCloseAccount(account.id);
-        });
-        actions.appendChild(actionBtn);
+      actionBtn.innerHTML = '⏹'; // Stop icon
+      actionBtn.title = '关闭账号';
+      actionBtn.classList.add('stop');
+      actionBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleCloseAccount(account.id);
+      });
+      actions.appendChild(actionBtn);
     } else if (runningStatus === 'error') {
-        actionBtn.innerHTML = '↻'; // Retry icon
-        actionBtn.title = '重试';
-        actionBtn.classList.add('retry');
-        actionBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleRetryAccount(account.id);
-        });
-        actions.appendChild(actionBtn);
+      actionBtn.innerHTML = '↻'; // Retry icon
+      actionBtn.title = '重试';
+      actionBtn.classList.add('retry');
+      actionBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleRetryAccount(account.id);
+      });
+      actions.appendChild(actionBtn);
     }
   }
 
@@ -597,66 +597,67 @@
 
     const menu = document.createElement('div');
     menu.className = 'custom-context-menu';
-    
+
     const options = [
-        { label: '打开账号', icon: '▶', action: () => handleOpenAccount(account.id), visible: !account.isRunning },
-        { label: '关闭账号', icon: '⏹', action: () => handleCloseAccount(account.id), visible: account.isRunning },
-        { label: '编辑账号', icon: '⚙️', action: () => handleEditAccount(account.id) },
-        { label: '复制号码', icon: '📋', action: () => copyToClipboard(account.phoneNumber), visible: !!account.phoneNumber },
-        { type: 'separator' },
-        { label: '删除账号', icon: '🗑️', action: () => handleDeleteAccount(account.id), danger: true }
+      { label: '打开账号', icon: '▶', action: () => handleOpenAccount(account.id), visible: !account.isRunning },
+      { label: '关闭账号', icon: '⏹', action: () => handleCloseAccount(account.id), visible: account.isRunning },
+      { label: '编辑账号', icon: '⚙️', action: () => handleEditAccount(account.id) },
+      { label: '环境设置', icon: '🌐', action: () => window.EnvironmentSettingsPanel?.open(account.id) },
+      { label: '复制号码', icon: '📋', action: () => copyToClipboard(account.phoneNumber), visible: !!account.phoneNumber },
+      { type: 'separator' },
+      { label: '删除账号', icon: '🗑️', action: () => handleDeleteAccount(account.id), danger: true }
     ];
 
     options.forEach(opt => {
-        if (opt.visible === false) return;
-        
-        if (opt.type === 'separator') {
-            const sep = document.createElement('div');
-            sep.className = 'menu-separator';
-            menu.appendChild(sep);
-            return;
-        }
+      if (opt.visible === false) return;
 
-        const item = document.createElement('div');
-        item.className = 'menu-item';
-        if (opt.danger) item.classList.add('danger');
-        
-        item.innerHTML = `<span class="menu-icon">${opt.icon}</span><span class="menu-label">${opt.label}</span>`;
-        item.addEventListener('click', () => {
-            opt.action();
-            menu.remove();
-        });
-        menu.appendChild(item);
+      if (opt.type === 'separator') {
+        const sep = document.createElement('div');
+        sep.className = 'menu-separator';
+        menu.appendChild(sep);
+        return;
+      }
+
+      const item = document.createElement('div');
+      item.className = 'menu-item';
+      if (opt.danger) item.classList.add('danger');
+
+      item.innerHTML = `<span class="menu-icon">${opt.icon}</span><span class="menu-label">${opt.label}</span>`;
+      item.addEventListener('click', () => {
+        opt.action();
+        menu.remove();
+      });
+      menu.appendChild(item);
     });
 
     document.body.appendChild(menu);
-    
+
     // Position menu
     const rect = menu.getBoundingClientRect();
     let x = e.clientX;
     let y = e.clientY;
-    
+
     if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width;
     if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height;
-    
+
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
 
     // Close on click outside
     const closeMenu = () => {
-        menu.remove();
-        document.removeEventListener('click', closeMenu);
+      menu.remove();
+      document.removeEventListener('click', closeMenu);
     };
     // Delay to prevent immediate closing
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
   }
 
   function copyToClipboard(text) {
-      if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-          // Optional: show toast
-          console.log('Copied to clipboard');
-      });
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      // Optional: show toast
+      console.log('Copied to clipboard');
+    });
   }
 
   /**
@@ -913,17 +914,17 @@
 
     const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
     if (!item) return;
-    
+
     // Update actions
     const actions = item.querySelector('.account-actions');
     if (actions) {
-        renderQuickActions(account, actions);
+      renderQuickActions(account, actions);
     }
-    
+
     // Update status dot
     const statusDot = item.querySelector('.status-dot');
     if (statusDot) {
-        renderStatusDot(account, statusDot);
+      renderStatusDot(account, statusDot);
     }
   }
 
@@ -970,7 +971,7 @@
     updateAccountStatus(accountId, status);
   }
 
-  
+
 
   /**
    * Handle view loading event
@@ -1174,7 +1175,7 @@
     const loginStatus = account.loginStatus;
     const hasQRCode = account.hasQRCode;
     const currentRunningStatus = account.runningStatus || 'not_started';
-    
+
     // 如果账号已登录，优先显示在线状态，即使运行状态不匹配
     if (loginStatus === true && status === 'online') {
       // 已登录账号可以设置为在线， regardless of running status
@@ -1224,7 +1225,7 @@
     }
   }
 
-  
+
 
   /**
    * Get account name by ID

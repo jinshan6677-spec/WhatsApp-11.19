@@ -1,4 +1,4 @@
-(function() {
+(function () {
   'use strict';
 
   const panel = document.getElementById('translate-panel');
@@ -8,8 +8,8 @@
   const translatePlaceholderEl = document.getElementById('translate-panel-placeholder');
   const translateSettingsHost = document.getElementById('translate-settings-host');
   const translatePanelBody = document.getElementById('translate-panel-body');
-  
-  
+  const environmentPanelBody = document.getElementById('environment-panel-body');
+
   // Menu buttons
   const menuButtons = panel.querySelectorAll('.panel-menu-btn[data-panel]');
   const collapseBtn = panel.querySelector('.panel-collapse-btn[data-target]');
@@ -30,9 +30,6 @@
     applyConfigToView
   });
 
-  
-
-
   init();
 
   async function init() {
@@ -47,10 +44,10 @@
 
     // 强制面板默认展开
     currentState = 'expanded';
-    
+
     console.log('[translatePanelLayout] Initializing with state:', currentState);
     console.log('[translatePanelLayout] Panel width:', widths.expanded);
-    
+
     applyState(currentState, { notify: false });
     notifyMain();
 
@@ -61,6 +58,14 @@
       await translateSettingsPanel.setAccount(activeAccountId);
     } else {
       translateSettingsPanel.setAccount(null);
+    }
+
+    if (window.EnvironmentSettingsPanel) {
+      if (activeAccountId) {
+        window.EnvironmentSettingsPanel.setAccount(activeAccountId);
+      } else {
+        window.EnvironmentSettingsPanel.setAccount(null);
+      }
     }
 
     bindSectionToggles();
@@ -84,7 +89,7 @@
         handlePanelClick(targetPanel);
       });
     });
-    
+
     if (collapseBtn) {
       collapseBtn.addEventListener('click', () => {
         const newState = currentState === 'expanded' ? 'collapsed' : 'expanded';
@@ -115,7 +120,7 @@
   function switchPanel(targetPanel) {
     // 更新当前激活的面板
     currentActivePanel = targetPanel;
-    
+
     // Update menu button states
     menuButtons.forEach((btn) => {
       if (btn.getAttribute('data-panel') === targetPanel) {
@@ -126,6 +131,9 @@
     });
 
     translatePanelBody.style.display = targetPanel === 'translate' ? 'block' : 'none';
+    if (environmentPanelBody) {
+      environmentPanelBody.style.display = targetPanel === 'environment' ? 'block' : 'none';
+    }
   }
 
   function setState(state) {
@@ -200,12 +208,14 @@
     window.electronAPI.on('view-manager:view-switched', (data) => {
       if (data?.toAccountId) {
         translateSettingsPanel.setAccount(data.toAccountId);
+        window.EnvironmentSettingsPanel?.setAccount(data.toAccountId);
       }
     });
 
     window.electronAPI.on('account:active-changed', (data) => {
       if (data?.accountId) {
         translateSettingsPanel.setAccount(data.accountId);
+        window.EnvironmentSettingsPanel?.setAccount(data.accountId);
       }
     });
 
@@ -233,7 +243,7 @@
       try {
         const info = await fetchActiveChatInfo();
         const currentContactId = info?.contactId;
-        
+
         if (currentContactId && currentContactId !== lastContactId) {
           console.log('[translatePanelLayout] Contact changed detected:', lastContactId, '->', currentContactId);
           lastContactId = currentContactId;
