@@ -46,6 +46,12 @@
     {
       "files": ["src/single-window/recoveryHandlers.js"],
       "globals": { "getErrorHandler": "readonly" }
+    },
+    {
+      "files": ["**/*.test.js", "**/*.spec.js"],
+      "env": {
+        "jest": true
+      }
     }
   ]
 }
