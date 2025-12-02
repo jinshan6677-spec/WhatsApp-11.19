@@ -4,10 +4,15 @@
  * 负责创建和配置BrowserView实例
  * 
  * @module presentation/windows/view-manager/ViewFactory
+ * 
+ * Requirements:
+ * - 24.1: Inject account's fingerprint configuration when creating BrowserView
+ * - 32.3: Apply fingerprint configuration through existing ViewFactory injection point
  */
 
 const { BrowserView } = require('electron');
 const path = require('path');
+const { FingerprintInjector } = require('../../../infrastructure/fingerprint');
 
 /**
  * ViewFactory class
@@ -139,16 +144,12 @@ class ViewFactory {
       });
     }
 
-    // Fingerprint injection point
-    // Note: Old fingerprint injection code has been removed as part of the professional
-    // fingerprint system refactoring. The new fingerprint system will be integrated here
-    // using the new FingerprintInjector from src/infrastructure/fingerprint/
-    // 
-    // TODO: Integrate new fingerprint system here when implemented
-    // if (config.fingerprint) {
-    //   const { FingerprintInjector } = require('../../../infrastructure/fingerprint');
-    //   // New fingerprint injection logic will be added here
-    // }
+    // Fingerprint injection
+    // Integrates the professional fingerprint system from src/infrastructure/fingerprint/
+    // **Validates: Requirements 24.1, 32.3**
+    if (config.fingerprint) {
+      await this._injectFingerprint(view, accountId, config.fingerprint);
+    }
 
     // Enable DevTools for debugging
     // This allows F12 to work on the BrowserView
@@ -185,6 +186,141 @@ class ViewFactory {
   _getDefaultUserAgent() {
     // Use a modern Chrome user agent that WhatsApp Web accepts
     return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  }
+
+  /**
+   * Inject fingerprint configuration into BrowserView
+   * 
+   * This method creates a FingerprintInjector instance and injects the fingerprint
+   * spoofing script into the BrowserView before any page scripts execute.
+   * 
+   * @private
+   * @param {BrowserView} view - The BrowserView to inject fingerprint into
+   * @param {string} accountId - Account identifier for logging
+   * @param {Object} fingerprintConfig - Fingerprint configuration object
+   * @returns {Promise<{success: boolean, error?: string, generationTime?: number}>}
+   * 
+   * **Validates: Requirements 24.1, 32.3**
+   */
+  async _injectFingerprint(view, accountId, fingerprintConfig) {
+    const startTime = Date.now();
+    
+    try {
+      this.log('info', `Injecting fingerprint for account ${accountId}`);
+
+      // Create FingerprintInjector instance
+      const injector = new FingerprintInjector(fingerprintConfig, {
+        minify: true,
+        includeWorkerInterceptor: true,
+        includeIframeProtection: true,
+        strictMode: true
+      });
+
+      // Validate the injector configuration
+      const validation = injector.validate();
+      if (validation.warnings.length > 0) {
+        this.log('warn', `Fingerprint config warnings for ${accountId}:`, validation.warnings);
+      }
+
+      // Get the injection script
+      const injectionScript = injector.getInjectionScript();
+      const generationTime = injector.getGenerationTime();
+
+      this.log('debug', `Fingerprint script generated for ${accountId} in ${generationTime}ms`);
+
+      // Set up injection on page load
+      // We need to inject the script as early as possible, before any page scripts run
+      view.webContents.on('dom-ready', async () => {
+        try {
+          await view.webContents.executeJavaScript(injectionScript, true);
+          this.log('info', `Fingerprint injected successfully for account ${accountId}`);
+        } catch (execError) {
+          this.log('error', `Failed to execute fingerprint script for ${accountId}:`, execError);
+        }
+      });
+
+      // Also inject on navigation to handle SPA navigation
+      view.webContents.on('did-navigate', async () => {
+        try {
+          await view.webContents.executeJavaScript(injectionScript, true);
+          this.log('debug', `Fingerprint re-injected after navigation for account ${accountId}`);
+        } catch (execError) {
+          this.log('warn', `Failed to re-inject fingerprint after navigation for ${accountId}:`, execError);
+        }
+      });
+
+      // Inject on in-page navigation as well
+      view.webContents.on('did-navigate-in-page', async () => {
+        try {
+          await view.webContents.executeJavaScript(injectionScript, true);
+          this.log('debug', `Fingerprint re-injected after in-page navigation for account ${accountId}`);
+        } catch (execError) {
+          // In-page navigation failures are less critical
+          this.log('debug', `In-page fingerprint injection skipped for ${accountId}`);
+        }
+      });
+
+      const totalTime = Date.now() - startTime;
+      this.log('info', `Fingerprint injection setup completed for ${accountId} in ${totalTime}ms`);
+
+      return {
+        success: true,
+        generationTime,
+        totalTime
+      };
+    } catch (error) {
+      this.log('error', `Failed to inject fingerprint for ${accountId}:`, error);
+      
+      // Continue without fingerprint injection - don't break the view creation
+      // **Validates: Requirement 24.5** - Log error and continue with default browser behavior
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Update fingerprint configuration for an existing BrowserView
+   * 
+   * This method allows updating the fingerprint configuration for an active view
+   * without recreating the entire BrowserView.
+   * 
+   * @param {BrowserView} view - The BrowserView to update
+   * @param {string} accountId - Account identifier for logging
+   * @param {Object} fingerprintConfig - New fingerprint configuration
+   * @returns {Promise<{success: boolean, error?: string}>}
+   * 
+   * **Validates: Requirement 24.2**
+   */
+  async updateFingerprint(view, accountId, fingerprintConfig) {
+    try {
+      this.log('info', `Updating fingerprint for account ${accountId}`);
+
+      // Create new injector with updated config
+      const injector = new FingerprintInjector(fingerprintConfig, {
+        minify: true,
+        includeWorkerInterceptor: true,
+        includeIframeProtection: true,
+        strictMode: true
+      });
+
+      // Get the injection script
+      const injectionScript = injector.getInjectionScript();
+
+      // Execute the updated script immediately
+      await view.webContents.executeJavaScript(injectionScript, true);
+
+      this.log('info', `Fingerprint updated successfully for account ${accountId}`);
+
+      return { success: true };
+    } catch (error) {
+      this.log('error', `Failed to update fingerprint for ${accountId}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   /**

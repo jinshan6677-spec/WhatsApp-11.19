@@ -491,8 +491,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('env:detect-network');
   },
 
-  // Note: generateFingerprint API已移除，作为专业指纹系统重构的一部分
-  // TODO: 新的指纹API将在新指纹系统实现后添加
+  // Note: 指纹API已在专业指纹系统重构中重新实现
+  // 请参阅上方的 Fingerprint Management Methods 部分
 
   /**
    * Get saved named proxy configurations
@@ -528,6 +528,177 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   parseProxyString: (proxyString) => {
     return ipcRenderer.invoke('env:parse-proxy-string', proxyString);
+  },
+
+  // ============================================================================
+  // Fingerprint Management Methods
+  // ============================================================================
+
+  /**
+   * Generate a new fingerprint configuration
+   * @param {Object} [options] - Generation options (os, browser, etc.)
+   * @returns {Promise<Object>} Result with generated fingerprint config
+   */
+  generateFingerprint: (options = {}) => {
+    return ipcRenderer.invoke('fingerprint:generate', options);
+  },
+
+  /**
+   * Save a fingerprint configuration for an account
+   * @param {string} accountId - Account ID
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Result with success status
+   */
+  saveFingerprint: (accountId, config) => {
+    return ipcRenderer.invoke('fingerprint:save', accountId, config);
+  },
+
+  /**
+   * Get fingerprint configuration for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with fingerprint config
+   */
+  getFingerprint: (accountId) => {
+    return ipcRenderer.invoke('fingerprint:get', accountId);
+  },
+
+  /**
+   * Validate a fingerprint configuration
+   * @param {Object} config - Fingerprint configuration to validate
+   * @returns {Promise<Object>} Validation result with errors and suggestions
+   */
+  validateFingerprint: (config) => {
+    return ipcRenderer.invoke('fingerprint:validate', config);
+  },
+
+  /**
+   * Apply fingerprint configuration to an account (generate injection scripts)
+   * @param {string} accountId - Account ID
+   * @param {Object} [options] - Apply options
+   * @returns {Promise<Object>} Result with injection scripts
+   */
+  applyFingerprint: (accountId, options = {}) => {
+    return ipcRenderer.invoke('fingerprint:apply', accountId, options);
+  },
+
+  /**
+   * Delete fingerprint configuration for an account
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  deleteFingerprint: (accountId) => {
+    return ipcRenderer.invoke('fingerprint:delete', accountId);
+  },
+
+  /**
+   * Get fingerprint preview (summary of how fingerprint appears to websites)
+   * @param {Object} config - Fingerprint configuration
+   * @returns {Promise<Object>} Preview data
+   */
+  previewFingerprint: (config) => {
+    return ipcRenderer.invoke('fingerprint:preview', config);
+  },
+
+  /**
+   * Get injection script for a fingerprint configuration (without saving)
+   * @param {Object} config - Fingerprint configuration
+   * @param {Object} [options] - Script generation options
+   * @returns {Promise<Object>} Result with injection script
+   */
+  getFingerprintScript: (config, options = {}) => {
+    return ipcRenderer.invoke('fingerprint:getScript', config, options);
+  },
+
+  /**
+   * Load all fingerprint configurations (for app startup)
+   * @returns {Promise<Object>} Result with all fingerprint configs
+   */
+  loadAllFingerprints: () => {
+    return ipcRenderer.invoke('fingerprint:loadAll');
+  },
+
+  // ============================================================================
+  // Fingerprint Template Methods
+  // ============================================================================
+
+  /**
+   * Create a fingerprint template
+   * @param {Object} options - Template options (name, description, config)
+   * @returns {Promise<Object>} Result with created template
+   */
+  createFingerprintTemplate: (options) => {
+    return ipcRenderer.invoke('fingerprint:template:create', options);
+  },
+
+  /**
+   * Apply a fingerprint template to an account
+   * @param {string} templateId - Template ID
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with applied config
+   */
+  applyFingerprintTemplate: (templateId, accountId) => {
+    return ipcRenderer.invoke('fingerprint:template:apply', templateId, accountId);
+  },
+
+  /**
+   * Export a fingerprint template to JSON
+   * @param {string} templateId - Template ID
+   * @param {Object} [options] - Export options (includeSeed, etc.)
+   * @returns {Promise<Object>} Result with exported JSON data
+   */
+  exportFingerprintTemplate: (templateId, options = {}) => {
+    return ipcRenderer.invoke('fingerprint:template:export', templateId, options);
+  },
+
+  /**
+   * Import a fingerprint template from JSON
+   * @param {string} jsonData - JSON data string
+   * @param {Object} [options] - Import options
+   * @returns {Promise<Object>} Result with imported template
+   */
+  importFingerprintTemplate: (jsonData, options = {}) => {
+    return ipcRenderer.invoke('fingerprint:template:import', jsonData, options);
+  },
+
+  /**
+   * Delete a fingerprint template
+   * @param {string} templateId - Template ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  deleteFingerprintTemplate: (templateId) => {
+    return ipcRenderer.invoke('fingerprint:template:delete', templateId);
+  },
+
+  /**
+   * List all fingerprint templates
+   * @param {Object} [options] - List options (filter, sort, etc.)
+   * @returns {Promise<Object>} Result with templates array
+   */
+  listFingerprintTemplates: (options = {}) => {
+    return ipcRenderer.invoke('fingerprint:template:list', options);
+  },
+
+  /**
+   * Get a specific fingerprint template
+   * @param {string} templateId - Template ID
+   * @returns {Promise<Object>} Result with template data
+   */
+  getFingerprintTemplate: (templateId) => {
+    return ipcRenderer.invoke('fingerprint:template:get', templateId);
+  },
+
+  // ============================================================================
+  // Fingerprint Test Methods
+  // ============================================================================
+
+  /**
+   * Run fingerprint detection tests
+   * @param {Object} config - Fingerprint configuration to test
+   * @param {Object} [options] - Test options
+   * @returns {Promise<Object>} Test report with results
+   */
+  runFingerprintTests: (config, options = {}) => {
+    return ipcRenderer.invoke('fingerprint:test:run', config, options);
   },
 
   // ============================================================================
@@ -607,11 +778,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'env:save-config',
       'env:test-proxy',
       'env:detect-network',
-      // Note: env:generate-fingerprint已移除，作为专业指纹系统重构的一部分
+      // Note: 指纹相关channels已在上方添加（fingerprint:*）
       'env:get-proxy-configs',
       'env:save-proxy-config',
       'env:delete-proxy-config',
       'env:parse-proxy-string',
+      // Fingerprint channels
+      'fingerprint:generate',
+      'fingerprint:save',
+      'fingerprint:get',
+      'fingerprint:validate',
+      'fingerprint:apply',
+      'fingerprint:delete',
+      'fingerprint:preview',
+      'fingerprint:getScript',
+      'fingerprint:loadAll',
+      // Fingerprint template channels
+      'fingerprint:template:create',
+      'fingerprint:template:apply',
+      'fingerprint:template:export',
+      'fingerprint:template:import',
+      'fingerprint:template:delete',
+      'fingerprint:template:list',
+      'fingerprint:template:get',
+      // Fingerprint test channels
+      'fingerprint:test:run',
       'recovery:start-monitor',
       'recovery:stop-monitor',
       'recovery:get-status',

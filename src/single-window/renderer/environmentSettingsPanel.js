@@ -1,10 +1,9 @@
 /**
- * 环境设置面板 - 代理配置
+ * 环境设置面板 - 代理配置和指纹设置
  * 
- * 为每个账号提供独立的代理配置界面
+ * 为每个账号提供独立的代理配置和指纹设置界面
  * 
- * Note: 指纹设置UI已移除，作为专业指纹系统重构的一部分。
- * 新的指纹设置UI将在新指纹系统实现后添加。
+ * Requirements: 22.1-22.8 - 指纹配置UI面板
  */
 
 (function () {
@@ -16,8 +15,14 @@
   // 当前配置
   let currentConfig = null;
 
+  // 当前指纹配置
+  let currentFingerprintConfig = null;
+
   // 已保存的代理配置
   let savedProxyConfigs = {};
+
+  // 已保存的指纹模板
+  let savedFingerprintTemplates = [];
 
   // DOM元素
   let container = null;
@@ -121,17 +126,446 @@
           </div>
         </section>
 
-        <!-- 指纹设置区域占位符 -->
-        <!-- Note: 指纹设置UI已移除，作为专业指纹系统重构的一部分。
-             新的指纹设置UI将在新指纹系统实现后添加到此处。
-             TODO: 集成新的指纹设置UI -->
+        <!-- 指纹设置区域 -->
+        <section class="env-section">
+          <h3 class="env-section-title">
+            <span>指纹设置</span>
+            <label class="env-toggle">
+              <input type="checkbox" id="fingerprint-enabled" checked>
+              <span class="env-toggle-slider"></span>
+            </label>
+          </h3>
+
+          <div class="env-section-content" id="fingerprint-content">
+            <!-- 快捷操作按钮 -->
+            <div class="env-button-group" style="margin-bottom: 15px;">
+              <button class="env-btn-primary" id="generate-fingerprint-btn">🎲 一键生成指纹</button>
+              <button class="env-btn-secondary" id="test-fingerprint-btn">🔍 测试指纹</button>
+              <button class="env-btn-secondary" id="preview-fingerprint-btn">👁 预览指纹</button>
+            </div>
+
+            <!-- 模板管理 -->
+            <div class="env-form-group">
+              <label>指纹模板</label>
+              <div class="env-input-group">
+                <select id="fingerprint-template-select">
+                  <option value="">-- 选择模板 --</option>
+                </select>
+                <button class="env-btn-icon" id="apply-template-btn" title="应用模板">✓</button>
+                <button class="env-btn-icon" id="save-as-template-btn" title="保存为模板">💾</button>
+                <button class="env-btn-icon" id="export-template-btn" title="导出模板">📤</button>
+                <button class="env-btn-icon" id="import-template-btn" title="导入模板">📥</button>
+              </div>
+            </div>
+
+            <!-- 基础设置 -->
+            <div class="env-collapsible active">
+              <div class="env-collapsible-header">
+                <span>📱 基础设置</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>浏览器类型</label>
+                    <select id="fp-browser-type">
+                      <option value="chrome">Chrome</option>
+                      <option value="firefox">Firefox</option>
+                      <option value="edge">Edge</option>
+                      <option value="safari">Safari</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>浏览器版本</label>
+                    <input type="text" id="fp-browser-version" placeholder="120.0.0.0">
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>操作系统</label>
+                    <select id="fp-os-type">
+                      <option value="windows">Windows</option>
+                      <option value="macos">macOS</option>
+                      <option value="linux">Linux</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>系统版本</label>
+                    <input type="text" id="fp-os-version" placeholder="10.0">
+                  </div>
+                </div>
+                <div class="env-form-group">
+                  <label>User-Agent</label>
+                  <textarea id="fp-user-agent" rows="2" placeholder="Mozilla/5.0..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Navigator属性 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>🧭 Navigator属性</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>平台</label>
+                    <select id="fp-platform">
+                      <option value="Win32">Win32</option>
+                      <option value="MacIntel">MacIntel</option>
+                      <option value="Linux x86_64">Linux x86_64</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>供应商</label>
+                    <input type="text" id="fp-vendor" placeholder="Google Inc.">
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>主要语言</label>
+                    <input type="text" id="fp-language" placeholder="en-US">
+                  </div>
+                  <div class="env-form-group">
+                    <label>语言列表</label>
+                    <input type="text" id="fp-languages" placeholder="en-US, en">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 硬件信息 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>💻 硬件信息</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>CPU核心数</label>
+                    <select id="fp-cpu-cores">
+                      <option value="2">2</option>
+                      <option value="4">4</option>
+                      <option value="6">6</option>
+                      <option value="8" selected>8</option>
+                      <option value="12">12</option>
+                      <option value="16">16</option>
+                      <option value="24">24</option>
+                      <option value="32">32</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>设备内存 (GB)</label>
+                    <select id="fp-device-memory">
+                      <option value="2">2</option>
+                      <option value="4">4</option>
+                      <option value="8" selected>8</option>
+                      <option value="16">16</option>
+                      <option value="32">32</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>屏幕宽度</label>
+                    <input type="number" id="fp-screen-width" placeholder="1920" min="320" max="7680">
+                  </div>
+                  <div class="env-form-group">
+                    <label>屏幕高度</label>
+                    <input type="number" id="fp-screen-height" placeholder="1080" min="240" max="4320">
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>颜色深度</label>
+                    <select id="fp-color-depth">
+                      <option value="24" selected>24</option>
+                      <option value="32">32</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>设备像素比</label>
+                    <select id="fp-pixel-ratio">
+                      <option value="1" selected>1</option>
+                      <option value="1.5">1.5</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Canvas & WebGL设置 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>🎨 Canvas & WebGL</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>Canvas模式</label>
+                    <select id="fp-canvas-mode">
+                      <option value="noise" selected>噪声</option>
+                      <option value="real">真实</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>Canvas噪声级别</label>
+                    <select id="fp-canvas-noise-level">
+                      <option value="off">关闭</option>
+                      <option value="low">低</option>
+                      <option value="medium" selected>中</option>
+                      <option value="high">高</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>WebGL模式</label>
+                    <select id="fp-webgl-mode">
+                      <option value="custom" selected>自定义</option>
+                      <option value="real">真实</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>WebGL噪声级别</label>
+                    <select id="fp-webgl-noise-level">
+                      <option value="off">关闭</option>
+                      <option value="low">低</option>
+                      <option value="medium" selected>中</option>
+                      <option value="high">高</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="env-form-group">
+                  <label>WebGL供应商</label>
+                  <input type="text" id="fp-webgl-vendor" placeholder="Google Inc. (Intel)">
+                </div>
+                <div class="env-form-group">
+                  <label>WebGL渲染器</label>
+                  <input type="text" id="fp-webgl-renderer" placeholder="ANGLE (Intel, Intel(R) UHD Graphics...)">
+                </div>
+              </div>
+            </div>
+
+            <!-- Audio & ClientRects设置 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>🔊 Audio & ClientRects</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>Audio模式</label>
+                    <select id="fp-audio-mode">
+                      <option value="noise" selected>噪声</option>
+                      <option value="real">真实</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>Audio噪声级别</label>
+                    <select id="fp-audio-noise-level">
+                      <option value="off">关闭</option>
+                      <option value="low">低</option>
+                      <option value="medium" selected>中</option>
+                      <option value="high">高</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>ClientRects模式</label>
+                    <select id="fp-clientrects-mode">
+                      <option value="noise" selected>噪声</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>ClientRects噪声级别</label>
+                    <select id="fp-clientrects-noise-level">
+                      <option value="off">关闭</option>
+                      <option value="low" selected>低</option>
+                      <option value="medium">中</option>
+                      <option value="high">高</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 时区与地理位置 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>🌍 时区与地理位置</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>时区模式</label>
+                    <select id="fp-timezone-mode">
+                      <option value="custom" selected>自定义</option>
+                      <option value="auto">自动（基于IP）</option>
+                      <option value="real">真实</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>时区名称</label>
+                    <input type="text" id="fp-timezone-name" placeholder="America/New_York">
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>地理位置模式</label>
+                    <select id="fp-geolocation-mode">
+                      <option value="custom" selected>自定义</option>
+                      <option value="deny">拒绝</option>
+                      <option value="ip">基于IP</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>纬度</label>
+                    <input type="number" id="fp-latitude" placeholder="40.7128" step="0.0001" min="-90" max="90">
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>经度</label>
+                    <input type="number" id="fp-longitude" placeholder="-74.0060" step="0.0001" min="-180" max="180">
+                  </div>
+                  <div class="env-form-group">
+                    <label>精度 (米)</label>
+                    <input type="number" id="fp-geo-accuracy" placeholder="100" min="1" max="10000">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- WebRTC与隐私设置 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>🔒 WebRTC与隐私</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>WebRTC模式</label>
+                    <select id="fp-webrtc-mode">
+                      <option value="disable">禁用</option>
+                      <option value="replace" selected>替换IP</option>
+                      <option value="real">真实</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>本地IP</label>
+                    <input type="text" id="fp-local-ip" placeholder="192.168.1.100">
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>Do Not Track</label>
+                    <select id="fp-dnt">
+                      <option value="null" selected>未设置</option>
+                      <option value="1">启用 (1)</option>
+                      <option value="0">禁用 (0)</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>全局隐私控制</label>
+                    <select id="fp-gpc">
+                      <option value="false" selected>禁用</option>
+                      <option value="true">启用</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 高级设置 -->
+            <div class="env-collapsible">
+              <div class="env-collapsible-header">
+                <span>⚙️ 高级设置</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>媒体设备模式</label>
+                    <select id="fp-media-devices-mode">
+                      <option value="fake" selected>伪装</option>
+                      <option value="hide">隐藏</option>
+                      <option value="real">真实</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>电池API模式</label>
+                    <select id="fp-battery-mode">
+                      <option value="privacy" selected>隐私</option>
+                      <option value="disable">禁用</option>
+                      <option value="real">真实</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>传感器模式</label>
+                    <select id="fp-sensors-mode">
+                      <option value="disable" selected>禁用</option>
+                      <option value="noise">噪声</option>
+                      <option value="real">真实</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>Speech API模式</label>
+                    <select id="fp-speech-mode">
+                      <option value="minimal" selected>最小化</option>
+                      <option value="system">系统</option>
+                      <option value="disable">禁用</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="env-form-row">
+                  <div class="env-form-group">
+                    <label>剪贴板模式</label>
+                    <select id="fp-clipboard-mode">
+                      <option value="ask" selected>询问</option>
+                      <option value="allow">允许</option>
+                      <option value="disable">禁用</option>
+                    </select>
+                  </div>
+                  <div class="env-form-group">
+                    <label>通知模式</label>
+                    <select id="fp-notification-mode">
+                      <option value="deny" selected>拒绝</option>
+                      <option value="allow">允许</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 指纹结果显示 -->
+            <div class="env-result-box hidden" id="fingerprint-result"></div>
+          </div>
+        </section>
       </div>
 
       <div class="env-panel-footer">
+        <button class="env-btn-secondary" id="reset-fingerprint-btn">重置为默认</button>
         <button class="env-btn-primary" id="apply-btn">应用并保存</button>
       </div>
     `;
   }
+
 
   /**
    * 设置事件监听器
@@ -142,6 +576,13 @@
     const proxyContent = container.querySelector('#proxy-content');
     proxyEnabled.addEventListener('change', (e) => {
       proxyContent.classList.toggle('disabled', !e.target.checked);
+    });
+
+    // 指纹启用开关
+    const fingerprintEnabled = container.querySelector('#fingerprint-enabled');
+    const fingerprintContent = container.querySelector('#fingerprint-content');
+    fingerprintEnabled.addEventListener('change', (e) => {
+      fingerprintContent.classList.toggle('disabled', !e.target.checked);
     });
 
     // 代理选择
@@ -160,8 +601,17 @@
     container.querySelector('#detect-network-btn').addEventListener('click', detectNetwork);
     container.querySelector('#save-proxy-config-btn').addEventListener('click', saveProxyConfig);
 
-    // Note: 指纹生成事件监听器已移除，作为专业指纹系统重构的一部分
-    // TODO: 新的指纹事件监听器将在新指纹系统实现后添加
+    // 指纹操作按钮
+    container.querySelector('#generate-fingerprint-btn').addEventListener('click', generateFingerprint);
+    container.querySelector('#test-fingerprint-btn').addEventListener('click', testFingerprint);
+    container.querySelector('#preview-fingerprint-btn').addEventListener('click', previewFingerprint);
+    container.querySelector('#reset-fingerprint-btn').addEventListener('click', resetFingerprint);
+
+    // 模板操作按钮
+    container.querySelector('#apply-template-btn').addEventListener('click', applyTemplate);
+    container.querySelector('#save-as-template-btn').addEventListener('click', saveAsTemplate);
+    container.querySelector('#export-template-btn').addEventListener('click', exportTemplate);
+    container.querySelector('#import-template-btn').addEventListener('click', importTemplate);
 
     // 折叠面板
     container.querySelectorAll('.env-collapsible-header').forEach(header => {
@@ -175,18 +625,42 @@
 
     // 应用按钮
     container.querySelector('#apply-btn').addEventListener('click', applyConfig);
-
-
   }
 
   /**
    * 设置条件显示的字段
-   * Note: 指纹相关的条件字段已移除，作为专业指纹系统重构的一部分
-   * TODO: 新的指纹条件字段将在新指纹系统实现后添加
    */
   function setupConditionalFields() {
-    // 指纹相关的条件字段已移除
-    // 新的指纹系统将在此处添加条件字段设置
+    // WebGL模式变化时显示/隐藏WebGL详细设置
+    const webglMode = container.querySelector('#fp-webgl-mode');
+    webglMode.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      container.querySelector('#fp-webgl-vendor').parentElement.style.display = isCustom ? 'block' : 'none';
+      container.querySelector('#fp-webgl-renderer').parentElement.style.display = isCustom ? 'block' : 'none';
+    });
+
+    // 时区模式变化
+    const timezoneMode = container.querySelector('#fp-timezone-mode');
+    timezoneMode.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      container.querySelector('#fp-timezone-name').disabled = !isCustom;
+    });
+
+    // 地理位置模式变化
+    const geoMode = container.querySelector('#fp-geolocation-mode');
+    geoMode.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      container.querySelector('#fp-latitude').disabled = !isCustom;
+      container.querySelector('#fp-longitude').disabled = !isCustom;
+      container.querySelector('#fp-geo-accuracy').disabled = !isCustom;
+    });
+
+    // WebRTC模式变化
+    const webrtcMode = container.querySelector('#fp-webrtc-mode');
+    webrtcMode.addEventListener('change', (e) => {
+      const isReplace = e.target.value === 'replace';
+      container.querySelector('#fp-local-ip').disabled = !isReplace;
+    });
   }
 
   /**
@@ -196,6 +670,7 @@
     if (!accountId) {
       currentAccountId = null;
       currentConfig = null;
+      currentFingerprintConfig = null;
       return;
     }
 
@@ -207,10 +682,16 @@
     // 加载代理配置列表
     await loadProxyConfigs();
 
+    // 加载指纹配置
+    await loadFingerprintConfig(accountId);
+
+    // 加载指纹模板列表
+    await loadFingerprintTemplates();
+
     console.log(`[EnvironmentPanel] 已加载账号 ${accountId} 的环境设置`);
   }
 
-  // 兼容旧的 open 接口，但现在只是切换账号
+  // 兼容旧的 open 接口
   async function open(accountId) {
     await setAccount(accountId);
   }
@@ -226,8 +707,8 @@
 
       if (result.success && result.config) {
         currentConfig = result.config;
-        populateForm(result.config);
-        console.log('[EnvironmentPanel] 已加载配置:', result.config);
+        populateProxyForm(result.config);
+        console.log('[EnvironmentPanel] 已加载代理配置:', result.config);
       } else {
         console.warn('[EnvironmentPanel] 加载配置失败:', result.error);
       }
@@ -237,10 +718,58 @@
   }
 
   /**
-   * 填充表单
+   * 加载指纹配置
    */
-  function populateForm(config) {
-    // 代理设置
+  async function loadFingerprintConfig(accountId) {
+    if (!window.electronAPI) return;
+
+    try {
+      const result = await window.electronAPI.getFingerprint(accountId);
+
+      if (result.success && result.config) {
+        currentFingerprintConfig = result.config;
+        populateFingerprintForm(result.config);
+        console.log('[EnvironmentPanel] 已加载指纹配置');
+      } else {
+        // 没有指纹配置，使用默认值
+        console.log('[EnvironmentPanel] 未找到指纹配置，使用默认值');
+        currentFingerprintConfig = null;
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 加载指纹配置错误:', error);
+    }
+  }
+
+  /**
+   * 加载指纹模板列表
+   */
+  async function loadFingerprintTemplates() {
+    if (!window.electronAPI) return;
+
+    try {
+      const result = await window.electronAPI.listFingerprintTemplates();
+
+      if (result.success && result.templates) {
+        savedFingerprintTemplates = result.templates;
+        const select = container.querySelector('#fingerprint-template-select');
+        select.innerHTML = '<option value="">-- 选择模板 --</option>';
+
+        result.templates.forEach(template => {
+          const option = document.createElement('option');
+          option.value = template.id;
+          option.textContent = template.name;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 加载指纹模板列表失败:', error);
+    }
+  }
+
+  /**
+   * 填充代理表单
+   */
+  function populateProxyForm(config) {
     if (config.proxy) {
       container.querySelector('#proxy-enabled').checked = config.proxy.enabled || false;
       container.querySelector('#proxy-content').classList.toggle('disabled', !config.proxy.enabled);
@@ -250,15 +779,176 @@
       container.querySelector('#proxy-username').value = config.proxy.username || '';
       container.querySelector('#proxy-password').value = config.proxy.password || '';
     }
+  }
 
-    // Note: 指纹设置表单填充已移除，作为专业指纹系统重构的一部分
-    // TODO: 新的指纹表单填充将在新指纹系统实现后添加
+  /**
+   * 填充指纹表单
+   */
+  function populateFingerprintForm(config) {
+    if (!config) return;
+
+    // 基础设置
+    container.querySelector('#fp-browser-type').value = config.browser?.type || 'chrome';
+    container.querySelector('#fp-browser-version').value = config.browser?.version || '120.0.0.0';
+    container.querySelector('#fp-os-type').value = config.os?.type || 'windows';
+    container.querySelector('#fp-os-version').value = config.os?.version || '10.0';
+    container.querySelector('#fp-user-agent').value = config.userAgent || '';
+
+    // Navigator属性
+    container.querySelector('#fp-platform').value = config.os?.platform || 'Win32';
+    container.querySelector('#fp-vendor').value = config.navigator?.vendor || 'Google Inc.';
+    container.querySelector('#fp-language').value = config.navigator?.language || 'en-US';
+    container.querySelector('#fp-languages').value = (config.navigator?.languages || ['en-US', 'en']).join(', ');
+
+    // 硬件信息
+    container.querySelector('#fp-cpu-cores').value = config.hardware?.cpuCores || 8;
+    container.querySelector('#fp-device-memory').value = config.hardware?.deviceMemory || 8;
+    container.querySelector('#fp-screen-width').value = config.hardware?.screen?.width || 1920;
+    container.querySelector('#fp-screen-height').value = config.hardware?.screen?.height || 1080;
+    container.querySelector('#fp-color-depth').value = config.hardware?.screen?.colorDepth || 24;
+    container.querySelector('#fp-pixel-ratio').value = config.hardware?.devicePixelRatio || 1;
+
+    // Canvas & WebGL
+    container.querySelector('#fp-canvas-mode').value = config.canvas?.mode || 'noise';
+    container.querySelector('#fp-canvas-noise-level').value = config.canvas?.noiseLevel || 'medium';
+    container.querySelector('#fp-webgl-mode').value = config.webgl?.mode || 'custom';
+    container.querySelector('#fp-webgl-noise-level').value = config.webgl?.noiseLevel || 'medium';
+    container.querySelector('#fp-webgl-vendor').value = config.webgl?.vendor || '';
+    container.querySelector('#fp-webgl-renderer').value = config.webgl?.renderer || '';
+
+    // Audio & ClientRects
+    container.querySelector('#fp-audio-mode').value = config.audio?.mode || 'noise';
+    container.querySelector('#fp-audio-noise-level').value = config.audio?.noiseLevel || 'medium';
+    container.querySelector('#fp-clientrects-mode').value = config.clientRects?.mode || 'noise';
+    container.querySelector('#fp-clientrects-noise-level').value = config.clientRects?.noiseLevel || 'low';
+
+    // 时区与地理位置
+    container.querySelector('#fp-timezone-mode').value = config.timezone?.mode || 'custom';
+    container.querySelector('#fp-timezone-name').value = config.timezone?.name || 'America/New_York';
+    container.querySelector('#fp-geolocation-mode').value = config.geolocation?.mode || 'custom';
+    container.querySelector('#fp-latitude').value = config.geolocation?.latitude || 40.7128;
+    container.querySelector('#fp-longitude').value = config.geolocation?.longitude || -74.0060;
+    container.querySelector('#fp-geo-accuracy').value = config.geolocation?.accuracy || 100;
+
+    // WebRTC与隐私
+    container.querySelector('#fp-webrtc-mode').value = config.webrtc?.mode || 'replace';
+    container.querySelector('#fp-local-ip').value = config.webrtc?.localIP || '192.168.1.100';
+    container.querySelector('#fp-dnt').value = config.privacy?.doNotTrack === null ? 'null' : String(config.privacy?.doNotTrack);
+    container.querySelector('#fp-gpc').value = String(config.privacy?.globalPrivacyControl || false);
+
+    // 高级设置
+    container.querySelector('#fp-media-devices-mode').value = config.mediaDevices?.mode || 'fake';
+    container.querySelector('#fp-battery-mode').value = config.battery?.mode || 'privacy';
+    container.querySelector('#fp-sensors-mode').value = config.sensors?.mode || 'disable';
+    container.querySelector('#fp-speech-mode').value = config.speech?.mode || 'minimal';
+    container.querySelector('#fp-clipboard-mode').value = config.advancedApis?.clipboard?.mode || 'ask';
+    container.querySelector('#fp-notification-mode').value = config.advancedApis?.notification?.mode || 'deny';
+
+    // 触发条件字段更新
+    container.querySelector('#fp-webgl-mode').dispatchEvent(new Event('change'));
+    container.querySelector('#fp-timezone-mode').dispatchEvent(new Event('change'));
+    container.querySelector('#fp-geolocation-mode').dispatchEvent(new Event('change'));
+    container.querySelector('#fp-webrtc-mode').dispatchEvent(new Event('change'));
+  }
+
+  /**
+   * 从表单收集指纹配置
+   */
+  function collectFingerprintFormData() {
+    const languagesStr = container.querySelector('#fp-languages').value;
+    const languages = languagesStr.split(',').map(l => l.trim()).filter(l => l);
+
+    return {
+      browser: {
+        type: container.querySelector('#fp-browser-type').value,
+        version: container.querySelector('#fp-browser-version').value,
+        majorVersion: parseInt(container.querySelector('#fp-browser-version').value.split('.')[0]) || 120
+      },
+      os: {
+        type: container.querySelector('#fp-os-type').value,
+        version: container.querySelector('#fp-os-version').value,
+        platform: container.querySelector('#fp-platform').value
+      },
+      userAgent: container.querySelector('#fp-user-agent').value,
+      navigator: {
+        vendor: container.querySelector('#fp-vendor').value,
+        language: container.querySelector('#fp-language').value,
+        languages: languages
+      },
+      hardware: {
+        cpuCores: parseInt(container.querySelector('#fp-cpu-cores').value) || 8,
+        deviceMemory: parseInt(container.querySelector('#fp-device-memory').value) || 8,
+        screen: (function() {
+          const width = parseInt(container.querySelector('#fp-screen-width').value) || 1920;
+          const height = parseInt(container.querySelector('#fp-screen-height').value) || 1080;
+          return {
+            width: width,
+            height: height,
+            availWidth: width,  // 可用宽度通常等于屏幕宽度
+            availHeight: height - 40,  // 可用高度减去任务栏高度（约40像素）
+            colorDepth: parseInt(container.querySelector('#fp-color-depth').value) || 24,
+            pixelDepth: parseInt(container.querySelector('#fp-color-depth').value) || 24
+          };
+        })(),
+        devicePixelRatio: parseFloat(container.querySelector('#fp-pixel-ratio').value) || 1
+      },
+      canvas: {
+        mode: container.querySelector('#fp-canvas-mode').value,
+        noiseLevel: container.querySelector('#fp-canvas-noise-level').value
+      },
+      webgl: {
+        mode: container.querySelector('#fp-webgl-mode').value,
+        noiseLevel: container.querySelector('#fp-webgl-noise-level').value,
+        vendor: container.querySelector('#fp-webgl-vendor').value,
+        renderer: container.querySelector('#fp-webgl-renderer').value
+      },
+      audio: {
+        mode: container.querySelector('#fp-audio-mode').value,
+        noiseLevel: container.querySelector('#fp-audio-noise-level').value
+      },
+      clientRects: {
+        mode: container.querySelector('#fp-clientrects-mode').value,
+        noiseLevel: container.querySelector('#fp-clientrects-noise-level').value
+      },
+      timezone: {
+        mode: container.querySelector('#fp-timezone-mode').value,
+        name: container.querySelector('#fp-timezone-name').value
+      },
+      geolocation: {
+        mode: container.querySelector('#fp-geolocation-mode').value,
+        latitude: parseFloat(container.querySelector('#fp-latitude').value) || 40.7128,
+        longitude: parseFloat(container.querySelector('#fp-longitude').value) || -74.0060,
+        accuracy: parseInt(container.querySelector('#fp-geo-accuracy').value) || 100
+      },
+      webrtc: {
+        mode: container.querySelector('#fp-webrtc-mode').value,
+        localIP: container.querySelector('#fp-local-ip').value
+      },
+      privacy: {
+        doNotTrack: container.querySelector('#fp-dnt').value === 'null' ? null : container.querySelector('#fp-dnt').value,
+        globalPrivacyControl: container.querySelector('#fp-gpc').value === 'true'
+      },
+      mediaDevices: {
+        mode: container.querySelector('#fp-media-devices-mode').value
+      },
+      battery: {
+        mode: container.querySelector('#fp-battery-mode').value
+      },
+      sensors: {
+        mode: container.querySelector('#fp-sensors-mode').value
+      },
+      speech: {
+        mode: container.querySelector('#fp-speech-mode').value
+      },
+      advancedApis: {
+        clipboard: { mode: container.querySelector('#fp-clipboard-mode').value },
+        notification: { mode: container.querySelector('#fp-notification-mode').value }
+      }
+    };
   }
 
   /**
    * 从表单收集配置
-   * Note: 指纹配置收集已移除，作为专业指纹系统重构的一部分
-   * TODO: 新的指纹配置收集将在新指纹系统实现后添加
    */
   function collectFormData() {
     const config = {
@@ -270,11 +960,11 @@
         username: container.querySelector('#proxy-username').value,
         password: container.querySelector('#proxy-password').value
       }
-      // Note: fingerprint配置将在新指纹系统实现后添加
     };
 
     return config;
   }
+
 
   /**
    * 应用配置
@@ -288,26 +978,365 @@
 
     if (!currentAccountId) {
       console.error('[EnvironmentPanel] No account selected');
-      showError('请先选择一个账号');
+      showFingerprintError('请先选择一个账号');
       return;
     }
 
-    const config = collectFormData();
-
+    // 保存代理配置
+    const proxyConfig = collectFormData();
     try {
-      const result = await window.electronAPI.saveEnvironmentConfig(currentAccountId, config);
-
-      if (result.success) {
-        showSuccess('配置已保存成功！');
-        setTimeout(() => closePanel(), 1500);
-      } else {
-        showError('保存失败: ' + (result.error || '未知错误'));
+      const proxyResult = await window.electronAPI.saveEnvironmentConfig(currentAccountId, proxyConfig);
+      if (!proxyResult.success) {
+        showFingerprintError('保存代理配置失败: ' + (proxyResult.error || '未知错误'));
+        return;
       }
     } catch (error) {
-      console.error('[EnvironmentPanel] 保存配置错误:', error);
-      showError('保存失败: ' + error.message);
+      console.error('[EnvironmentPanel] 保存代理配置错误:', error);
+      showFingerprintError('保存代理配置失败: ' + error.message);
+      return;
+    }
+
+    // 保存指纹配置
+    if (container.querySelector('#fingerprint-enabled').checked) {
+      const fingerprintConfig = collectFingerprintFormData();
+      
+      // 先验证
+      try {
+        const validateResult = await window.electronAPI.validateFingerprint(fingerprintConfig);
+        if (!validateResult.valid) {
+          const errorMessages = validateResult.errors.map(e => `${e.field}: ${e.reason}`).join('\n');
+          showFingerprintError('指纹配置验证失败:\n' + errorMessages);
+          return;
+        }
+      } catch (error) {
+        console.error('[EnvironmentPanel] 验证指纹配置错误:', error);
+      }
+
+      // 保存指纹
+      try {
+        const fpResult = await window.electronAPI.saveFingerprint(currentAccountId, fingerprintConfig);
+        if (!fpResult.success) {
+          showFingerprintError('保存指纹配置失败: ' + (fpResult.error || '未知错误'));
+          return;
+        }
+        currentFingerprintConfig = fpResult.config;
+      } catch (error) {
+        console.error('[EnvironmentPanel] 保存指纹配置错误:', error);
+        showFingerprintError('保存指纹配置失败: ' + error.message);
+        return;
+      }
+    }
+
+    showFingerprintSuccess('配置已保存成功！指纹将在下次加载账号时生效。');
+  }
+
+  /**
+   * 一键生成指纹
+   */
+  async function generateFingerprint() {
+    if (!window.electronAPI) return;
+
+    showFingerprintLoading('正在生成指纹配置...');
+
+    try {
+      const options = {
+        os: container.querySelector('#fp-os-type').value,
+        browser: container.querySelector('#fp-browser-type').value
+      };
+
+      const result = await window.electronAPI.generateFingerprint(options);
+
+      if (result.success && result.config) {
+        currentFingerprintConfig = result.config;
+        populateFingerprintForm(result.config);
+        showFingerprintSuccess('指纹配置已生成！请点击"应用并保存"保存配置。');
+      } else {
+        showFingerprintError('生成指纹失败: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 生成指纹失败:', error);
+      showFingerprintError('生成指纹失败: ' + error.message);
     }
   }
+
+  /**
+   * 测试指纹
+   */
+  async function testFingerprint() {
+    if (!window.electronAPI) return;
+
+    showFingerprintLoading('正在测试指纹配置...');
+
+    try {
+      const config = collectFingerprintFormData();
+      const result = await window.electronAPI.runFingerprintTests(config);
+
+      if (result.success && result.report) {
+        const report = result.report;
+        const html = `
+          <div class="env-result-success">
+            <h4>指纹测试报告</h4>
+            <p><strong>通过率:</strong> ${report.summary.passRate}</p>
+            <p><strong>通过:</strong> ${report.summary.passed} / ${report.summary.total}</p>
+            <p><strong>失败:</strong> ${report.summary.failed}</p>
+            ${report.results.filter(r => !r.passed).map(r => `
+              <p style="color: #ff4d4f;">❌ ${r.name}: ${r.error || '测试失败'}</p>
+            `).join('')}
+          </div>
+        `;
+        showFingerprintResult(html);
+      } else {
+        showFingerprintError('测试失败: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 测试指纹失败:', error);
+      showFingerprintError('测试失败: ' + error.message);
+    }
+  }
+
+  /**
+   * 预览指纹
+   */
+  async function previewFingerprint() {
+    if (!window.electronAPI) return;
+
+    showFingerprintLoading('正在生成预览...');
+
+    try {
+      const config = collectFingerprintFormData();
+      const result = await window.electronAPI.previewFingerprint(config);
+
+      if (result.success && result.preview) {
+        const preview = result.preview;
+        // 正确提取对象属性
+        const browserStr = preview.browser?.type ? `${preview.browser.type} ${preview.browser.version || ''}` : config.browser?.type;
+        const osStr = preview.os?.type ? `${preview.os.type} (${preview.os.platform || ''})` : config.os?.type;
+        const userAgentStr = preview.browser?.userAgent || config.userAgent;
+        const screenStr = preview.hardware?.screen || `${config.hardware?.screen?.width}x${config.hardware?.screen?.height}`;
+        const cpuStr = preview.hardware?.cpuCores || config.hardware?.cpuCores;
+        const memoryStr = preview.hardware?.deviceMemory || config.hardware?.deviceMemory;
+        const timezoneStr = preview.timezone?.name || config.timezone?.name;
+        const languageStr = config.navigator?.language || 'en-US';
+        
+        const html = `
+          <div class="env-result-success">
+            <h4>指纹预览</h4>
+            <p><strong>浏览器:</strong> ${browserStr}</p>
+            <p><strong>操作系统:</strong> ${osStr}</p>
+            <p><strong>User-Agent:</strong> <small>${userAgentStr}</small></p>
+            <p><strong>屏幕:</strong> ${screenStr}</p>
+            <p><strong>CPU核心:</strong> ${cpuStr}</p>
+            <p><strong>内存:</strong> ${memoryStr} GB</p>
+            <p><strong>时区:</strong> ${timezoneStr}</p>
+            <p><strong>语言:</strong> ${languageStr}</p>
+            <p><strong>Canvas模式:</strong> ${preview.canvas?.mode || config.canvas?.mode}</p>
+            <p><strong>WebGL供应商:</strong> ${preview.webgl?.vendor || config.webgl?.vendor || '未设置'}</p>
+            <p><strong>WebRTC模式:</strong> ${preview.webrtc?.mode || config.webrtc?.mode}</p>
+          </div>
+        `;
+        showFingerprintResult(html);
+      } else {
+        // 如果没有预览API，显示本地数据
+        const html = `
+          <div class="env-result-success">
+            <h4>指纹预览</h4>
+            <p><strong>浏览器:</strong> ${config.browser?.type} ${config.browser?.version}</p>
+            <p><strong>操作系统:</strong> ${config.os?.type} ${config.os?.version}</p>
+            <p><strong>平台:</strong> ${config.os?.platform}</p>
+            <p><strong>屏幕:</strong> ${config.hardware?.screen?.width}x${config.hardware?.screen?.height}</p>
+            <p><strong>CPU核心:</strong> ${config.hardware?.cpuCores}</p>
+            <p><strong>内存:</strong> ${config.hardware?.deviceMemory} GB</p>
+            <p><strong>时区:</strong> ${config.timezone?.name}</p>
+            <p><strong>语言:</strong> ${config.navigator?.language}</p>
+            <p><strong>Canvas模式:</strong> ${config.canvas?.mode}</p>
+            <p><strong>WebGL模式:</strong> ${config.webgl?.mode}</p>
+            <p><strong>WebRTC模式:</strong> ${config.webrtc?.mode}</p>
+          </div>
+        `;
+        showFingerprintResult(html);
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 预览指纹失败:', error);
+      showFingerprintError('预览失败: ' + error.message);
+    }
+  }
+
+  /**
+   * 重置指纹为默认值
+   */
+  function resetFingerprint() {
+    const defaultConfig = {
+      browser: { type: 'chrome', version: '120.0.0.0', majorVersion: 120 },
+      os: { type: 'windows', version: '10.0', platform: 'Win32' },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      navigator: { vendor: 'Google Inc.', language: 'en-US', languages: ['en-US', 'en'] },
+      hardware: {
+        cpuCores: 8,
+        deviceMemory: 8,
+        screen: { width: 1920, height: 1080, availWidth: 1920, availHeight: 1040, colorDepth: 24, pixelDepth: 24 },
+        devicePixelRatio: 1
+      },
+      canvas: { mode: 'noise', noiseLevel: 'medium' },
+      webgl: { mode: 'custom', noiseLevel: 'medium', vendor: 'Google Inc. (Intel)', renderer: 'ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)' },
+      audio: { mode: 'noise', noiseLevel: 'medium' },
+      clientRects: { mode: 'noise', noiseLevel: 'low' },
+      timezone: { mode: 'custom', name: 'America/New_York' },
+      geolocation: { mode: 'custom', latitude: 40.7128, longitude: -74.0060, accuracy: 100 },
+      webrtc: { mode: 'replace', localIP: '192.168.1.100' },
+      privacy: { doNotTrack: null, globalPrivacyControl: false },
+      mediaDevices: { mode: 'fake' },
+      battery: { mode: 'privacy' },
+      sensors: { mode: 'disable' },
+      speech: { mode: 'minimal' },
+      advancedApis: { clipboard: { mode: 'ask' }, notification: { mode: 'deny' } }
+    };
+
+    populateFingerprintForm(defaultConfig);
+    showFingerprintSuccess('已重置为默认配置');
+  }
+
+  /**
+   * 应用模板
+   */
+  async function applyTemplate() {
+    if (!window.electronAPI) return;
+
+    const templateId = container.querySelector('#fingerprint-template-select').value;
+    if (!templateId) {
+      showFingerprintError('请先选择一个模板');
+      return;
+    }
+
+    if (!currentAccountId) {
+      showFingerprintError('请先选择一个账号');
+      return;
+    }
+
+    showFingerprintLoading('正在应用模板...');
+
+    try {
+      const result = await window.electronAPI.applyFingerprintTemplate(templateId, currentAccountId);
+
+      if (result.success && result.config) {
+        currentFingerprintConfig = result.config;
+        populateFingerprintForm(result.config);
+        showFingerprintSuccess('模板已应用！');
+      } else {
+        showFingerprintError('应用模板失败: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 应用模板失败:', error);
+      showFingerprintError('应用模板失败: ' + error.message);
+    }
+  }
+
+  /**
+   * 保存为模板
+   */
+  async function saveAsTemplate() {
+    if (!window.electronAPI) return;
+
+    showInlineInput('请输入模板名称:', async (name) => {
+      if (!name || name.trim() === '') return;
+
+      const config = collectFingerprintFormData();
+
+      try {
+        const result = await window.electronAPI.createFingerprintTemplate({
+          name: name.trim(),
+          config: config
+        });
+
+        if (result.success) {
+          showFingerprintSuccess(`模板 "${name}" 已保存！`);
+          await loadFingerprintTemplates();
+        } else {
+          showFingerprintError('保存模板失败: ' + (result.error || '未知错误'));
+        }
+      } catch (error) {
+        console.error('[EnvironmentPanel] 保存模板失败:', error);
+        showFingerprintError('保存模板失败: ' + error.message);
+      }
+    });
+  }
+
+  /**
+   * 导出模板
+   */
+  async function exportTemplate() {
+    if (!window.electronAPI) return;
+
+    const templateId = container.querySelector('#fingerprint-template-select').value;
+    if (!templateId) {
+      // 导出当前配置
+      const config = collectFingerprintFormData();
+      const jsonStr = JSON.stringify(config, null, 2);
+      downloadJSON(jsonStr, 'fingerprint-config.json');
+      showFingerprintSuccess('配置已导出！');
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.exportFingerprintTemplate(templateId);
+
+      if (result.success && result.data) {
+        downloadJSON(result.data, `fingerprint-template-${templateId}.json`);
+        showFingerprintSuccess('模板已导出！');
+      } else {
+        showFingerprintError('导出模板失败: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('[EnvironmentPanel] 导出模板失败:', error);
+      showFingerprintError('导出模板失败: ' + error.message);
+    }
+  }
+
+  /**
+   * 导入模板
+   */
+  function importTemplate() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const result = await window.electronAPI.importFingerprintTemplate(text);
+
+        if (result.success) {
+          showFingerprintSuccess('模板已导入！');
+          await loadFingerprintTemplates();
+        } else {
+          showFingerprintError('导入模板失败: ' + (result.error || '未知错误'));
+        }
+      } catch (error) {
+        console.error('[EnvironmentPanel] 导入模板失败:', error);
+        showFingerprintError('导入模板失败: ' + error.message);
+      }
+    };
+    input.click();
+  }
+
+  /**
+   * 下载JSON文件
+   */
+  function downloadJSON(jsonStr, filename) {
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+
+  // ==================== 代理相关函数 ====================
 
   /**
    * 加载代理配置列表
@@ -319,7 +1348,7 @@
       const result = await window.electronAPI.getProxyConfigs();
 
       if (result.success && result.configs) {
-        savedProxyConfigs = result.configs; // Save to module scope
+        savedProxyConfigs = result.configs;
         const select = container.querySelector('#proxy-select');
         select.innerHTML = '<option value="">-- 新建代理配置 --</option>';
 
@@ -343,7 +1372,6 @@
     const deleteBtn = container.querySelector('#delete-proxy-btn');
 
     if (!name) {
-      // Reset form if "New Proxy Config" is selected
       container.querySelector('#proxy-protocol').value = 'http';
       container.querySelector('#proxy-host').value = '';
       container.querySelector('#proxy-port').value = '';
@@ -361,7 +1389,7 @@
       container.querySelector('#proxy-username').value = config.username || '';
       container.querySelector('#proxy-password').value = config.password || '';
       deleteBtn.style.display = 'inline-block';
-      showSuccess(`已加载配置: ${name}`);
+      showProxySuccess(`已加载配置: ${name}`);
     }
   }
 
@@ -374,7 +1402,6 @@
 
     if (!name) return;
 
-    // 使用内嵌确认框
     showInlineConfirm(`确定要删除代理配置 "${name}" 吗？`, async (confirmed) => {
       if (!confirmed) return;
 
@@ -382,148 +1409,17 @@
         const result = await window.electronAPI.deleteNamedProxy(name);
 
         if (result.success) {
-          showSuccess(`配置 "${name}" 已删除`);
-          // Reset form
+          showProxySuccess(`配置 "${name}" 已删除`);
           select.value = "";
           handleProxySelect({ target: select });
-          // Reload list
           await loadProxyConfigs();
         } else {
-          showError('删除失败: ' + (result.error || '未知错误'));
+          showProxyError('删除失败: ' + (result.error || '未知错误'));
         }
       } catch (error) {
         console.error('[EnvironmentPanel] 删除配置失败:', error);
-        showError('删除失败: ' + error.message);
+        showProxyError('删除失败: ' + error.message);
       }
-    });
-  }
-
-  /**
-   * 显示内嵌确认框
-   */
-  function showInlineConfirm(message, callback) {
-    const buttonsGroup = container.querySelector('.env-button-group');
-    const originalDisplay = buttonsGroup.style.display;
-    buttonsGroup.style.display = 'none';
-
-    const confirmContainer = document.createElement('div');
-    confirmContainer.style.cssText = `
-      padding: 15px;
-      background: #fff3e0;
-      border: 2px solid #ff9800;
-      border-radius: 8px;
-      margin-bottom: 15px;
-    `;
-
-    confirmContainer.innerHTML = `
-      <div style="margin-bottom: 15px; font-weight: bold; color: #ff6f00;">⚠️ ${message}</div>
-      <div style="text-align: right;">
-        <button id="confirm-no" style="padding: 6px 16px; margin-right: 8px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">取消</button>
-        <button id="confirm-yes" style="padding: 6px 16px; border: none; background: #ff4d4f; color: white; border-radius: 4px; cursor: pointer;">删除</button>
-      </div>
-    `;
-
-    buttonsGroup.parentNode.insertBefore(confirmContainer, buttonsGroup);
-
-    const yesBtn = confirmContainer.querySelector('#confirm-yes');
-    const noBtn = confirmContainer.querySelector('#confirm-no');
-
-    const cleanup = () => {
-      confirmContainer.remove();
-      buttonsGroup.style.display = originalDisplay;
-    };
-
-    const handleYes = () => {
-      cleanup();
-      callback(true);
-    };
-
-    const handleNo = () => {
-      cleanup();
-      callback(false);
-    };
-
-    yesBtn.addEventListener('click', handleYes);
-    noBtn.addEventListener('click', handleNo);
-
-    confirmContainer.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        handleNo();
-      }
-    });
-
-    // 聚焦取消按钮（安全选项）
-    setTimeout(() => noBtn.focus(), 100);
-  }
-
-  /**
-   * 显示确认对话框
-   */
-  function showConfirmDialog(message) {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        pointer-events: auto;
-      `;
-
-      const dialog = document.createElement('div');
-      dialog.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        min-width: 300px;
-        max-width: 400px;
-        pointer-events: auto;
-      `;
-
-      dialog.innerHTML = `
-        <div style="margin-bottom: 20px; font-size: 14px; color: #333;">${message}</div>
-        <div style="text-align: right;">
-          <button id="confirm-cancel" style="padding: 6px 16px; margin-right: 8px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">取消</button>
-          <button id="confirm-ok" style="padding: 6px 16px; border: none; background: #ff4d4f; color: white; border-radius: 4px; cursor: pointer;">删除</button>
-        </div>
-      `;
-
-      overlay.appendChild(dialog);
-
-      // IMPORTANT: Append to document.body, not container
-      const targetElement = document.body || document.documentElement;
-      targetElement.appendChild(overlay);
-
-      const okBtn = dialog.querySelector('#confirm-ok');
-      const cancelBtn = dialog.querySelector('#confirm-cancel');
-
-      const handleOk = () => {
-        targetElement.removeChild(overlay);
-        resolve(true);
-      };
-
-      const handleCancel = () => {
-        targetElement.removeChild(overlay);
-        resolve(false);
-      };
-
-      okBtn.addEventListener('click', handleOk);
-      cancelBtn.addEventListener('click', handleCancel);
-
-      overlay.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          handleCancel();
-        }
-      });
     });
   }
 
@@ -551,7 +1447,7 @@
 
     const proxyString = container.querySelector('#proxy-smart-paste').value.trim();
     if (!proxyString) {
-      showError('请输入代理字符串');
+      showProxyError('请输入代理字符串');
       return;
     }
 
@@ -566,13 +1462,13 @@
         container.querySelector('#proxy-username').value = config.username || '';
         container.querySelector('#proxy-password').value = config.password || '';
 
-        showSuccess('代理信息已自动填充！');
+        showProxySuccess('代理信息已自动填充！');
       } else {
-        showError('解析失败: ' + (result.error || '格式不正确'));
+        showProxyError('解析失败: ' + (result.error || '格式不正确'));
       }
     } catch (error) {
       console.error('[EnvironmentPanel] 解析代理字符串失败:', error);
-      showError('解析失败: ' + error.message);
+      showProxyError('解析失败: ' + error.message);
     }
   }
 
@@ -591,11 +1487,11 @@
     };
 
     if (!proxyConfig.host || !proxyConfig.port) {
-      showError('请先填写代理主机和端口');
+      showProxyError('请先填写代理主机和端口');
       return;
     }
 
-    showLoading('正在测试代理连接...');
+    showProxyLoading('正在测试代理连接...');
 
     try {
       const result = await window.electronAPI.testProxy(proxyConfig);
@@ -612,13 +1508,13 @@
             <p><strong>ISP:</strong> ${result.isp}</p>
           </div>
         `;
-        showResult(html);
+        showProxyResult(html);
       } else {
-        showError('代理连接失败: ' + (result.error || '未知错误'));
+        showProxyError('代理连接失败: ' + (result.error || '未知错误'));
       }
     } catch (error) {
       console.error('[EnvironmentPanel] 测试代理失败:', error);
-      showError('测试失败: ' + error.message);
+      showProxyError('测试失败: ' + error.message);
     }
   }
 
@@ -628,7 +1524,7 @@
   async function detectNetwork() {
     if (!window.electronAPI) return;
 
-    showLoading('正在检测当前网络...');
+    showProxyLoading('正在检测当前网络...');
 
     try {
       const result = await window.electronAPI.detectNetwork();
@@ -644,13 +1540,13 @@
             <p><strong>ISP:</strong> ${result.isp}</p>
           </div>
         `;
-        showResult(html);
+        showProxyResult(html);
       } else {
-        showError('检测失败: ' + (result.error || '未知错误'));
+        showProxyError('检测失败: ' + (result.error || '未知错误'));
       }
     } catch (error) {
       console.error('[EnvironmentPanel] 检测网络失败:', error);
-      showError('检测失败: ' + error.message);
+      showProxyError('检测失败: ' + error.message);
     }
   }
 
@@ -658,20 +1554,13 @@
    * 保存代理配置
    */
   async function saveProxyConfig() {
-    console.log('[EnvironmentPanel] saveProxyConfig called');
-
     if (!window.electronAPI) {
-      console.error('[EnvironmentPanel] electronAPI not available');
-      showError('系统错误: electronAPI 不可用');
+      showProxyError('系统错误: electronAPI 不可用');
       return;
     }
 
-    // 显示内嵌输入框
     showInlineInput('请输入代理配置名称:', async (name) => {
-      if (!name || name.trim() === '') {
-        console.log('[EnvironmentPanel] No name entered, aborting');
-        return;
-      }
+      if (!name || name.trim() === '') return;
 
       const proxyConfig = {
         protocol: container.querySelector('#proxy-protocol').value,
@@ -681,43 +1570,39 @@
         password: container.querySelector('#proxy-password').value
       };
 
-      console.log('[EnvironmentPanel] Proxy config to save:', proxyConfig);
-
       try {
-        console.log('[EnvironmentPanel] Calling electronAPI.saveProxyConfig...');
         const result = await window.electronAPI.saveProxyConfig(name.trim(), proxyConfig);
-        console.log('[EnvironmentPanel] Save result:', result);
 
         if (result.success) {
-          showSuccess(`代理配置 "${name}" 已保存！`);
+          showProxySuccess(`代理配置 "${name}" 已保存！`);
           await loadProxyConfigs();
         } else {
-          showError('保存失败: ' + (result.error || '未知错误'));
+          showProxyError('保存失败: ' + (result.error || '未知错误'));
         }
       } catch (error) {
         console.error('[EnvironmentPanel] 保存代理配置失败:', error);
-        showError('保存失败: ' + error.message);
+        showProxyError('保存失败: ' + error.message);
       }
     });
   }
 
+  // ==================== UI辅助函数 ====================
+
   /**
-   * 显示内嵌输入框（在面板内部显示，不会被遮挡）
+   * 显示内嵌输入框
    */
   function showInlineInput(message, callback) {
-    // 隐藏所有按钮和表单
-    const buttonsGroup = container.querySelector('.env-button-group');
+    const buttonsGroup = container.querySelector('.env-panel-footer');
     const originalDisplay = buttonsGroup.style.display;
     buttonsGroup.style.display = 'none';
 
-    // 创建输入区域
     const inputContainer = document.createElement('div');
     inputContainer.style.cssText = `
       padding: 15px;
       background: #f0f8ff;
       border: 2px solid #1890ff;
       border-radius: 8px;
-      margin-bottom: 15px;
+      margin: 15px;
     `;
 
     inputContainer.innerHTML = `
@@ -730,14 +1615,12 @@
       </div>
     `;
 
-    // 插入到按钮组前面
-    buttonsGroup.parentNode.insertBefore(inputContainer, buttonsGroup);
+    container.appendChild(inputContainer);
 
     const input = inputContainer.querySelector('#inline-input');
     const okBtn = inputContainer.querySelector('#inline-ok');
     const cancelBtn = inputContainer.querySelector('#inline-cancel');
 
-    // 聚焦输入框
     setTimeout(() => {
       input.focus();
       input.select();
@@ -762,151 +1645,106 @@
     cancelBtn.addEventListener('click', handleCancel);
 
     input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        handleOk();
-      }
+      if (e.key === 'Enter') handleOk();
     });
 
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        handleCancel();
-      }
+      if (e.key === 'Escape') handleCancel();
     });
   }
 
   /**
-   * 显示输入对话框（替代 prompt，因为 Electron 不支持）
+   * 显示内嵌确认框
    */
-  function showInputDialog(message, defaultValue = '') {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        pointer-events: auto;
-      `;
+  function showInlineConfirm(message, callback) {
+    const buttonsGroup = container.querySelector('.env-panel-footer');
+    const originalDisplay = buttonsGroup.style.display;
+    buttonsGroup.style.display = 'none';
 
-      const dialog = document.createElement('div');
-      dialog.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        min-width: 300px;
-        max-width: 400px;
-        pointer-events: auto;
-      `;
+    const confirmContainer = document.createElement('div');
+    confirmContainer.style.cssText = `
+      padding: 15px;
+      background: #fff3e0;
+      border: 2px solid #ff9800;
+      border-radius: 8px;
+      margin: 15px;
+    `;
 
-      dialog.innerHTML = `
-        <div style="margin-bottom: 15px; font-size: 14px; color: #333;">${message}</div>
-        <input type="text" id="dialog-input" value="${defaultValue}" 
-               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-        <div style="margin-top: 15px; text-align: right;">
-          <button id="dialog-cancel" style="padding: 6px 16px; margin-right: 8px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">取消</button>
-          <button id="dialog-ok" style="padding: 6px 16px; border: none; background: #1890ff; color: white; border-radius: 4px; cursor: pointer;">确定</button>
-        </div>
-      `;
+    confirmContainer.innerHTML = `
+      <div style="margin-bottom: 15px; font-weight: bold; color: #ff6f00;">⚠️ ${message}</div>
+      <div style="text-align: right;">
+        <button id="confirm-no" style="padding: 6px 16px; margin-right: 8px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">取消</button>
+        <button id="confirm-yes" style="padding: 6px 16px; border: none; background: #ff4d4f; color: white; border-radius: 4px; cursor: pointer;">删除</button>
+      </div>
+    `;
 
-      overlay.appendChild(dialog);
+    container.appendChild(confirmContainer);
 
-      // IMPORTANT: Append to document.body, not container
-      // This ensures it appears above the WhatsApp Web BrowserView
-      const targetElement = document.body || document.documentElement;
-      targetElement.appendChild(overlay);
+    const yesBtn = confirmContainer.querySelector('#confirm-yes');
+    const noBtn = confirmContainer.querySelector('#confirm-no');
 
-      const input = dialog.querySelector('#dialog-input');
-      const okBtn = dialog.querySelector('#dialog-ok');
-      const cancelBtn = dialog.querySelector('#dialog-cancel');
+    const cleanup = () => {
+      confirmContainer.remove();
+      buttonsGroup.style.display = originalDisplay;
+    };
 
-      setTimeout(() => {
-        input.focus();
-        input.select();
-      }, 100);
+    yesBtn.addEventListener('click', () => { cleanup(); callback(true); });
+    noBtn.addEventListener('click', () => { cleanup(); callback(false); });
 
-      const handleOk = () => {
-        const value = input.value;
-        targetElement.removeChild(overlay);
-        resolve(value);
-      };
-
-      const handleCancel = () => {
-        targetElement.removeChild(overlay);
-        resolve(null);
-      };
-
-      okBtn.addEventListener('click', handleOk);
-      cancelBtn.addEventListener('click', handleCancel);
-
-      input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          handleOk();
-        }
-      });
-
-      overlay.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          handleCancel();
-        }
-      });
-    });
+    setTimeout(() => noBtn.focus(), 100);
   }
 
-  // Note: generateUserAgent和generateFingerprint函数已移除，作为专业指纹系统重构的一部分
-  // TODO: 新的指纹生成函数将在新指纹系统实现后添加
+  // ==================== 代理结果显示函数 ====================
 
-
-
-  /**
-   * 显示结果
-   */
-  function showResult(html) {
+  function showProxyResult(html) {
     const resultBox = container.querySelector('#proxy-result');
     resultBox.innerHTML = html;
     resultBox.classList.remove('hidden');
   }
 
-  /**
-   * 显示加载中
-   */
-  function showLoading(message) {
-    const html = `<div class="env-result-loading">${message}</div>`;
-    showResult(html);
+  function showProxyLoading(message) {
+    showProxyResult(`<div class="env-result-loading">${message}</div>`);
   }
 
-  /**
-   * 显示成功消息
-   */
-  function showSuccess(message) {
-    const html = `<div class="env-result-success">${message}</div>`;
-    showResult(html);
+  function showProxySuccess(message) {
+    showProxyResult(`<div class="env-result-success">${message}</div>`);
     setTimeout(() => {
       container.querySelector('#proxy-result').classList.add('hidden');
     }, 3000);
   }
 
-  /**
-   * 显示错误消息
-   */
-  function showError(message) {
-    const html = `<div class="env-result-error">❌ ${message}</div>`;
-    showResult(html);
+  function showProxyError(message) {
+    showProxyResult(`<div class="env-result-error">❌ ${message}</div>`);
+  }
+
+  // ==================== 指纹结果显示函数 ====================
+
+  function showFingerprintResult(html) {
+    const resultBox = container.querySelector('#fingerprint-result');
+    resultBox.innerHTML = html;
+    resultBox.classList.remove('hidden');
+  }
+
+  function showFingerprintLoading(message) {
+    showFingerprintResult(`<div class="env-result-loading">${message}</div>`);
+  }
+
+  function showFingerprintSuccess(message) {
+    showFingerprintResult(`<div class="env-result-success">${message}</div>`);
+    setTimeout(() => {
+      container.querySelector('#fingerprint-result').classList.add('hidden');
+    }, 3000);
+  }
+
+  function showFingerprintError(message) {
+    showFingerprintResult(`<div class="env-result-error">❌ ${message}</div>`);
   }
 
   // Export to window
   window.EnvironmentSettingsPanel = {
     init,
     setAccount,
-    open // Keep for backward compatibility if needed
+    open
   };
 
   // 页面加载完成后初始化

@@ -1,14 +1,13 @@
 /**
  * Environment IPC Handlers
  * 
- * Handles IPC communication for environment settings (proxy).
- * Provides handlers for configuration management and proxy testing.
- * 
- * Note: Fingerprint IPC handlers have been removed as part of the professional
- * fingerprint system refactoring. New fingerprint IPC handlers will be added
- * when the new fingerprint system is implemented.
+ * Handles IPC communication for environment settings (proxy and fingerprint).
+ * Provides handlers for configuration management, proxy testing, and fingerprint operations.
  * 
  * @module presentation/ipc/handlers/EnvironmentIPCHandlers
+ * 
+ * Requirements:
+ * - 32.4: Reuse existing IPC communication mechanism for fingerprint operations
  */
 
 'use strict';
@@ -21,9 +20,23 @@ const {
     ProxyValidator
 } = require('../../../environment');
 
+// Import fingerprint services
+const {
+    FingerprintService
+} = require('../../../application/services/fingerprint');
+
+const {
+    FingerprintRepository,
+    FingerprintInjector
+} = require('../../../infrastructure/fingerprint');
+
+const FingerprintConfig = require('../../../domain/fingerprint/FingerprintConfig');
+
 // Singleton instances
 let envConfigManager = null;
 let proxyConfigStore = null;
+let fingerprintService = null;
+let fingerprintRepository = null;
 
 /**
  * Get or create EnvironmentConfigManager instance
@@ -45,6 +58,28 @@ function getProxyConfigStore() {
         proxyConfigStore = new ProxyConfigStore();
     }
     return proxyConfigStore;
+}
+
+/**
+ * Get or create FingerprintService instance
+ * @returns {FingerprintService}
+ */
+function getFingerprintService() {
+    if (!fingerprintService) {
+        fingerprintService = new FingerprintService();
+    }
+    return fingerprintService;
+}
+
+/**
+ * Get or create FingerprintRepository instance
+ * @returns {FingerprintRepository}
+ */
+function getFingerprintRepository() {
+    if (!fingerprintRepository) {
+        fingerprintRepository = new FingerprintRepository();
+    }
+    return fingerprintRepository;
 }
 
 /**
@@ -138,8 +173,501 @@ function register(dependencies) {
         }
     });
 
-    // Note: env:generate-fingerprint handler removed as part of fingerprint system refactoring
-    // New fingerprint handlers will be added in the new fingerprint system implementation
+    // ==================== Fingerprint Handlers ====================
+
+    // Generate a new fingerprint configuration
+    ipcMain.handle('fingerprint:generate', async (event, options = {}) => {
+        try {
+            const service = getFingerprintService();
+            const config = service.generateFingerprint(options);
+
+            return {
+                success: true,
+                config: config.toJSON ? config.toJSON() : config
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:generate error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Save a fingerprint configuration
+    ipcMain.handle('fingerprint:save', async (event, accountId, configData) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            if (!configData) {
+                return { success: false, error: 'Fingerprint configuration is required' };
+            }
+
+            const repository = getFingerprintRepository();
+            const service = getFingerprintService();
+
+            // Create FingerprintConfig from data
+            const config = configData instanceof FingerprintConfig
+                ? configData
+                : FingerprintConfig.fromJSON({ ...configData, accountId });
+
+            // Validate before saving
+            const validation = service.validateFingerprint(config);
+            if (!validation.valid) {
+                return {
+                    success: false,
+                    error: 'Validation failed',
+                    errors: validation.errors
+                };
+            }
+
+            // Save to repository
+            await repository.save(config);
+
+            // Update service cache
+            service.setFingerprint(accountId, config);
+
+            return {
+                success: true,
+                message: 'Fingerprint configuration saved successfully',
+                config: config.toJSON()
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:save error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Get a fingerprint configuration for an account
+    ipcMain.handle('fingerprint:get', async (event, accountId) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            const repository = getFingerprintRepository();
+            const service = getFingerprintService();
+
+            // Try cache first
+            let config = service.getFingerprint(accountId);
+
+            // If not in cache, load from repository
+            if (!config) {
+                config = await repository.loadByAccountId(accountId);
+                if (config) {
+                    service.setFingerprint(accountId, config);
+                }
+            }
+
+            if (!config) {
+                return {
+                    success: false,
+                    error: 'Fingerprint configuration not found'
+                };
+            }
+
+            return {
+                success: true,
+                config: config.toJSON ? config.toJSON() : config
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:get error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Validate a fingerprint configuration
+    ipcMain.handle('fingerprint:validate', async (event, configData) => {
+        try {
+            if (!configData) {
+                return { success: false, error: 'Fingerprint configuration is required' };
+            }
+
+            const service = getFingerprintService();
+            const result = service.validateWithSuggestions(configData);
+
+            return {
+                success: true,
+                valid: result.valid,
+                errors: result.errors,
+                warnings: result.warnings,
+                suggestions: result.suggestions
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:validate error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Apply a fingerprint configuration to an account (generate injection script)
+    ipcMain.handle('fingerprint:apply', async (event, accountId, options = {}) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            const repository = getFingerprintRepository();
+            const service = getFingerprintService();
+
+            // Get the fingerprint config
+            let config = service.getFingerprint(accountId);
+            if (!config) {
+                config = await repository.loadByAccountId(accountId);
+            }
+
+            if (!config) {
+                return {
+                    success: false,
+                    error: 'Fingerprint configuration not found for account'
+                };
+            }
+
+            // Create injector and generate scripts
+            const configData = config.toJSON ? config.toJSON() : config;
+            const injector = new FingerprintInjector(configData, options);
+
+            const scripts = {
+                injection: injector.getInjectionScript(),
+                preload: injector.getPreloadScript(),
+                iframe: injector.getIframeScript(),
+                worker: injector.getWorkerScript()
+            };
+
+            return {
+                success: true,
+                scripts,
+                generationTime: injector.getGenerationTime()
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:apply error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Delete a fingerprint configuration
+    ipcMain.handle('fingerprint:delete', async (event, accountId) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            const repository = getFingerprintRepository();
+            const service = getFingerprintService();
+
+            // Delete from repository
+            const deleted = await repository.deleteByAccountId(accountId);
+
+            // Remove from cache
+            service.removeFingerprint(accountId);
+
+            return {
+                success: true,
+                deleted,
+                message: deleted ? 'Fingerprint configuration deleted' : 'No configuration found to delete'
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:delete error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // ==================== Template Handlers ====================
+
+    // Create a fingerprint template
+    ipcMain.handle('fingerprint:template:create', async (event, options) => {
+        try {
+            if (!options || !options.name) {
+                return { success: false, error: 'Template name is required' };
+            }
+
+            if (!options.config) {
+                return { success: false, error: 'Template configuration is required' };
+            }
+
+            const service = getFingerprintService();
+            const template = service.createTemplate(options);
+
+            return {
+                success: true,
+                template
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:create error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Apply a template to an account
+    ipcMain.handle('fingerprint:template:apply', async (event, templateId, accountId) => {
+        try {
+            if (!templateId) {
+                return { success: false, error: 'Template ID is required' };
+            }
+
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            const service = getFingerprintService();
+            const repository = getFingerprintRepository();
+
+            const config = service.applyTemplate(templateId, accountId);
+
+            // Save to repository
+            await repository.save(config);
+
+            return {
+                success: true,
+                config: config.toJSON ? config.toJSON() : config
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:apply error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Export a template
+    ipcMain.handle('fingerprint:template:export', async (event, templateId, options = {}) => {
+        try {
+            if (!templateId) {
+                return { success: false, error: 'Template ID is required' };
+            }
+
+            const service = getFingerprintService();
+            const exported = service.exportTemplate(templateId, options);
+
+            return {
+                success: true,
+                data: exported
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:export error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Import a template
+    ipcMain.handle('fingerprint:template:import', async (event, jsonData, options = {}) => {
+        try {
+            if (!jsonData) {
+                return { success: false, error: 'Template JSON data is required' };
+            }
+
+            const service = getFingerprintService();
+            const template = service.importTemplate(jsonData, options);
+
+            return {
+                success: true,
+                template
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:import error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Delete a template
+    ipcMain.handle('fingerprint:template:delete', async (event, templateId) => {
+        try {
+            if (!templateId) {
+                return { success: false, error: 'Template ID is required' };
+            }
+
+            const service = getFingerprintService();
+            const deleted = service.deleteTemplate(templateId);
+
+            return {
+                success: true,
+                deleted
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:delete error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // List all templates
+    ipcMain.handle('fingerprint:template:list', async (event, options = {}) => {
+        try {
+            const service = getFingerprintService();
+            const templates = service.listTemplates(options);
+
+            return {
+                success: true,
+                templates
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:list error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Get a specific template
+    ipcMain.handle('fingerprint:template:get', async (event, templateId) => {
+        try {
+            if (!templateId) {
+                return { success: false, error: 'Template ID is required' };
+            }
+
+            const service = getFingerprintService();
+            const template = service.getTemplate(templateId);
+
+            if (!template) {
+                return {
+                    success: false,
+                    error: 'Template not found'
+                };
+            }
+
+            return {
+                success: true,
+                template
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:template:get error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // ==================== Test Handlers ====================
+
+    // Run fingerprint tests
+    ipcMain.handle('fingerprint:test:run', async (event, configData, options = {}) => {
+        try {
+            if (!configData) {
+                return { success: false, error: 'Fingerprint configuration is required' };
+            }
+
+            const service = getFingerprintService();
+            const report = await service.runTests(configData, options);
+
+            return {
+                success: true,
+                report
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:test:run error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Get fingerprint preview
+    ipcMain.handle('fingerprint:preview', async (event, configData) => {
+        try {
+            if (!configData) {
+                return { success: false, error: 'Fingerprint configuration is required' };
+            }
+
+            const service = getFingerprintService();
+            const preview = service.getPreview(configData);
+
+            return {
+                success: true,
+                preview
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:preview error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Get injection script for a configuration (without saving)
+    ipcMain.handle('fingerprint:getScript', async (event, configData, options = {}) => {
+        try {
+            if (!configData) {
+                return { success: false, error: 'Fingerprint configuration is required' };
+            }
+
+            const injector = new FingerprintInjector(configData, options);
+
+            return {
+                success: true,
+                script: injector.getInjectionScript(),
+                generationTime: injector.getGenerationTime()
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:getScript error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Load all fingerprints (for app startup)
+    ipcMain.handle('fingerprint:loadAll', async (event) => {
+        try {
+            const repository = getFingerprintRepository();
+            const service = getFingerprintService();
+
+            const configs = await repository.loadAll();
+
+            // Cache all loaded configs
+            for (const config of configs) {
+                if (config.accountId) {
+                    service.setFingerprint(config.accountId, config);
+                }
+            }
+
+            return {
+                success: true,
+                count: configs.length,
+                configs: configs.map(c => c.toJSON ? c.toJSON() : c)
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] fingerprint:loadAll error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // ==================== Proxy Handlers ====================
 
     // Get list of saved proxy configurations
     ipcMain.handle('env:get-proxy-configs', async (event) => {
@@ -274,16 +802,39 @@ function register(dependencies) {
 function unregister() {
     console.log('[EnvironmentIPCHandlers] Unregistering handlers');
 
+    // Environment handlers
     ipcMain.removeHandler('env:get-config');
     ipcMain.removeHandler('env:save-config');
     ipcMain.removeHandler('env:test-proxy');
     ipcMain.removeHandler('env:detect-network');
-    // Note: env:generate-fingerprint removed as part of fingerprint system refactoring
     ipcMain.removeHandler('env:get-proxy-configs');
     ipcMain.removeHandler('env:save-proxy-config');
     ipcMain.removeHandler('env:delete-proxy-config');
     ipcMain.removeHandler('env:get-ip-geolocation');
     ipcMain.removeHandler('env:parse-proxy-string');
+
+    // Fingerprint handlers
+    ipcMain.removeHandler('fingerprint:generate');
+    ipcMain.removeHandler('fingerprint:save');
+    ipcMain.removeHandler('fingerprint:get');
+    ipcMain.removeHandler('fingerprint:validate');
+    ipcMain.removeHandler('fingerprint:apply');
+    ipcMain.removeHandler('fingerprint:delete');
+
+    // Template handlers
+    ipcMain.removeHandler('fingerprint:template:create');
+    ipcMain.removeHandler('fingerprint:template:apply');
+    ipcMain.removeHandler('fingerprint:template:export');
+    ipcMain.removeHandler('fingerprint:template:import');
+    ipcMain.removeHandler('fingerprint:template:delete');
+    ipcMain.removeHandler('fingerprint:template:list');
+    ipcMain.removeHandler('fingerprint:template:get');
+
+    // Test handlers
+    ipcMain.removeHandler('fingerprint:test:run');
+    ipcMain.removeHandler('fingerprint:preview');
+    ipcMain.removeHandler('fingerprint:getScript');
+    ipcMain.removeHandler('fingerprint:loadAll');
 
     console.log('[EnvironmentIPCHandlers] Handlers unregistered successfully');
 }
