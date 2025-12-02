@@ -59,7 +59,10 @@ class WebRTCProtection {
     localIP: '192.168.1.100',   // Replacement local IP
     whitelist: [],              // Per-origin whitelist (Req 13.6)
     enableFallback: true,       // Enable fallback mechanism (Req 13.8)
-    fallbackTimeout: 5000       // Timeout before fallback in ms
+    fallbackTimeout: 5000,      // Timeout before fallback in ms
+    // Hardened options
+    dropNonRelay: false,        // When true, drop ICE candidates that are not relay
+    forceRelay: false           // When true, enforce relay-only transport policy
   };
 
   /**
@@ -229,6 +232,18 @@ class WebRTCProtection {
       const currentOrigin = windowObj.location?.origin || '';
       if (WebRTCProtection._isWhitelisted(currentOrigin, config.whitelist)) {
         return new OriginalRTCPeerConnection(configuration, constraints);
+      }
+
+      // Enforce relay-only transport if configured
+      if (config.forceRelay) {
+        try {
+          const conf = configuration || {};
+          // Preserve provided configuration while enforcing policy
+          conf.iceTransportPolicy = 'relay';
+          configuration = conf;
+        } catch (e) {
+          // Ignore configuration enforcement errors
+        }
       }
 
       // Create the original peer connection
@@ -449,6 +464,15 @@ class WebRTCProtection {
 
     const candidateStr = candidate.candidate;
     
+    // Determine candidate type (host, srflx, relay)
+    const typeMatch = candidateStr.match(/ typ\s+(host|srflx|relay)\b/i);
+    const candType = typeMatch ? typeMatch[1].toLowerCase() : null;
+
+    // Drop non-relay candidates when requested
+    if (config.dropNonRelay && candType && candType !== 'relay') {
+      return null;
+    }
+
     // Parse the candidate string to extract IP
     const match = candidateStr.match(/candidate:\S+ \d+ \S+ \d+ (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) \d+/);
     

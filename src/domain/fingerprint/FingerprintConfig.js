@@ -195,7 +195,10 @@ class FingerprintConfig {
       mode: config.webrtc?.mode || 'replace',
       publicIP: config.webrtc?.publicIP || 'auto',
       localIP: config.webrtc?.localIP || '192.168.1.100',
-      whitelist: config.webrtc?.whitelist || []
+      whitelist: config.webrtc?.whitelist || [],
+      // Hardened options
+      dropNonRelay: config.webrtc?.dropNonRelay || false,
+      forceRelay: config.webrtc?.forceRelay || false
     };
 
     // ClientRects configuration (Req 14)

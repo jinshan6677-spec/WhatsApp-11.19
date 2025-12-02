@@ -9,6 +9,38 @@ const fs = require('fs').promises;
 const path = require('path');
 const { app } = require('electron');
 
+// IP address sanitization
+const IPV4_REGEX = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
+
+function maskIP(ip) {
+  try {
+    const parts = String(ip).split('.');
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.x.x`;
+    }
+  } catch (_) {}
+  return '[REDACTED_IP]';
+}
+
+function sanitizeValue(value) {
+  if (typeof value === 'string') {
+    return value.replace(IPV4_REGEX, (ip) => maskIP(ip));
+  }
+  return value;
+}
+
+function sanitizeObject(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((v) => (typeof v === 'object' ? sanitizeObject(v) : sanitizeValue(v)));
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = typeof v === 'object' ? sanitizeObject(v) : sanitizeValue(v);
+  }
+  return out;
+}
+
 /**
  * Error severity levels
  */
@@ -105,13 +137,16 @@ class ErrorLogger {
   async log(level, category, message, details = {}, error = null) {
     try {
       const timestamp = new Date().toISOString();
-      
+      // Sanitize message and details to avoid leaking IPs
+      const sanitizedMessage = sanitizeValue(message);
+      const sanitizedDetails = sanitizeObject(details);
+
       const logEntry = {
         timestamp,
         level,
         category,
-        message,
-        details,
+        message: sanitizedMessage,
+        details: sanitizedDetails,
         stack: error ? error.stack : null,
         pid: process.pid
       };
