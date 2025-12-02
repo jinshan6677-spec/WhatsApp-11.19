@@ -1020,6 +1020,8 @@
           return;
         }
         currentFingerprintConfig = fpResult.config;
+
+        // 指纹保存成功，统一在末尾重建视图以应用最新网络与指纹
       } catch (error) {
         console.error('[EnvironmentPanel] 保存指纹配置错误:', error);
         showFingerprintError('保存指纹配置失败: ' + error.message);
@@ -1027,7 +1029,16 @@
       }
     }
 
-    showFingerprintSuccess('配置已保存成功！指纹将在下次加载账号时生效。');
+    try {
+      const recreateResult = await window.electronAPI.recreateView(currentAccountId);
+      if (!recreateResult.success) {
+        console.warn('[EnvironmentPanel] 应用并保存后销毁并重建视图失败:', recreateResult.error);
+      }
+    } catch (e) {
+      console.warn('[EnvironmentPanel] 应用并保存后销毁并重建视图错误:', e);
+    }
+
+    showFingerprintSuccess('配置已保存成功！已重建视图并应用新的环境设置。');
   }
 
   /**
@@ -1221,6 +1232,15 @@
         currentFingerprintConfig = result.config;
         populateFingerprintForm(result.config);
         showFingerprintSuccess('模板已应用！');
+
+        try {
+          const recreateResult = await window.electronAPI.recreateView(currentAccountId);
+          if (!recreateResult.success) {
+            console.warn('[EnvironmentPanel] 模板应用后销毁并重建视图失败:', recreateResult.error);
+          }
+        } catch (e) {
+          console.warn('[EnvironmentPanel] 模板应用后销毁并重建视图错误:', e);
+        }
       } else {
         showFingerprintError('应用模板失败: ' + (result.error || '未知错误'));
       }

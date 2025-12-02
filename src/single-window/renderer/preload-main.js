@@ -209,6 +209,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * Recreate a view (destroy and create again)
+   * @param {string} accountId - Account ID
+   * @returns {Promise<Object>} Result with success status
+   */
+  recreateView: (accountId) => {
+    return ipcRenderer.invoke('account:recreate-view', accountId);
+  },
+
+  /**
    * Load a specific URL in a view
    * @param {string} accountId - Account ID
    * @param {string} url - URL to load
@@ -581,13 +590,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('fingerprint:apply', accountId, options);
   },
 
-  /**
-   * Delete fingerprint configuration for an account
-   * @param {string} accountId - Account ID
-   * @returns {Promise<Object>} Result with success status
-   */
   deleteFingerprint: (accountId) => {
     return ipcRenderer.invoke('fingerprint:delete', accountId);
+  },
+  updateFingerprint: (accountId) => {
+    return ipcRenderer.invoke('fingerprint:update', accountId);
   },
 
   /**
@@ -793,6 +800,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'fingerprint:preview',
       'fingerprint:getScript',
       'fingerprint:loadAll',
+      'fingerprint:update',
       // Fingerprint template channels
       'fingerprint:template:create',
       'fingerprint:template:apply',

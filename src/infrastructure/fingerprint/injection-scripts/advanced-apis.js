@@ -71,9 +71,9 @@ class AdvancedApisSpoof {
     // WebAssembly (Req 46)
     webAssembly: { enabled: true },
     // SharedArrayBuffer (Req 47)
-    sharedArrayBuffer: { enabled: false },
+    sharedArrayBuffer: { enabled: true },
     // Atomics (Req 47)
-    atomics: { enabled: false },
+    atomics: { enabled: true },
     // Credentials (Req 48)
     credentials: { enabled: false },
     // Payment (Req 49)

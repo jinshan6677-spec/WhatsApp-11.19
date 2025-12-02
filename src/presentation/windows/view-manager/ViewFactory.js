@@ -113,22 +113,32 @@ class ViewFactory {
     // When both are set, 'session' is ignored and a new session is created from 'partition'.
 
 
+    const additionalArgs = [`--account-id=${accountId}`];
+    if (config.fingerprint) {
+      try {
+        const fpArg = Buffer.from(JSON.stringify(config.fingerprint)).toString('base64');
+        additionalArgs.push(`--fp-config=${fpArg}`);
+      } catch (e) {
+        this.log('warn', `Failed to encode fingerprint for ${accountId}:`, e);
+      }
+    }
+
     const view = new BrowserView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        sandbox: false, // Must be false to allow preload script to inject content
+        sandbox: false,
         session: accountSession,
         webSecurity: true,
         allowRunningInsecureContent: false,
         preload: path.join(__dirname, '../../../preload-view.js'),
-        additionalArguments: [`--account-id=${accountId}`]
+        additionalArguments: additionalArgs
       }
     });
 
 
     // Set user agent if provided, otherwise use default WhatsApp-compatible UA
-    const userAgent = config.userAgent || this._getDefaultUserAgent();
+    const userAgent = (config.fingerprint && config.fingerprint.userAgent) || config.userAgent || this._getDefaultUserAgent();
     view.webContents.setUserAgent(userAgent);
 
     if (
@@ -150,6 +160,44 @@ class ViewFactory {
     if (config.fingerprint) {
       await this._injectFingerprint(view, accountId, config.fingerprint);
     }
+
+    // Stall recovery: if the page stays in loading state, clear SW/cache and reload
+    let stallTimer = null;
+    const scheduleStallRecovery = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(async () => {
+        try {
+          this.log('warn', `Stall detected, attempting recovery for ${accountId}`);
+          await accountSession.clearCache();
+          try {
+            await accountSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage', 'localstorage', 'indexdb'] });
+          } catch (e) {
+            this.log('warn', `Clear storage data failed for ${accountId}:`, e);
+          }
+          try {
+            await view.webContents.executeJavaScript(`(async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();regs.forEach(r=>r.unregister());}catch(e){}})();`, true);
+          } catch(e) {
+            this.log('debug', `SW unregister script skipped for ${accountId}`);
+          }
+          view.webContents.reloadIgnoringCache();
+        } catch (e) {
+          this.log('error', `Stall recovery failed for ${accountId}:`, e);
+        }
+      }, 30000);
+    };
+
+    view.webContents.on('dom-ready', () => scheduleStallRecovery());
+    // Short-time watchdog: try unregister SW if still not finished within 8s
+    setTimeout(async () => {
+      if (stallTimer) {
+        try {
+          this.log('warn', `Early watchdog running for ${accountId}`);
+          await view.webContents.executeJavaScript(`(async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();regs.forEach(r=>r.unregister());}catch(e){}})();`, true);
+        } catch(e) {}
+      }
+    }, 8000);
+    view.webContents.on('did-finish-load', () => { if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; } });
+    view.webContents.on('did-fail-load', () => scheduleStallRecovery());
 
     // Enable DevTools for debugging
     // This allows F12 to work on the BrowserView
@@ -174,6 +222,19 @@ class ViewFactory {
     }
 
     this.log('info', `BrowserView created for account ${accountId}`);
+
+    // Network/load diagnostics
+    view.webContents.on('did-fail-provisional-load', (event, errorCode, errorDescription, validatedURL) => {
+      this.log('error', `Provisional load failed for ${accountId}: ${errorCode} ${errorDescription} ${validatedURL}`);
+    });
+
+    view.webContents.on('did-start-navigation', (event, url, isInPlace, isMainFrame) => {
+      if (isMainFrame) this.log('info', `Main navigation started for ${accountId}: ${url}`);
+    });
+
+    view.webContents.on('did-stop-loading', () => {
+      this.log('info', `Stopped loading for ${accountId}`);
+    });
 
     return view;
   }
@@ -211,7 +272,7 @@ class ViewFactory {
       // Create FingerprintInjector instance
       const injector = new FingerprintInjector(fingerprintConfig, {
         minify: true,
-        includeWorkerInterceptor: true,
+        includeWorkerInterceptor: false,
         includeIframeProtection: true,
         strictMode: true
       });
@@ -223,7 +284,8 @@ class ViewFactory {
       }
 
       // Get the injection script
-      const injectionScript = injector.getInjectionScript();
+      const essentialModules = ['navigator','webgl','canvas','fonts','clientRects','timezone','geolocation','mediaDevices','webrtc','screen'];
+      const injectionScript = injector.getInjectionScript({ includeWorkerInterceptor: false, include: essentialModules });
       const generationTime = injector.getGenerationTime();
 
       this.log('debug', `Fingerprint script generated for ${accountId} in ${generationTime}ms`);
@@ -300,13 +362,14 @@ class ViewFactory {
       // Create new injector with updated config
       const injector = new FingerprintInjector(fingerprintConfig, {
         minify: true,
-        includeWorkerInterceptor: true,
+        includeWorkerInterceptor: false,
         includeIframeProtection: true,
         strictMode: true
       });
 
       // Get the injection script
-      const injectionScript = injector.getInjectionScript();
+      const essentialModules = ['navigator','webgl','canvas','fonts','clientRects','timezone','geolocation','mediaDevices','webrtc','screen'];
+      const injectionScript = injector.getInjectionScript({ includeWorkerInterceptor: false, include: essentialModules });
 
       // Execute the updated script immediately
       await view.webContents.executeJavaScript(injectionScript, true);

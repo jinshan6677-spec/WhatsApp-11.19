@@ -169,13 +169,29 @@ class ViewManager {
       }
 
       // Merge environment config with provided config
-      // Note: fingerprint配置已移除，作为专业指纹系统重构的一部分
-      // TODO: 新的指纹配置将在新指纹系统实现后添加
       const viewConfig = {
         ...config,
-        userAgent: config.userAgent, // 使用默认userAgent，新指纹系统将提供自定义UA
+        userAgent: config.userAgent,
         proxy: environmentConfig?.proxy
       };
+
+      // Load fingerprint configuration for this account
+      try {
+        const { FingerprintRepository } = require('../../../infrastructure/fingerprint/FingerprintRepository');
+        const repo = new FingerprintRepository();
+        const fpConfig = await repo.loadByAccountId(accountId);
+        if (fpConfig) {
+          viewConfig.fingerprint = fpConfig.toJSON();
+          if (!viewConfig.userAgent && fpConfig.userAgent) {
+            viewConfig.userAgent = fpConfig.userAgent;
+          }
+          this.log('info', `[ENV_DEBUG] Fingerprint loaded for ${accountId}`);
+        } else {
+          this.log('warn', `[ENV_DEBUG] No fingerprint found for ${accountId}`);
+        }
+      } catch (fpError) {
+        this.log('error', `[ENV_DEBUG] Failed to load fingerprint for ${accountId}:`, fpError);
+      }
 
       this.log('info', `[ENV_DEBUG] Final view config for ${accountId}:`, {
         userAgent: viewConfig.userAgent,

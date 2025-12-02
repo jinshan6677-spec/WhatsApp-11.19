@@ -11,12 +11,55 @@ const path = require('path');
 
 console.log('[Preload-View] Starting preload script for BrowserView');
 
-// Get account ID from command line args or environment
-const accountId = process.env.ACCOUNT_ID || 'unknown';
+// Get account ID from additional arguments or environment
+const accountArg = (process.argv || []).find(a => typeof a === 'string' && a.startsWith('--account-id='));
+const accountId = accountArg ? (accountArg.split('=')[1] || 'unknown') : (process.env.ACCOUNT_ID || 'unknown');
 console.log('[Preload-View] Account ID:', accountId);
 
 // Inject account ID into page
 window.ACCOUNT_ID = accountId;
+
+// Fingerprint injection
+try {
+  const fpArg = (process.argv || []).find(a => typeof a === 'string' && a.startsWith('--fp-config='));
+  let fpConfig = null;
+  if (fpArg) {
+    const encoded = fpArg.split('=')[1] || '';
+    if (encoded) {
+      fpConfig = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    }
+  }
+  const injectFingerprint = async (config) => {
+    if (!config) return;
+    try {
+      const { FingerprintInjector } = require('./infrastructure/fingerprint');
+      const { webFrame } = require('electron');
+      const injector = new FingerprintInjector(config, {
+        minify: true,
+        includeWorkerInterceptor: true,
+        includeIframeProtection: true,
+        strictMode: true
+      });
+      const essentialModules = ['navigator','webgl','canvas','fonts','clientRects','timezone','geolocation','mediaDevices','webrtc','screen'];
+      const injectionScript = injector.getInjectionScript({ minify: true, includeWorkerInterceptor: false, include: essentialModules });
+      await webFrame.executeJavaScript(injectionScript, true);
+      console.log('[Preload-View] ✓ Fingerprint injected at preload');
+    } catch (e) {
+      console.error('[Preload-View] ✗ Fingerprint preload injection failed:', e);
+    }
+  };
+  if (fpConfig) {
+    injectFingerprint(fpConfig);
+  } else {
+    ipcRenderer.invoke('fingerprint:get', accountId).then(res => {
+      if (res && res.success && res.config) {
+        injectFingerprint(res.config);
+      }
+    }).catch(() => {});
+  }
+} catch (e) {
+  console.error('[Preload-View] ✗ Fingerprint setup error:', e);
+}
 
 // Expose translation API to the page
 // Note: The IPCRouter expects payload as a single object, so we wrap parameters accordingly

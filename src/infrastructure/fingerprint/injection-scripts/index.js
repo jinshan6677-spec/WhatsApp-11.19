@@ -37,6 +37,7 @@ const { KeyboardSpoof, KeyboardSpoofError } = require('./keyboard');
 const { PerformanceSpoof, PerformanceSpoofError } = require('./performance');
 const { AdvancedApisSpoof, AdvancedApisSpoofError } = require('./advanced-apis');
 const { BrowserBehaviorSpoof, BrowserBehaviorSpoofError } = require('./browser-behavior');
+const { ScreenSpoof, ScreenSpoofError } = require('./screen');
 
 /**
  * Error class for script generation operations
@@ -81,7 +82,8 @@ class ScriptGenerator {
     keyboard: { spoof: KeyboardSpoof, configKey: 'keyboard' },
     performance: { spoof: PerformanceSpoof, configKey: 'performance' },
     advancedApis: { spoof: AdvancedApisSpoof, configKey: 'advancedApis' },
-    browserBehavior: { spoof: BrowserBehaviorSpoof, configKey: 'browserBehavior' }
+    browserBehavior: { spoof: BrowserBehaviorSpoof, configKey: 'browserBehavior' },
+    screen: { spoof: ScreenSpoof, configKey: 'hardware' }
   };
 
   /**
@@ -206,7 +208,16 @@ class ScriptGenerator {
     
     // Check if module has generateInjectionScript method
     if (typeof spoof.generateInjectionScript === 'function') {
-      const moduleConfig = ScriptGenerator._extractModuleConfig(fingerprintConfig, configKey);
+      let moduleConfig;
+      if (typeof spoof.fromFingerprintConfig === 'function') {
+        try {
+          moduleConfig = spoof.fromFingerprintConfig(fingerprintConfig);
+        } catch (e) {
+          moduleConfig = ScriptGenerator._extractModuleConfig(fingerprintConfig, configKey);
+        }
+      } else {
+        moduleConfig = ScriptGenerator._extractModuleConfig(fingerprintConfig, configKey);
+      }
       return `
   // === ${moduleName.toUpperCase()} SPOOFING ===
   ${spoof.generateInjectionScript(moduleConfig)}
@@ -538,6 +549,8 @@ module.exports = {
   // Browser behavior spoofing
   BrowserBehaviorSpoof,
   BrowserBehaviorSpoofError,
+  ScreenSpoof,
+  ScreenSpoofError,
   
   // Unified script generation
   ScriptGenerator,

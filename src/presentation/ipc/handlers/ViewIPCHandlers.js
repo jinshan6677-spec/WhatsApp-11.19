@@ -84,6 +84,35 @@ function register(dependencies) {
     }
   });
 
+  // Recreate a view (destroy and create again)
+  ipcMain.handle('account:recreate-view', async (event, accountId) => {
+    try {
+      if (!accountId) {
+        throw new Error('Account ID is required');
+      }
+
+      // If exists, destroy first
+      if (_viewManager.hasView(accountId)) {
+        const destroyed = await _viewManager.destroyView(accountId);
+        if (!destroyed) {
+          throw new Error('Failed to destroy existing view');
+        }
+      }
+
+      // Create new view and show
+      await _viewManager.createView(accountId, { url: 'https://web.whatsapp.com' });
+      const shown = await _viewManager.showView(accountId);
+      if (!shown) {
+        throw new Error('Failed to show recreated view');
+      }
+
+      return { success: true, accountId };
+    } catch (error) {
+      console.error('[IPC:View] Failed to recreate view:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Get login status for an account
   ipcMain.handle('account:login-status', async (event, accountId) => {
     try {
@@ -525,6 +554,7 @@ function register(dependencies) {
 function unregister() {
   ipcMain.removeHandler('account:view-status');
   ipcMain.removeHandler('account:reload-view');
+  ipcMain.removeHandler('account:recreate-view');
   ipcMain.removeHandler('account:login-status');
   ipcMain.removeHandler('account:load-url');
   ipcMain.removeHandler('get-view-bounds');

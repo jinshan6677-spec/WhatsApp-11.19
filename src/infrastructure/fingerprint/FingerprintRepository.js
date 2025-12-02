@@ -242,6 +242,12 @@ class FingerprintRepository {
     }
 
     const fingerprints = await this._load();
+
+    for (const [id, storedData] of fingerprints.entries()) {
+      if (storedData.accountId === config.accountId) {
+        fingerprints.delete(id);
+      }
+    }
     
     // Encrypt seed before storing
     const configData = this._encryptSeed(config);
@@ -294,15 +300,15 @@ class FingerprintRepository {
     }
 
     const fingerprints = await this._load();
-    
+    let match = null;
     for (const storedData of fingerprints.values()) {
       if (storedData.accountId === accountId) {
-        const configData = this._decryptSeed(storedData);
-        return FingerprintConfig.fromJSON(configData);
+        match = storedData;
       }
     }
-    
-    return null;
+    if (!match) return null;
+    const configData = this._decryptSeed(match);
+    return FingerprintConfig.fromJSON(configData);
   }
 
   /**

@@ -53,6 +53,43 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
   SystemIPCHandlers.register(dependencies);
   EnvironmentIPCHandlers.register(dependencies);
 
+  ipcMain.handle('fingerprint:update', async (event, accountId) => {
+    try {
+      if (!accountId) {
+        return { success: false, error: 'Account ID is required' };
+      }
+
+      const view = viewManager.getView(accountId);
+      if (!view || !view.webContents) {
+        return { success: false, error: 'View not found for account' };
+      }
+
+      const { FingerprintRepository } = require('../infrastructure/fingerprint/FingerprintRepository');
+      const repo = new FingerprintRepository();
+      const fpConfig = await repo.loadByAccountId(accountId);
+      if (!fpConfig) {
+        return { success: false, error: 'Fingerprint configuration not found' };
+      }
+
+      try {
+        if (fpConfig.userAgent) {
+          view.webContents.setUserAgent(fpConfig.userAgent);
+        }
+      } catch (_) {}
+
+      const result = await viewManager.viewFactory.updateFingerprint(
+        view,
+        accountId,
+        fpConfig.toJSON()
+      );
+
+      return result;
+    } catch (error) {
+      console.error('[IPC] fingerprint:update error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Register translation:apply-config handler
   ipcMain.handle('translation:apply-config', async (event, accountId, config) => {
     try {
@@ -173,6 +210,7 @@ function unregisterIPCHandlers() {
   ipcMain.removeHandler('translation:apply-config');
   ipcMain.removeHandler('translation:get-active-chat');
   ipcMain.removeHandler('get-translation-panel-layout');
+  ipcMain.removeHandler('fingerprint:update');
 
   // Remove translation panel resize listener
   ipcMain.removeAllListeners('translation-panel-resized');
