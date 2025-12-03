@@ -63,9 +63,6 @@ function getAllKeys(obj, prefix = '') {
   let keys = [];
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      if (key === '__proto__' || key === 'prototype' || key === 'constructor') {
-        continue;
-      }
       const fullKey = prefix ? `${prefix}.${key}` : key;
       keys.push(fullKey);
       if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
@@ -132,7 +129,7 @@ const nestedObjectArbitrary = fc.letrec(tie => ({
     items: fc.option(tie('array'), { nil: undefined })
   }),
   tree: fc.dictionary(
-    fc.string({ minLength: 1, maxLength: 10 }),
+    fc.string({ minLength: 1, maxLength: 10 }).filter((k) => k !== '__proto__'),
     fc.oneof(tie('leaf'), tie('array'), tie('node'))
   )
 })).tree;

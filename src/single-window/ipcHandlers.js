@@ -75,7 +75,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
         if (fpConfig.userAgent) {
           view.webContents.setUserAgent(fpConfig.userAgent);
         }
-      } catch (_) {}
+      } catch (_) { }
 
       const result = await viewManager.viewFactory.updateFingerprint(
         view,
@@ -93,24 +93,49 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
   // Register translation:apply-config handler
   ipcMain.handle('translation:apply-config', async (event, accountId, config) => {
     try {
+      console.log('[IPC] translation:apply-config called for account:', accountId);
+
       if (!accountId) {
+        console.error('[IPC] translation:apply-config: Account ID is required');
         return { success: false, error: 'Account ID is required' };
       }
 
       // Get the view for this account
       const view = viewManager.getView(accountId);
       if (!view || !view.webContents) {
+        console.error('[IPC] translation:apply-config: View not found for account:', accountId);
         return { success: false, error: 'View not found for account' };
       }
 
+      console.log('[IPC] translation:apply-config: Applying config to view:', {
+        accountId,
+        autoTranslate: config?.global?.autoTranslate,
+        groupTranslation: config?.global?.groupTranslation,
+        inputBoxEnabled: config?.inputBox?.enabled
+      });
+
       // Inject translation config into the view's webContents
-      await view.webContents.executeJavaScript(`
-        if (window.WhatsAppTranslation) {
-          window.WhatsAppTranslation.updateConfig(${JSON.stringify(config)});
-        }
+      const result = await view.webContents.executeJavaScript(`
+        (function() {
+          if (window.WhatsAppTranslation) {
+            console.log('[WhatsAppTranslation] Updating config from IPC:', ${JSON.stringify(config)});
+            window.WhatsAppTranslation.updateConfig(${JSON.stringify(config)});
+            console.log('[WhatsAppTranslation] Config updated successfully');
+            return { success: true, hasTranslation: true };
+          } else {
+            console.warn('[WhatsAppTranslation] WhatsAppTranslation not available yet');
+            return { success: false, hasTranslation: false, error: 'WhatsAppTranslation not initialized' };
+          }
+        })()
       `);
 
-      return { success: true };
+      if (result && result.success) {
+        console.log('[IPC] translation:apply-config: Config applied successfully to view');
+        return { success: true };
+      } else {
+        console.warn('[IPC] translation:apply-config: Failed to apply config:', result);
+        return result || { success: false, error: 'Unknown error' };
+      }
     } catch (error) {
       console.error('[IPC] translation:apply-config error:', error);
       return { success: false, error: error.message };

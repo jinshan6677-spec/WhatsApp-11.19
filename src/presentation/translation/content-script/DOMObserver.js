@@ -14,10 +14,10 @@ class DOMObserver {
     this.headerObserver = null;
     this._chineseBlockInitialized = false;
     this.chineseBlockHandler = null;
-    this.chineseBlockKeypressHandler = null;
-    this.chineseBlockClickHandler = null;
     this.chineseBlockMouseDownHandler = null;
-    this.chineseBlockInputMonitor = null;
+    this.chineseBlockClickHandler = null;
+    this.chineseBlockInputHandler = null;
+    this.lastBlockTimestamp = 0; // For deduplication
   }
 
   /**
@@ -96,7 +96,7 @@ class DOMObserver {
     // Method 1: Monitor contact ID changes by polling
     const checkContactChange = () => {
       const currentContactId = this.core.getCurrentContactId();
-      
+
       if (currentContactId && currentContactId !== lastContactId) {
         console.log('[Translation] 🔄 Chat switched detected!');
         console.log('[Translation] From:', lastContactId, '→ To:', currentContactId);
@@ -110,7 +110,7 @@ class DOMObserver {
         // Reinitialize after a short delay
         reinitTimer = setTimeout(() => {
           console.log('[Translation] Reinitializing translation for new chat...');
-          
+
           // Translate messages in new chat
           this.messageTranslator.translateExistingMessages();
 
@@ -121,7 +121,7 @@ class DOMObserver {
           // Re-setup input box and realtime translation
           this.inputBoxTranslator.initInputBoxTranslation();
           this.setupChineseBlock();
-          
+
           console.log('[Translation] ✅ Reinitialization complete');
         }, 300);
       }
@@ -181,7 +181,7 @@ class DOMObserver {
     // Cleanup old listeners
     this.cleanupChineseBlock();
 
-    console.log('[Translation] Setting up Chinese blocking with multi-layer defense');
+    console.log('[Translation] Setting up Chinese blocking (Event-Driven)');
 
     // Helper function to get input box
     const getInputBox = () => {
@@ -204,6 +204,28 @@ class DOMObserver {
       return inputBox.textContent || inputBox.innerText || '';
     };
 
+    // Helper function to update send button visual state
+    const updateSendButtonState = (hasChinese) => {
+      const sendButton = document.querySelector('[data-testid="send"]') ||
+        document.querySelector('button[aria-label*="发送"]') ||
+        document.querySelector('button[aria-label*="Send"]') ||
+        document.querySelector('span[data-icon="send"]')?.parentElement;
+
+      if (sendButton) {
+        if (hasChinese) {
+          // Visual cue only - button remains clickable for interception
+          sendButton.style.opacity = '0.5';
+          sendButton.setAttribute('data-chinese-blocked', 'true');
+        } else {
+          // Restore visual state
+          if (sendButton.getAttribute('data-chinese-blocked') === 'true') {
+            sendButton.style.opacity = '';
+            sendButton.removeAttribute('data-chinese-blocked');
+          }
+        }
+      }
+    };
+
     // Core function to check and block
     const checkAndBlock = (e, source) => {
       const inputBox = getInputBox();
@@ -218,10 +240,13 @@ class DOMObserver {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        // Show alert
-        const ui = new TranslationUI(this.core);
-        if (!document.querySelector('.wa-chinese-block-alert')) {
+        // Deduplication: only show alert if more than 300ms since last block
+        const now = Date.now();
+        if (now - this.lastBlockTimestamp > 300) {
+          // Show alert
+          const ui = new TranslationUI(this.core);
           ui.showChineseBlockAlert();
+          this.lastBlockTimestamp = now;
         }
 
         console.log(`[Translation] Blocked Chinese message send via ${source}`);
@@ -238,14 +263,7 @@ class DOMObserver {
       }
     };
 
-    // Layer 2: Intercept keypress event (backup)
-    this.chineseBlockKeypressHandler = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        checkAndBlock(e, 'Enter keypress');
-      }
-    };
-
-    // Layer 3: Intercept mousedown event (earlier than click)
+    // Layer 2: Intercept mousedown event on send button
     this.chineseBlockMouseDownHandler = (e) => {
       const target = e.target;
       const sendButton = target.closest('[data-testid="send"]') ||
@@ -258,7 +276,7 @@ class DOMObserver {
       }
     };
 
-    // Layer 4: Intercept click event (double insurance)
+    // Layer 3: Intercept click event on send button (backup)
     this.chineseBlockClickHandler = (e) => {
       const target = e.target;
       const sendButton = target.closest('[data-testid="send"]') ||
@@ -271,8 +289,8 @@ class DOMObserver {
       }
     };
 
-    // Layer 5: Continuously monitor input box, disable send button if Chinese detected
-    this.chineseBlockInputMonitor = setInterval(() => {
+    // Layer 4: Event-driven input monitoring (replaces polling)
+    this.chineseBlockInputHandler = () => {
       if (!this.shouldBlockChinese()) return;
 
       const inputBox = getInputBox();
@@ -281,39 +299,26 @@ class DOMObserver {
       const text = getInputText(inputBox);
       const hasChinese = this.core.containsChinese(text);
 
-      // Find send button
-      const sendButton = document.querySelector('[data-testid="send"]') ||
-        document.querySelector('button[aria-label*="发送"]') ||
-        document.querySelector('button[aria-label*="Send"]') ||
-        document.querySelector('span[data-icon="send"]')?.parentElement;
-
-      if (sendButton) {
-        if (hasChinese) {
-          // Visual hint only; keep pointer events so click handlers can show alert
-          sendButton.style.opacity = '0.6';
-          sendButton.style.cursor = 'not-allowed';
-          sendButton.setAttribute('data-chinese-blocked', 'true');
-        } else {
-          // Restore visuals
-          if (sendButton.getAttribute('data-chinese-blocked') === 'true') {
-            sendButton.style.opacity = '';
-            sendButton.style.cursor = '';
-            sendButton.removeAttribute('data-chinese-blocked');
-          }
-        }
-      }
-    }, 100); // Check every 100ms
+      // Update visual state only - button remains clickable
+      updateSendButtonState(hasChinese);
+    };
 
     // Add all listeners (use capture phase, highest priority)
     document.addEventListener('keydown', this.chineseBlockHandler, true);
-    document.addEventListener('keypress', this.chineseBlockKeypressHandler, true);
     document.addEventListener('mousedown', this.chineseBlockMouseDownHandler, true);
     document.addEventListener('click', this.chineseBlockClickHandler, true);
+
+    // Add input listener to input box
+    const inputBox = getInputBox();
+    if (inputBox) {
+      inputBox.addEventListener('input', this.chineseBlockInputHandler);
+      console.log('[Translation] Input event listener added to input box');
+    }
 
     // Mark as initialized
     this._chineseBlockInitialized = true;
 
-    console.log('[Translation] Chinese blocking enabled with 5-layer defense');
+    console.log('[Translation] Chinese blocking enabled (Event-Driven)');
   }
 
   /**
@@ -344,21 +349,21 @@ class DOMObserver {
       document.removeEventListener('keydown', this.chineseBlockHandler, true);
       this.chineseBlockHandler = null;
     }
-    if (this.chineseBlockKeypressHandler) {
-      document.removeEventListener('keypress', this.chineseBlockKeypressHandler, true);
-      this.chineseBlockKeypressHandler = null;
+    if (this.chineseBlockMouseDownHandler) {
+      document.removeEventListener('mousedown', this.chineseBlockMouseDownHandler, true);
+      this.chineseBlockMouseDownHandler = null;
     }
     if (this.chineseBlockClickHandler) {
       document.removeEventListener('click', this.chineseBlockClickHandler, true);
       this.chineseBlockClickHandler = null;
     }
-    if (this.chineseBlockMouseDownHandler) {
-      document.removeEventListener('mousedown', this.chineseBlockMouseDownHandler, true);
-      this.chineseBlockMouseDownHandler = null;
-    }
-    if (this.chineseBlockInputMonitor) {
-      clearInterval(this.chineseBlockInputMonitor);
-      this.chineseBlockInputMonitor = null;
+    if (this.chineseBlockInputHandler) {
+      // Remove from all input boxes
+      const allInputBoxes = document.querySelectorAll('[contenteditable="true"]');
+      allInputBoxes.forEach(inputBox => {
+        inputBox.removeEventListener('input', this.chineseBlockInputHandler);
+      });
+      this.chineseBlockInputHandler = null;
     }
   }
 

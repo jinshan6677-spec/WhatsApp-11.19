@@ -1029,19 +1029,40 @@
           await this.saveCurrentEngineConfig(inputBoxEngine);
         }
 
+        console.log('[TranslateSettingsPanel] Saving config for account:', this.accountId, newConfig);
         const response = await window.translationAPI.saveConfig(this.accountId, newConfig);
+
         if (response.success) {
+          console.log('[TranslateSettingsPanel] Config saved successfully');
           this.config = newConfig;
+
+          // 立即应用配置到视图
           if (this.applyConfigToView) {
-            await this.applyConfigToView(this.accountId, newConfig);
+            console.log('[TranslateSettingsPanel] Applying config to view...');
+            const applyResult = await this.applyConfigToView(this.accountId, newConfig);
+
+            if (applyResult && applyResult.success) {
+              console.log('[TranslateSettingsPanel] Config applied to view successfully');
+            } else {
+              console.warn('[TranslateSettingsPanel] Failed to apply config to view:', applyResult);
+              // 即使应用失败，也显示保存成功，因为配置已经保存
+              // 但在非自动保存模式下，提示用户可能需要刷新
+              if (!isAutoSave) {
+                this.showMessage('设置已保存，但应用到视图失败，请尝试刷新页面', 'error');
+                return;
+              }
+            }
+          } else {
+            console.warn('[TranslateSettingsPanel] applyConfigToView function not available');
           }
 
           if (isAutoSave) {
             this.showSaveStatus();
           } else {
-            this.showMessage('设置已保存', 'success');
+            this.showMessage('设置已保存并应用', 'success');
           }
         } else {
+          console.error('[TranslateSettingsPanel] Failed to save config:', response.error);
           this.showMessage('保存失败：' + (response.error || '未知错误'), 'error');
         }
       } catch (error) {
@@ -1127,33 +1148,33 @@
 
     async saveCurrentFriendConfig() {
       console.log('[TranslateSettingsPanel] Saving current friend config');
-      
+
       try {
         // Get current contact info
         const chatInfo = await this.getActiveChatInfo();
         const contactId = chatInfo.contactId;
-        
+
         if (!contactId) {
           console.warn('[TranslateSettingsPanel] No contact ID, cannot save friend config');
           return;
         }
-        
+
         // Get friend config values
         const enabled = this.panel.querySelector('#currentFriendEnabled')?.checked || false;
         const targetLang = this.panel.querySelector('#friendTargetLang')?.value || 'en';
         const blockChinese = this.panel.querySelector('#friendBlockChinese')?.checked || false;
-        
+
         console.log('[TranslateSettingsPanel] Friend config for', contactId, ':', {
           enabled,
           targetLang,
           blockChinese
         });
-        
+
         // Update config
         if (!this.config.friendConfigs) {
           this.config.friendConfigs = {};
         }
-        
+
         if (enabled) {
           // Save friend config
           this.config.friendConfigs[contactId] = {
@@ -1165,10 +1186,10 @@
           // Remove friend config if disabled
           delete this.config.friendConfigs[contactId];
         }
-        
+
         // Save to storage
         await this.saveSettings();
-        
+
         console.log('[TranslateSettingsPanel] ✓ Friend config saved successfully');
       } catch (error) {
         console.error('[TranslateSettingsPanel] Error saving friend config:', error);

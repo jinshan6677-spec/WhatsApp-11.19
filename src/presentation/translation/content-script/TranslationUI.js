@@ -345,16 +345,6 @@ class TranslationUI {
     }
   }
 
-  removeRealtimePreview() {
-    const previews = document.querySelectorAll('.wa-realtime-preview');
-    previews.forEach(p => p.remove());
-  }
-
-  removeReverseTranslation() {
-    const reverses = document.querySelectorAll('.wa-input-reverse-translation');
-    reverses.forEach(r => r.remove());
-  }
-
   /**
    * Inject styles
    */

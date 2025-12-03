@@ -71,7 +71,7 @@ class AccountConfig {
    */
   constructor(config = {}) {
     this.id = config.id || uuidv4();
-    this.name = config.name || `Account ${this.id.substring(0, 8)}`;
+    this.name = (config.name !== undefined && config.name !== null) ? config.name : `Account ${this.id.substring(0, 8)}`;
 
     // 从 WhatsApp Web 提取的真实信息（可选）
     this.phoneNumber = config.phoneNumber || '';
@@ -87,7 +87,7 @@ class AccountConfig {
     this.lastRunningStatus = config.lastRunningStatus || null;
 
     // 会话数据目录路径
-    this.sessionDir = config.sessionDir || `session-data/account-${this.id}`;
+    this.sessionDir = (config.sessionDir !== undefined && config.sessionDir !== null) ? config.sessionDir : `session-data/account-${this.id}`;
 
     // 翻译配置
     this.translation = {
@@ -242,7 +242,9 @@ class AccountConfig {
 
     // 验证翻译配置
     if (this.translation && this.translation.enabled) {
-      if (!['google', 'gpt4', 'gemini', 'deepseek'].includes(this.translation.engine)) {
+      const engine = this.translation.engine;
+
+      if (!['google', 'gpt4', 'gemini', 'deepseek'].includes(engine)) {
         errors.push('Invalid translation engine. Must be google, gpt4, gemini, or deepseek');
       }
 
@@ -250,14 +252,14 @@ class AccountConfig {
         errors.push('Target language is required when translation is enabled');
       }
 
-      // 某些引擎需要 API 密钥
-      if (['gpt4', 'gemini', 'deepseek'].includes(this.translation.engine)) {
+      // 非 Google 引擎需要 API 密钥（包括自定义/未知引擎）
+      if (engine && engine !== 'google') {
         if (
           !this.translation.apiKey ||
           typeof this.translation.apiKey !== 'string' ||
           this.translation.apiKey.trim().length === 0
         ) {
-          errors.push(`API key is required for ${this.translation.engine} translation engine`);
+          errors.push(`API key is required for ${engine} translation engine`);
         }
       }
     }

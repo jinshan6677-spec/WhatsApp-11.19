@@ -722,6 +722,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * Apply translation configuration to a view
+   * @param {string} accountId - Account ID
+   * @param {Object} config - Configuration object
+   * @returns {Promise<Object>} Result with success status
+   */
+  applyTranslationConfig: (accountId, config) => {
+    return ipcRenderer.invoke('translation:apply-config', accountId, config);
+  },
+
+  /**
    * Generic invoke method for IPC communication
    * @param {string} channel - IPC channel
    * @param {...any} args - Arguments to pass

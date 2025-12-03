@@ -14,9 +14,7 @@ class InputBoxTranslator {
     this.buttonMonitor = null;
     this.buttonCheckInterval = null;
     this.messageSentObserver = null;
-    this._sendKeydownHandler = null;
-    this._sendClickHandler = null;
-    this._sendMouseDownHandler = null;
+    this.languageCache = {};
   }
 
   /**
@@ -50,14 +48,15 @@ class InputBoxTranslator {
       console.log('[Translation] Input box translation disabled in config');
     }
 
+    // Setup message sent observer
+    this.setupMessageSentObserver(inputBox);
+
     // Setup realtime translation
     if (this.core.config && this.core.config.advanced && this.core.config.advanced.realtime) {
       this.setupRealtimeTranslation(inputBox);
     } else {
       this.cleanupRealtimeTranslation();
     }
-
-    this.setupSendCloseHandlers();
   }
 
   /**
@@ -186,7 +185,7 @@ class InputBoxTranslator {
 
     // Get text - handle multiple editor types
     let text = '';
-    
+
     console.log('[Translation] Input box attributes:', {
       hasLexical: inputBox.hasAttribute('data-lexical-editor'),
       contentEditable: inputBox.isContentEditable,
@@ -197,14 +196,14 @@ class InputBoxTranslator {
     // Method 1: Lexical editor (data-lexical-editor attribute)
     if (inputBox.hasAttribute('data-lexical-editor')) {
       console.log('[Translation] Using Lexical editor text extraction');
-      
+
       // Try to get text from paragraph elements
       const paragraphs = inputBox.querySelectorAll('p');
       if (paragraphs.length > 0) {
         text = Array.from(paragraphs).map(p => p.textContent || '').join('\n');
         console.log('[Translation] Got text from paragraphs:', paragraphs.length);
       }
-      
+
       // If no paragraphs, try span elements with data-text attribute
       if (!text) {
         const textSpans = inputBox.querySelectorAll('span[data-text="true"]');
@@ -213,7 +212,7 @@ class InputBoxTranslator {
           console.log('[Translation] Got text from data-text spans:', textSpans.length);
         }
       }
-      
+
       // Try all span elements
       if (!text) {
         const allSpans = inputBox.querySelectorAll('span');
@@ -222,7 +221,7 @@ class InputBoxTranslator {
           console.log('[Translation] Got text from all spans:', allSpans.length);
         }
       }
-      
+
       // Fallback to innerText/textContent
       if (!text) {
         text = inputBox.innerText || inputBox.textContent || '';
@@ -232,15 +231,15 @@ class InputBoxTranslator {
     // Method 2: Regular contenteditable
     else {
       console.log('[Translation] Using regular contenteditable text extraction');
-      
+
       // Try innerText first (preserves line breaks better)
       text = inputBox.innerText || '';
-      
+
       // Fallback to textContent
       if (!text) {
         text = inputBox.textContent || '';
       }
-      
+
       // Last resort: try to get from child elements
       if (!text) {
         const children = inputBox.querySelectorAll('p, div, span');
@@ -253,11 +252,11 @@ class InputBoxTranslator {
 
     // Clean up the text
     text = text.trim();
-    
+
     // Remove placeholder text if present
-    const placeholder = inputBox.getAttribute('data-placeholder') || 
-                       inputBox.getAttribute('placeholder') ||
-                       '输入消息';
+    const placeholder = inputBox.getAttribute('data-placeholder') ||
+      inputBox.getAttribute('placeholder') ||
+      '输入消息';
     if (text === placeholder) {
       console.log('[Translation] Removed placeholder text');
       text = '';
@@ -349,7 +348,7 @@ class InputBoxTranslator {
           // Direct result object
           translationResult = response;
         }
-        
+
         // Decode HTML entities
         const translatedText = this.core.decodeHTMLEntitiesInBrowser(translationResult.translatedText);
 
@@ -381,6 +380,13 @@ class InputBoxTranslator {
    */
   async detectChatLanguage() {
     try {
+      // Check cache first
+      const contactId = this.core.getCurrentContactId();
+      if (contactId && this.languageCache[contactId]) {
+        console.log('[Translation] Using cached language for contact:', contactId, this.languageCache[contactId]);
+        return this.languageCache[contactId];
+      }
+
       // Get recent incoming messages
       const incomingMessages = document.querySelectorAll('.message-in');
 
@@ -411,12 +417,15 @@ class InputBoxTranslator {
               detectedLang = result.language;
             }
           }
-          
+
           if (detectedLang) {
             console.log('[Translation] Detected language from message:', detectedLang, 'Text:', text.substring(0, 50));
 
             // If detected language is not Chinese, use this language
             if (!detectedLang.startsWith('zh')) {
+              if (contactId) {
+                this.languageCache[contactId] = detectedLang;
+              }
               return detectedLang;
             }
           }
@@ -424,6 +433,9 @@ class InputBoxTranslator {
       }
 
       // If other party also uses Chinese, default to English
+      if (contactId) {
+        this.languageCache[contactId] = 'en';
+      }
       return 'en';
 
     } catch (error) {
@@ -632,7 +644,7 @@ class InputBoxTranslator {
       } else {
         reverseError = 'Empty response';
       }
-      
+
       if (reverseResult) {
         const reverseText = reverseResult.translatedText;
 
@@ -776,11 +788,108 @@ class InputBoxTranslator {
   }
 
   /**
+   * Setup message sent observer
+   */
+  setupMessageSentObserver(inputBox) {
+    console.log('[Translation] Setting up message sent observer (Robust Version)');
+
+    // Cleanup old observer if exists
+    if (this.messageSentObserver) {
+      if (this.messageSentObserver.disconnect) {
+        this.messageSentObserver.disconnect();
+      }
+      this.messageSentObserver = null;
+    }
+
+    // Strategy 1: MutationObserver to detect when input box becomes empty
+    // This is the most reliable way to detect "sent" because WhatsApp clears the input box
+    const mutationObserver = new MutationObserver((mutations) => {
+      const currentText = inputBox.textContent || inputBox.innerText || '';
+      if (!currentText.trim()) {
+        console.log('[Translation] Input box became empty (MutationObserver) - clearing UI');
+        this.handleMessageSent();
+      }
+    });
+
+    mutationObserver.observe(inputBox, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+
+    // Strategy 2: Listen for Enter key on input box (Capture phase)
+    const enterKeyHandler = (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+        console.log('[Translation] Enter key detected (Capture phase)');
+        // We don't clear immediately, we wait for the input to actually clear or a short timeout
+        setTimeout(() => {
+          this.handleMessageSent();
+        }, 200);
+      }
+    };
+    // Use capture phase to ensure we get the event before WhatsApp potentially stops propagation
+    inputBox.addEventListener('keydown', enterKeyHandler, true);
+
+    // Strategy 3: Listen for click on send button (Capture phase on footer)
+    const footer = document.querySelector('#main footer') || document.querySelector('footer');
+
+    const sendButtonHandler = (event) => {
+      const target = event.target;
+      // Look for the send button (usually has specific icons or attributes)
+      // WhatsApp send button often contains a span with data-icon="send"
+      const sendButton = target.closest('[data-testid="send"], [aria-label="Send"], span[data-icon="send"]');
+
+      if (sendButton) {
+        console.log('[Translation] Send button click detected (Capture phase)');
+        setTimeout(() => {
+          this.handleMessageSent();
+        }, 200);
+      }
+    };
+
+    if (footer) {
+      footer.addEventListener('click', sendButtonHandler, true);
+    }
+
+    // Store cleanup function
+    this.messageSentObserver = {
+      disconnect: () => {
+        mutationObserver.disconnect();
+        inputBox.removeEventListener('keydown', enterKeyHandler, true);
+        if (footer) {
+          footer.removeEventListener('click', sendButtonHandler, true);
+        }
+      }
+    };
+  }
+
+  /**
+   * Handle message sent event
+   */
+  handleMessageSent() {
+    console.log('[Translation] Handling message sent - clearing UI');
+
+    // Clear realtime preview
+    if (this.ui && this.ui.hideRealtimePreview) {
+      this.ui.hideRealtimePreview();
+    }
+
+    // Remove reverse translation
+    const reverseDiv = document.querySelector('.wa-input-reverse-translation');
+    if (reverseDiv) {
+      reverseDiv.remove();
+    }
+
+    // Reset state
+    this.isTranslating = false;
+  }
+
+  /**
    * Setup realtime translation
    */
   setupRealtimeTranslation(inputBox) {
     console.log('[Translation] setupRealtimeTranslation called');
-    
+
     // Check if realtime translation is enabled
     if (!this.core.config.advanced.realtime) {
       this.cleanupRealtimeTranslation();
@@ -852,7 +961,7 @@ class InputBoxTranslator {
       // Show loading state
       this.ui.showRealtimePreview('翻译中...', true);
 
-      // Execute translation after 500ms
+      // Execute translation after 200ms
       debounceTimer = setTimeout(async () => {
         try {
           const contactId = this.core.getCurrentContactId();
@@ -908,7 +1017,7 @@ class InputBoxTranslator {
               // Direct result object
               translatedText = response.translatedText;
             }
-            
+
             if (translatedText) {
               this.ui.showRealtimePreview(translatedText, false);
             } else {
@@ -921,7 +1030,7 @@ class InputBoxTranslator {
           console.error('[Translation] Realtime translation error:', error);
           this.ui.showRealtimePreview('翻译失败: ' + error.message, false, true);
         }
-      }, 500);
+      }, 200);
     };
 
     // Add listener to the current input box
@@ -945,7 +1054,7 @@ class InputBoxTranslator {
    */
   cleanupRealtimeTranslation() {
     console.log('[Translation] Cleaning up realtime translation');
-    
+
     // Remove old listener from ALL possible input boxes
     if (this.realtimeInputHandler) {
       // Find all input boxes in the document
@@ -953,103 +1062,15 @@ class InputBoxTranslator {
       allInputBoxes.forEach(inputBox => {
         inputBox.removeEventListener('input', this.realtimeInputHandler);
       });
-      
+
       console.log('[Translation] Removed realtime listener from all input boxes');
       this.realtimeInputHandler = null;
     }
 
     // DON'T remove preview element during cleanup
     // It will be recreated by setupRealtimeTranslation
-    
+
     this._realtimeInitialized = false;
-  }
-
-  setupSendCloseHandlers() {
-    if (this._sendKeydownHandler) {
-      document.removeEventListener('keydown', this._sendKeydownHandler, true);
-    }
-    if (this._sendClickHandler) {
-      document.removeEventListener('click', this._sendClickHandler, true);
-    }
-    if (this._sendMouseDownHandler) {
-      document.removeEventListener('mousedown', this._sendMouseDownHandler, true);
-    }
-
-    const getInputBox = () => {
-      return document.querySelector('#main footer [contenteditable="true"]') ||
-        document.querySelector('footer [contenteditable="true"]') ||
-        document.querySelector('[data-testid="conversation-compose-box-input"]') ||
-        document.querySelector('#main footer div[contenteditable="true"]') ||
-        document.querySelector('div[contenteditable="true"][data-tab="10"]') ||
-        document.querySelector('div[contenteditable="true"][role="textbox"]');
-    };
-
-    this._sendKeydownHandler = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        setTimeout(() => {
-          this.ui.hideRealtimePreview();
-          this.ui.removeRealtimePreview();
-          this.ui.removeReverseTranslation();
-        }, 0);
-      }
-    };
-    document.addEventListener('keydown', this._sendKeydownHandler, true);
-
-    this._sendMouseDownHandler = (e) => {
-      const target = e.target;
-      const sendButton = target.closest('[data-testid="send"]') ||
-        target.closest('button[aria-label*="发送"]') ||
-        target.closest('button[aria-label*="Send"]') ||
-        target.closest('span[data-icon="send"]')?.parentElement;
-      if (sendButton) {
-        setTimeout(() => {
-          this.ui.hideRealtimePreview();
-          this.ui.removeRealtimePreview();
-          this.ui.removeReverseTranslation();
-        }, 0);
-      }
-    };
-    document.addEventListener('mousedown', this._sendMouseDownHandler, true);
-
-    this._sendClickHandler = (e) => {
-      const target = e.target;
-      const sendButton = target.closest('[data-testid="send"]') ||
-        target.closest('button[aria-label*="发送"]') ||
-        target.closest('button[aria-label*="Send"]') ||
-        target.closest('span[data-icon="send"]')?.parentElement;
-      if (sendButton) {
-        setTimeout(() => {
-          this.ui.hideRealtimePreview();
-          this.ui.removeRealtimePreview();
-          this.ui.removeReverseTranslation();
-        }, 0);
-      }
-    };
-    document.addEventListener('click', this._sendClickHandler, true);
-
-    if (this.messageSentObserver) {
-      this.messageSentObserver.disconnect();
-    }
-    const main = document.querySelector('#main');
-    if (main) {
-      this.messageSentObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          for (const node of mutation.addedNodes) {
-            if (node.nodeType === 1) {
-              const isOut = node.classList && node.classList.contains('message-out');
-              const outChildren = node.querySelectorAll && node.querySelectorAll('.message-out').length > 0;
-              if (isOut || outChildren) {
-                this.ui.hideRealtimePreview();
-                this.ui.removeRealtimePreview();
-                this.ui.removeReverseTranslation();
-                return;
-              }
-            }
-          }
-        }
-      });
-      this.messageSentObserver.observe(main, { childList: true, subtree: true });
-    }
   }
 
   /**
@@ -1071,19 +1092,6 @@ class InputBoxTranslator {
     if (this.messageSentObserver) {
       this.messageSentObserver.disconnect();
       this.messageSentObserver = null;
-    }
-
-    if (this._sendKeydownHandler) {
-      document.removeEventListener('keydown', this._sendKeydownHandler, true);
-      this._sendKeydownHandler = null;
-    }
-    if (this._sendClickHandler) {
-      document.removeEventListener('click', this._sendClickHandler, true);
-      this._sendClickHandler = null;
-    }
-    if (this._sendMouseDownHandler) {
-      document.removeEventListener('mousedown', this._sendMouseDownHandler, true);
-      this._sendMouseDownHandler = null;
     }
 
     const button = document.getElementById('wa-translate-btn');
