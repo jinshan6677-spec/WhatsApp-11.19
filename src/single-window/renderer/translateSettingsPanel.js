@@ -21,7 +21,10 @@
       realtime: false,
       reverseTranslation: false,
       voiceTranslation: false,
-      imageTranslation: false
+      imageTranslation: false,
+      groqApiKey: '',
+      groqModel: 'whisper-large-v3',
+      groqTextModel: 'llama-3.1-70b-versatile'
     },
     friendConfigs: {}
   };
@@ -576,7 +579,27 @@
                   </label>
                   <span class="setting-title">语音翻译</span>
                 </label>
-                <p class="setting-desc">启用后可翻译语音消息（使用浏览器语音识别）</p>
+                <p class="setting-desc">启用后可翻译语音消息（使用 Groq API）</p>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-title">Groq API 密钥</label>
+                <input type="password" id="groqApiKey" class="setting-input" placeholder="输入 Groq API Key">
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-title">Groq STT 模型</label>
+                <input type="text" id="groqSttModel" class="setting-input" placeholder="whisper-large-v3">
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-title">Groq 文本模型</label>
+                <input type="text" id="groqTextModel" class="setting-input" placeholder="llama-3.1-70b-versatile">
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-title">Groq 文本模型（备用）</label>
+                <input type="text" id="groqTextModelFallback" class="setting-input" placeholder="llama-3.1-8b-instant">
               </div>
             </div>
             
@@ -716,6 +739,7 @@
         '#inputBoxEnabled', '#inputBoxEngine', '#inputBoxTargetLang', '#translationStyle',
         '#blockChinese', '#friendIndependent', '#realtimeTranslation', '#reverseTranslation',
         '#voiceTranslation',
+        '#groqApiKey', '#groqSttModel', '#groqTextModel', '#groqTextModelFallback',
         '#apiKey', '#apiEndpoint', '#apiModel'
       ];
 
@@ -860,6 +884,14 @@
       this.panel.querySelector('#realtimeTranslation').checked = !!this.config.advanced.realtime;
       this.panel.querySelector('#reverseTranslation').checked = !!this.config.advanced.reverseTranslation;
       this.panel.querySelector('#voiceTranslation').checked = !!this.config.advanced.voiceTranslation;
+      const groqApiKeyEl = this.panel.querySelector('#groqApiKey');
+      const groqSttModelEl = this.panel.querySelector('#groqSttModel');
+      const groqTextModelEl = this.panel.querySelector('#groqTextModel');
+      const groqTextModelFallbackEl = this.panel.querySelector('#groqTextModelFallback');
+      if (groqApiKeyEl) groqApiKeyEl.value = this.config.advanced.groqApiKey || '';
+      if (groqSttModelEl) groqSttModelEl.value = this.config.advanced.groqModel || 'whisper-large-v3';
+      if (groqTextModelEl) groqTextModelEl.value = this.config.advanced.groqTextModel || 'llama-3.1-70b-versatile';
+      if (groqTextModelFallbackEl) groqTextModelFallbackEl.value = this.config.advanced.groqTextModelFallback || 'llama-3.1-8b-instant';
 
       this.updateFriendConfigVisibility();
       this.updateTranslationStyleVisibility();
@@ -1018,14 +1050,18 @@
             engine: this.panel.querySelector('#inputBoxEngine').value,
             style: this.panel.querySelector('#translationStyle').value,
             targetLang: this.panel.querySelector('#inputBoxTargetLang').value
-          },
+        },
           advanced: {
             friendIndependent: this.panel.querySelector('#friendIndependent').checked,
             blockChinese: this.panel.querySelector('#blockChinese').checked,
             realtime: this.panel.querySelector('#realtimeTranslation').checked,
             reverseTranslation: this.panel.querySelector('#reverseTranslation').checked,
             voiceTranslation: this.panel.querySelector('#voiceTranslation').checked,
-            imageTranslation: false
+            imageTranslation: false,
+            groqApiKey: this.panel.querySelector('#groqApiKey').value,
+            groqModel: this.panel.querySelector('#groqSttModel').value || 'whisper-large-v3',
+            groqTextModel: this.panel.querySelector('#groqTextModel').value || 'llama-3.1-70b-versatile',
+            groqTextModelFallback: this.panel.querySelector('#groqTextModelFallback').value || 'llama-3.1-8b-instant'
           },
           friendConfigs: this.config.friendConfigs || {}
         };

@@ -6,12 +6,12 @@ const VoiceTranslationModule = require('./VoiceTranslationModule');
 const AudioInterceptor = require('./AudioInterceptor');
 const SilentPlaybackController = require('./SilentPlaybackController');
 const AudioDownloader = require('./AudioDownloader');
-const WebSpeechSTT = require('./WebSpeechSTT');
+const GroqSTT = require('./GroqSTT');
 
 module.exports = {
     VoiceTranslationModule,
     AudioInterceptor,
     SilentPlaybackController,
     AudioDownloader,
-    WebSpeechSTT
+    GroqSTT
 };

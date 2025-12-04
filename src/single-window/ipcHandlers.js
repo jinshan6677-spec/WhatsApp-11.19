@@ -142,8 +142,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
     }
   });
 
-  // Register STT handler for Hugging Face API (绕过 CORS 限制)
-  ipcMain.handle('stt:huggingface', async (event, { audioBlob, apiKey, model }) => {
+  ipcMain.handle('stt:groq', async (event, { audioBlob, apiKey, model }) => {
     try {
       console.log('[IPC] stt:groq: 收到 STT 请求');
       console.log('[IPC] stt:groq: 模型:', model);
@@ -164,7 +163,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
         filename: 'audio.mp4',
         contentType: 'audio/mp4'
       });
-      formData.append('model', 'whisper-large-v3');
+      formData.append('model', model || 'whisper-large-v3');
       formData.append('response_format', 'json');
 
       const response = await fetch(apiUrl, {
@@ -206,6 +205,44 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
         error: error.message,
         retryable: false
       };
+    }
+  });
+
+  ipcMain.handle('llm:groq-translate', async (event, { apiKey, model, prompt }) => {
+    try {
+      const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+      const fetch = require('node-fetch');
+
+      const body = {
+        model: model || 'llama-3.1-70b-versatile',
+        messages: [
+          { role: 'system', content: 'You are a professional translator. Output only translated text.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 2000,
+        temperature: 0.3
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const text = data?.choices?.[0]?.message?.content || '';
+
+      return { success: true, text };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   });
 
@@ -303,7 +340,8 @@ function unregisterIPCHandlers() {
   ipcMain.removeHandler('translation:get-active-chat');
   ipcMain.removeHandler('get-translation-panel-layout');
   ipcMain.removeHandler('fingerprint:update');
-  ipcMain.removeHandler('stt:huggingface');
+  ipcMain.removeHandler('stt:groq');
+  ipcMain.removeHandler('llm:groq-translate');
 
   // Remove translation panel resize listener
   ipcMain.removeAllListeners('translation-panel-resized');

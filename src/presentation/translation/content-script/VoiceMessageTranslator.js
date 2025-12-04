@@ -31,16 +31,17 @@ class VoiceMessageTranslator {
                 return null;
             }
 
+            const adv = (this.core && this.core.config && this.core.config.advanced) || {};
             this.voiceTranslator = new VoiceTranslationModule({
                 translationAPI: window.translationAPI,
                 config: {
                     sourceLang: this.core.config.global.sourceLang,
                     targetLang: this.core.config.global.targetLang,
                     engine: this.core.config.global.engine,
-                    // STT 配置 - 使用 Groq API
-                    sttProvider: 'huggingface', // 保持名称以兼容现有代码
-                    huggingfaceApiKey: 'YOUR_API_KEY_HERE', // 请替换为实际的API密钥
-                    huggingfaceModel: 'whisper-large-v3'
+                    groqApiKey: adv.groqApiKey || '',
+                    groqModel: adv.groqModel || 'whisper-large-v3',
+                    groqTextModel: adv.groqTextModel || 'llama-3.1-70b-versatile',
+                    groqTextModelFallback: adv.groqTextModelFallback || 'llama-3.1-8b-instant'
                 }
             });
 
@@ -57,7 +58,11 @@ class VoiceMessageTranslator {
     const cfg = {
       sourceLang: this.core && this.core.config && this.core.config.global ? this.core.config.global.sourceLang : newConfig.sourceLang,
       targetLang: this.core && this.core.config && this.core.config.global ? this.core.config.global.targetLang : newConfig.targetLang,
-      engine: this.core && this.core.config && this.core.config.global ? this.core.config.global.engine : newConfig.engine
+      engine: this.core && this.core.config && this.core.config.global ? this.core.config.global.engine : newConfig.engine,
+      groqApiKey: this.core && this.core.config && this.core.config.advanced ? this.core.config.advanced.groqApiKey : newConfig.groqApiKey,
+      groqModel: this.core && this.core.config && this.core.config.advanced ? this.core.config.advanced.groqModel : newConfig.groqModel,
+      groqTextModel: this.core && this.core.config && this.core.config.advanced ? this.core.config.advanced.groqTextModel : newConfig.groqTextModel,
+      groqTextModelFallback: this.core && this.core.config && this.core.config.advanced ? this.core.config.advanced.groqTextModelFallback : newConfig.groqTextModelFallback
     };
     if (this.voiceTranslator && typeof this.voiceTranslator.updateConfig === 'function') {
       this.voiceTranslator.updateConfig(cfg);

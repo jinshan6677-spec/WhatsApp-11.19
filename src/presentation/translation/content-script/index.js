@@ -146,15 +146,19 @@
         }
 
         const vEnabled = !!(config && config.advanced && config.advanced.voiceTranslation);
-        if (vEnabled) {
-          if (!this.voiceTranslator && typeof window.VoiceMessageTranslator !== 'undefined') {
-            this.voiceTranslator = new window.VoiceMessageTranslator(this.core, this.ui);
-            this.voiceTranslator.startObserving();
-          } else if (this.voiceTranslator) {
+          if (vEnabled) {
+            if (!this.voiceTranslator && typeof window.VoiceMessageTranslator !== 'undefined') {
+              this.voiceTranslator = new window.VoiceMessageTranslator(this.core, this.ui);
+              this.voiceTranslator.startObserving();
+            } else if (this.voiceTranslator) {
             this.voiceTranslator.updateConfig({
               sourceLang: config.global && config.global.sourceLang,
               targetLang: config.global && config.global.targetLang,
-              engine: config.global && config.global.engine
+              engine: config.global && config.global.engine,
+              groqApiKey: config.advanced && config.advanced.groqApiKey,
+              groqModel: config.advanced && config.advanced.groqModel,
+              groqTextModel: config.advanced && config.advanced.groqTextModel,
+              groqTextModelFallback: config.advanced && config.advanced.groqTextModelFallback
             });
             this.voiceTranslator.addTranslateButtons();
           }

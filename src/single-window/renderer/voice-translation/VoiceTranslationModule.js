@@ -13,25 +13,14 @@ class VoiceTranslationModule {
         this.playbackController = new window.SilentPlaybackController();
         this.audioDownloader = new window.AudioDownloader();
 
-        // 根据配置选择 STT 提供商
-        const sttProvider = this.config.sttProvider || 'webspeech';
-        console.log('[VoiceTranslationModule] 使用 STT 提供商:', sttProvider);
-
-        if (sttProvider === 'huggingface' && window.HuggingFaceSTT) {
-            this.stt = new window.HuggingFaceSTT({
-                apiKey: this.config.huggingfaceApiKey || '',
-                model: this.config.huggingfaceModel || 'openai/whisper-large-v3'
-            });
-            console.log('[VoiceTranslationModule] 使用 Hugging Face STT');
-        } else {
-            this.stt = new window.WebSpeechSTT({
-                defaultLanguage: this.config.sourceLang || 'auto'
-            });
-            console.log('[VoiceTranslationModule] 使用 Web Speech STT');
-        }
+        this.stt = new window.GroqSTT({
+            apiKey: this.config.groqApiKey || '',
+            model: this.config.groqModel || 'whisper-large-v3'
+        });
 
         this.isInitialized = false;
         this.isTranslating = false;
+        this.queue = [];
     }
 
     /**
@@ -47,9 +36,8 @@ class VoiceTranslationModule {
             // 设置音频拦截器
             this.audioInterceptor.setup();
 
-            // 检查 Web Speech API 支持
             if (!this.stt.isSupported()) {
-                console.warn('[VoiceTranslationModule] 浏览器不支持 Web Speech API，语音翻译功能将不可用');
+                console.warn('[VoiceTranslationModule] STT 不可用');
             }
 
             this.isInitialized = true;
@@ -78,75 +66,82 @@ class VoiceTranslationModule {
         if (!this.isAvailable()) {
             throw new Error('语音翻译功能不可用');
         }
+        return new Promise((resolve, reject) => {
+            this.queue.push({ messageElement, options, resolve, reject });
+            this.processQueue();
+        });
+    }
 
-        if (this.isTranslating) {
-            throw new Error('正在翻译其他语音消息，请稍候');
-        }
-
+    async processQueue() {
+        if (this.isTranslating) return;
+        const task = this.queue.shift();
+        if (!task) return;
+        const { messageElement, options, resolve, reject } = task;
+        this.isTranslating = true;
         try {
-            this.isTranslating = true;
-            console.log('[VoiceTranslationModule] 开始翻译语音消息');
-
-            // 步骤 1: 触发静默播放并捕获 blob URL
-            console.log('[VoiceTranslationModule] 步骤 1: 触发静默播放');
-            const blobUrl = await this.playbackController.triggerSilentPlayback(messageElement);
-
-            // 步骤 2: 下载音频
-            console.log('[VoiceTranslationModule] 步骤 2: 下载音频');
-            const audioBlob = await this.audioDownloader.download(blobUrl);
-
-            // 步骤 3: 语音识别
-            console.log('[VoiceTranslationModule] 步骤 3: 语音识别');
-            const sourceLang = options.sourceLang || this.config.sourceLang || 'auto';
-            // 在识别期间启用静默模式，防止任何潜在的播放
-            window.__SILENT_PLAYBACK_MODE__ = true;
-            this.playbackController.enableGlobalSilentUI();
-            let originalText;
-            try {
-                originalText = await this.stt.transcribeFromBlob(audioBlob, sourceLang);
-            } finally {
-                window.__SILENT_PLAYBACK_MODE__ = false;
-                this.playbackController.disableGlobalSilentUI();
-            }
-
-            if (!originalText || originalText.trim().length === 0) {
-                throw new Error('未能识别语音内容，请确保语音清晰');
-            }
-
-            console.log('[VoiceTranslationModule] 识别结果:', originalText);
-
-            // 步骤 4: 翻译文本
-            console.log('[VoiceTranslationModule] 步骤 4: 翻译文本');
-            const targetLang = options.targetLang || this.config.targetLang || 'zh-CN';
-            const engine = options.engine || this.config.engine || 'google';
-
-            const translationResult = await this.translateText(
-                originalText,
-                sourceLang,
-                targetLang,
-                engine
-            );
-
-            // 返回完整结果
-            const result = {
-                original: originalText,
-                translated: translationResult.translatedText || translationResult,
-                sourceLang: translationResult.detectedLanguage || sourceLang,
-                targetLang: targetLang,
-                engine: engine
-            };
-
-            console.log('[VoiceTranslationModule] 翻译完成:', result);
-            return result;
-
-        } catch (error) {
-            console.error('[VoiceTranslationModule] 翻译失败:', error);
-            throw error;
+            const result = await this.doTranslateVoiceMessage(messageElement, options);
+            resolve(result);
+        } catch (err) {
+            reject(err);
         } finally {
             this.isTranslating = false;
-            // 停止播放
             this.playbackController.stopPlayback();
+            // 继续处理下一个
+            this.processQueue();
         }
+    }
+
+    async doTranslateVoiceMessage(messageElement, options = {}) {
+        console.log('[VoiceTranslationModule] 开始翻译语音消息');
+
+        // 步骤 1: 触发静默播放并捕获 blob URL
+        console.log('[VoiceTranslationModule] 步骤 1: 触发静默播放');
+        const blobUrl = await this.playbackController.triggerSilentPlayback(messageElement);
+
+        // 步骤 2: 下载音频
+        console.log('[VoiceTranslationModule] 步骤 2: 下载音频');
+        const audioBlob = await this.audioDownloader.download(blobUrl);
+
+        // 步骤 3: 语音识别
+        console.log('[VoiceTranslationModule] 步骤 3: 语音识别');
+        const sourceLang = options.sourceLang || this.config.sourceLang || 'auto';
+        window.__SILENT_PLAYBACK_MODE__ = true;
+        this.playbackController.enableGlobalSilentUI();
+        let originalText;
+        try {
+            originalText = await this.stt.transcribeFromBlob(audioBlob, sourceLang);
+        } finally {
+            window.__SILENT_PLAYBACK_MODE__ = false;
+            this.playbackController.disableGlobalSilentUI();
+        }
+
+        if (!originalText || originalText.trim().length === 0) {
+            throw new Error('未能识别语音内容，请确保语音清晰');
+        }
+
+        console.log('[VoiceTranslationModule] 识别结果:', originalText);
+
+        // 步骤 4: 翻译文本
+        console.log('[VoiceTranslationModule] 步骤 4: 翻译文本');
+        const targetLang = options.targetLang || this.config.targetLang || 'zh-CN';
+        const engine = options.engine || this.config.engine || 'google';
+
+        const translationResult = await this.translateText(
+            originalText,
+            sourceLang,
+            targetLang,
+            engine
+        );
+
+        const result = {
+            original: originalText,
+            translated: translationResult.translatedText || translationResult,
+            sourceLang: translationResult.detectedLanguage || sourceLang,
+            targetLang: targetLang,
+            engine: engine
+        };
+        console.log('[VoiceTranslationModule] 翻译完成:', result);
+        return result;
     }
 
     /**
@@ -159,14 +154,24 @@ class VoiceTranslationModule {
      */
     async translateText(text, sourceLang, targetLang, engine) {
         try {
-            console.log('[VoiceTranslationModule] 翻译文本:', text);
+            const apiKey = this.config.groqApiKey || '';
+            const model = this.config.groqTextModel || 'llama-3.1-70b-versatile';
 
-            // 由于 IPC 验证问题，直接使用降级方案（Google 翻译）
-            console.log('[VoiceTranslationModule] 使用 Google 翻译降级方案');
-            return await this.fallbackTranslate(text, sourceLang, targetLang);
+            if (!apiKey) {
+                throw new Error('未配置 Groq API Key');
+            }
+
+            const prompt = `请将以下文本从${sourceLang}翻译成${targetLang}，只输出译文：\n\n${text}`;
+            const res = await window.llmAPI.translateWithGroq(apiKey, model, prompt);
+            if (!res.success) {
+                return await this.fallbackTranslate(text, sourceLang, targetLang);
+            }
+            return {
+                translatedText: res.text,
+                detectedLanguage: sourceLang
+            };
         } catch (error) {
-            console.error('[VoiceTranslationModule] 文本翻译失败:', error);
-            throw new Error(`翻译失败: ${error.message}`);
+            return await this.fallbackTranslate(text, sourceLang, targetLang);
         }
     }
 
@@ -178,31 +183,39 @@ class VoiceTranslationModule {
      * @returns {Promise<Object>}
      */
     async fallbackTranslate(text, sourceLang, targetLang) {
-        try {
-            console.log('[VoiceTranslationModule] 调用 Google 翻译 API');
-
-            // 使用 Google 翻译免费 API
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Google 翻译 API 错误: ${response.status}`);
+        const apiKey = this.config.groqApiKey || '';
+        const model = this.config.groqTextModelFallback || 'llama-3.1-8b-instant';
+        if (apiKey) {
+            const prompt = `请将以下文本从${sourceLang}翻译成${targetLang}，只输出译文：\n\n${text}`;
+            const res = await window.llmAPI.translateWithGroq(apiKey, model, prompt);
+            if (res && res.success) {
+                return {
+                    translatedText: res.text,
+                    detectedLanguage: sourceLang
+                };
             }
-
-            const data = await response.json();
-
-            // Google 翻译 API 返回格式: [[[翻译文本, 原文本, null, null, 10]], null, "源语言"]
-            if (data && data[0] && data[0][0] && data[0][0][0]) {
-                const translatedText = data[0].map(item => item[0]).join('');
-                console.log('[VoiceTranslationModule] ✓ Google 翻译成功:', translatedText);
-                return translatedText;
-            } else {
-                throw new Error('Google 翻译返回格式不正确');
-            }
-        } catch (error) {
-            console.error('[VoiceTranslationModule] Google 翻译失败:', error);
-            throw new Error(`翻译服务不可用: ${error.message}`);
         }
+        return await this.fallbackGoogleTranslate(text, sourceLang, targetLang);
+    }
+
+    async fallbackGoogleTranslate(text, sourceLang, targetLang) {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+        const response = await (typeof window !== 'undefined' && window.fetch ? window.fetch(url) : Promise.reject(new Error('网络不可用')));
+        if (!response || !response.ok) {
+            const status = response && response.status ? response.status : 0;
+            throw new Error(`Google 翻译 API 错误: ${status}`);
+        }
+        const data = await response.json();
+        if (data && data[0] && Array.isArray(data[0])) {
+            const translatedText = data[0].map(item => item[0]).join('');
+            if (translatedText) {
+                return {
+                    translatedText,
+                    detectedLanguage: sourceLang
+                };
+            }
+        }
+        throw new Error('Google 翻译返回格式不正确');
     }
 
     /**
@@ -211,6 +224,12 @@ class VoiceTranslationModule {
      */
     updateConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
+        if (this.stt && typeof this.stt.updateConfig === 'function') {
+            this.stt.updateConfig({
+                apiKey: this.config.groqApiKey,
+                model: this.config.groqModel
+            });
+        }
         console.log('[VoiceTranslationModule] 配置已更新:', this.config);
     }
 

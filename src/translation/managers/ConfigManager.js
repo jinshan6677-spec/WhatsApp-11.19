@@ -76,10 +76,10 @@ class ConfigManager {
         reverseTranslation: false,
         voiceTranslation: false,
         imageTranslation: false,
-        // 语音翻译 STT 配置
-        sttProvider: 'huggingface', // 'webspeech' | 'huggingface'
-        huggingfaceApiKey: '',
-        huggingfaceModel: 'openai/whisper-large-v3'
+        groqApiKey: '',
+        groqModel: 'whisper-large-v3',
+        groqTextModel: 'llama-3.1-70b-versatile',
+        groqTextModelFallback: 'llama-3.1-8b-instant'
       },
       friendConfigs: {}
     };

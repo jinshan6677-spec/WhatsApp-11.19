@@ -83,24 +83,31 @@ contextBridge.exposeInMainWorld('translationAPI', {
 
 // Expose STT API for voice translation (绕过 CORS 限制)
 contextBridge.exposeInMainWorld('sttAPI', {
-  /**
-   * 调用 Hugging Face STT API
-   * @param {Blob} audioBlob - 音频 Blob
-   * @param {string} apiKey - API Key
-   * @param {string} model - 模型名称
-   * @returns {Promise<{success: boolean, text?: string, error?: string, retryable?: boolean}>}
-   */
-  callHuggingFace: async (audioBlob, apiKey, model) => {
+  callGroq: async (audioBlob, apiKey, model) => {
     try {
-      // 将 Blob 转换为 ArrayBuffer
       const arrayBuffer = await audioBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-
-      // 调用主进程
-      return await ipcRenderer.invoke('stt:huggingface', {
+      return await ipcRenderer.invoke('stt:groq', {
         audioBlob: Array.from(uint8Array),
         apiKey,
         model
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+});
+
+contextBridge.exposeInMainWorld('llmAPI', {
+  translateWithGroq: async (apiKey, model, prompt) => {
+    try {
+      return await ipcRenderer.invoke('llm:groq-translate', {
+        apiKey,
+        model,
+        prompt
       });
     } catch (error) {
       return {
@@ -159,8 +166,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       { file: 'AudioInterceptor.js', id: 'voice-translation-interceptor' },
       { file: 'SilentPlaybackController.js', id: 'voice-translation-playback' },
       { file: 'AudioDownloader.js', id: 'voice-translation-downloader' },
-      { file: 'WebSpeechSTT.js', id: 'voice-translation-stt-webspeech' },
-      { file: 'HuggingFaceSTT.js', id: 'voice-translation-stt-huggingface' },
+      { file: 'GroqSTT.js', id: 'voice-translation-stt-groq' },
       { file: 'VoiceTranslationModule.js', id: 'voice-translation-module' }
     ];
 
