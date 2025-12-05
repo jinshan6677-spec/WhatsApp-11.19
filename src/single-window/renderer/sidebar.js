@@ -118,8 +118,31 @@
     accounts.forEach((account) => {
       const statusInfo = statuses[account.id];
       if (statusInfo) {
-        account.runningStatus = statusInfo.status;
-        account.isRunning = !!statusInfo.isRunning;
+        // 只有当状态确实发生变化时才更新，避免不必要的状态重置
+        const oldStatus = account.runningStatus;
+        const oldIsRunning = account.isRunning;
+        const newStatus = statusInfo.status;
+        const newIsRunning = !!statusInfo.isRunning;
+        
+        // 特殊保护：如果账号已经是 connected 状态，不要用 loading 状态覆盖
+        // 这可以防止新账号创建过程中错误地影响已有账号的状态
+        if (oldStatus === 'connected' && newStatus === 'loading') {
+          console.warn(`[Sidebar] Protecting account ${account.id} from incorrect status change: connected -> loading`);
+          return; // 跳过这次更新
+        }
+        
+        // 检查状态是否真的发生了变化
+        const statusChanged = oldStatus !== newStatus || oldIsRunning !== newIsRunning;
+        
+        if (statusChanged) {
+          account.runningStatus = newStatus;
+          account.isRunning = newIsRunning;
+          
+          // 记录状态变化，便于调试
+          if (oldStatus === 'connected' && newStatus !== 'connected') {
+            console.warn(`[Sidebar] Account ${account.id} status changed from ${oldStatus} to ${newStatus}`);
+          }
+        }
       }
     });
   }
@@ -291,13 +314,32 @@
     }
 
     // Ensure running status is up-to-date
+    // 修复：避免用可能不完整的状态信息覆盖已有状态
     if (window.electronAPI) {
       try {
         const statusResult = await window.electronAPI.getAllAccountStatuses();
         if (statusResult && statusResult.success && statusResult.statuses) {
+          // 先记录当前状态，用于调试
+          const beforeStatuses = {};
+          accounts.forEach(acc => {
+            beforeStatuses[acc.id] = {
+              runningStatus: acc.runningStatus,
+              isRunning: acc.isRunning
+            };
+          });
+          
           mergeRunningStatuses(statusResult.statuses);
           // 同步账号状态与运行状态
           syncAccountStatusesWithRunningStatus();
+          
+          // 记录状态变化，便于调试
+          Object.keys(beforeStatuses).forEach(accountId => {
+            const before = beforeStatuses[accountId];
+            const after = accounts.find(acc => acc.id === accountId);
+            if (after && before.runningStatus === 'connected' && after.runningStatus === 'loading') {
+              console.warn(`[Sidebar] Account ${accountId} status was incorrectly changed from connected to loading during status sync`);
+            }
+          });
         }
       } catch (error) {
         console.error('Failed to get account statuses:', error);
@@ -931,9 +973,41 @@
   /**
    * Handle accounts updated event from main process
    * 使用防抖避免频繁重渲染
+   * 修复：保留已有账号的运行状态，避免状态丢失
    */
   function handleAccountsUpdated(accountsData) {
-    accounts = accountsData || [];
+    const newAccounts = accountsData || [];
+    
+    // 创建旧账号状态的映射，用于保留运行状态
+    const oldAccountStatusMap = new Map();
+    accounts.forEach(acc => {
+      oldAccountStatusMap.set(acc.id, {
+        runningStatus: acc.runningStatus,
+        isRunning: acc.isRunning,
+        loginStatus: acc.loginStatus,
+        hasQRCode: acc.hasQRCode,
+        connectionStatus: acc.connectionStatus,
+        status: acc.status
+      });
+    });
+
+    // 合并新账号数据，保留旧账号的运行状态
+    accounts = newAccounts.map(newAccount => {
+      const oldStatus = oldAccountStatusMap.get(newAccount.id);
+      if (oldStatus) {
+        // 保留运行状态相关字段
+        return {
+          ...newAccount,
+          runningStatus: oldStatus.runningStatus,
+          isRunning: oldStatus.isRunning,
+          loginStatus: oldStatus.loginStatus !== undefined ? oldStatus.loginStatus : newAccount.loginStatus,
+          hasQRCode: oldStatus.hasQRCode !== undefined ? oldStatus.hasQRCode : newAccount.hasQRCode,
+          connectionStatus: oldStatus.connectionStatus || newAccount.connectionStatus,
+          status: oldStatus.status || newAccount.status
+        };
+      }
+      return newAccount;
+    });
 
     if (updateTimers.has('accountList')) {
       clearTimeout(updateTimers.get('accountList'));
