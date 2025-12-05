@@ -97,20 +97,20 @@
 
 已完成状态：上述模块优化均已执行，详见下方“已实施改动”各节；另已补充 `translate-settings/index.js` 的 `updateAPIConfigVisibility` 为映射/小函数驱动并并行加载配置（见“已实施改动（翻译设置面板拆分）”）。
 
-## 冗余代码位置与清理方案
-- 重复事件名
-  - `src/single-window/renderer/preload-main.js:1003,1010`：移除重复 `view-manager:view-switch-failed`。
-- 重复日志
-  - `src/single-window/ipcHandlers.js:325–326`：保留一次 “Single-window handlers registered”。
-- 重复注释
-  - `src/presentation/translation/content-script/VoiceMessageTranslator.js:72–78`：合并注释块。
+## 冗余代码位置与清理结果（已完成）
+- 重复事件名（已修复）
+  - 事件白名单仅保留一次 `view-manager:view-switch-failed`（`src/single-window/renderer/preload-main/channels.js:132`）；预加载入口已拆分为子模块聚合（`src/single-window/renderer/preload-main.js:1–33`）。
+- 重复日志（已修复）
+  - 仅保留一次注册日志 `Single-window handlers registered`（`src/single-window/ipcHandlers.js:223`）。
+- 重复注释（已修复）
+  - 注释块已合并（`src/presentation/translation/content-script/VoiceMessageTranslator.js:1–4`）。
 
 ## 技术债务优先级排序
 - 高优先级
   - 修复 `ViewManager` 测试失败。
   - 统一 STT/LLM IPC 到 IPCRouter。
   - 将 `AudioDownloader` 缓存迁移至 LRU 并限流。
-  - 修复 `preload-main.js` 重复事件与 `ipcHandlers.js` 重复日志。
+  - 修复 `preload-main.js` 重复事件与 `ipcHandlers.js` 重复日志（已完成）。
 - 中优先级
  - 拆分环境/翻译设置面板；完善单测。
   - 拆分环境设置面板；完善单测。（翻译设置面板已完成拆分）
