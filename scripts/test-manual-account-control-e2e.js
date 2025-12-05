@@ -486,7 +486,7 @@ async function runAllE2ETests() {
     mainWindow.initialize();
 
     viewManager = new ViewManager(mainWindow, sessionManager, {
-      maxConcurrentViews: 10,
+      maxConcurrentViews: 1000, // 取消限制
       lazyLoadViews: true
     });
 

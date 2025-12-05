@@ -13,6 +13,8 @@ class VoiceMessageTranslator {
     this._scrollListener = null;
     this._scrollAttached = false;
     this._scrollDebounceTimer = null;
+    this._intersectionObserver = null;
+    this._observedAnchors = new Set();
   }
 
     /**
@@ -268,13 +270,43 @@ class VoiceMessageTranslator {
 
     this.observer = observer;
 
+    if (!this._intersectionObserver) {
+      this._intersectionObserver = new IntersectionObserver((entries) => {
+        let shouldScan = false;
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            shouldScan = true;
+            break;
+          }
+        }
+        if (shouldScan) {
+          this.addTranslateButtons();
+        }
+      }, { root: null, rootMargin: '0px', threshold: 0 });
+    }
+
+    const observeCurrentAnchors = () => {
+      const selectors = this.ui.getVoiceAnchorSelectors();
+      const nodes = [];
+      selectors.forEach(sel => nodes.push(...document.querySelectorAll(sel)));
+      for (const node of nodes) {
+        if (!this._observedAnchors.has(node)) {
+          this._observedAnchors.add(node);
+          try { this._intersectionObserver.observe(node); } catch (_) {}
+        }
+      }
+    };
+
+    observeCurrentAnchors();
+
     if (this.voiceButtonCheckInterval) {
       clearInterval(this.voiceButtonCheckInterval);
     }
     this.voiceButtonCheckInterval = setInterval(() => {
+      observeCurrentAnchors();
       this.addTranslateButtons();
-    }, 1500);
-    console.log('[VoiceMessageTranslator] Periodic button check started');
+    }, 6000);
+    console.log('[VoiceMessageTranslator] Periodic button check started (6s)');
   }
 
     /**
@@ -292,6 +324,11 @@ class VoiceMessageTranslator {
       clearInterval(this.voiceButtonCheckInterval);
       this.voiceButtonCheckInterval = null;
     }
+    if (this._intersectionObserver) {
+      try { this._intersectionObserver.disconnect(); } catch (_) {}
+      this._intersectionObserver = null;
+    }
+    this._observedAnchors.clear();
     if (this._scrollAttached && this._scrollListener) {
       const chatContainer = document.querySelector('[data-testid="conversation-panel-messages"]') ||
         document.querySelector('#main');

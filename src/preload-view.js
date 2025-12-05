@@ -234,21 +234,18 @@ console.log('[Preload-View] Translation API exposed');
  * @param {string} scriptId - ID for the script element
  * @returns {Promise<void>}
  */
-function injectScript(scriptPath, scriptId) {
-  return new Promise((resolve, reject) => {
-    try {
-      const scriptContent = fs.readFileSync(scriptPath, 'utf8');
-      const script = document.createElement('script');
-      script.textContent = scriptContent;
-      script.id = scriptId;
-      (document.head || document.documentElement).appendChild(script);
-      console.log(`[Preload-View] ✓ Injected: ${scriptId}`);
-      resolve();
-    } catch (error) {
-      console.error(`[Preload-View] ✗ Failed to inject ${scriptId}:`, error);
-      reject(error);
-    }
-  });
+async function injectScript(scriptPath, scriptId) {
+  try {
+    const scriptContent = await fs.promises.readFile(scriptPath, 'utf8');
+    const script = document.createElement('script');
+    script.textContent = scriptContent;
+    script.id = scriptId;
+    (document.head || document.documentElement).appendChild(script);
+    console.log(`[Preload-View] ✓ Injected: ${scriptId}`);
+  } catch (error) {
+    console.error(`[Preload-View] ✗ Failed to inject ${scriptId}:`, error);
+    throw error;
+  }
 }
 
 // Load and inject translation scripts when DOM is ready

@@ -37,7 +37,7 @@ class ViewManager {
       defaultSidebarWidth: options.defaultSidebarWidth || 280,
       debounceDelay: options.debounceDelay || 100,
       lazyLoadViews: options.lazyLoadViews !== false,
-      maxConcurrentViews: options.maxConcurrentViews || 10,
+      maxConcurrentViews: options.maxConcurrentViews || 1000, // 取消限制，设置为很大的数字
       viewPoolSize: options.viewPoolSize || 2,
       memoryWarningThreshold: options.memoryWarningThreshold || 300,
       maxMemoryPerView: options.maxMemoryPerView || 500,
@@ -71,6 +71,7 @@ class ViewManager {
     this.resizeHandler = new ViewResizeHandler(this.boundsManager, { ...loggerOption, debounceDelay: this.options.debounceDelay });
     this.memoryManager = new ViewMemoryManager({ ...loggerOption, ...notifyOption, ...this.options });
     this.performanceOptimizer = new ViewPerformanceOptimizer({ ...loggerOption, ...this.options });
+    try { this.performanceOptimizer.initDynamicLimit(); } catch (_) {}
     this.translationIntegration = new ViewTranslationIntegration(options.translationIntegration, { ...loggerOption, ...notifyOption });
 
     // Initialize ViewLifecycle
@@ -335,7 +336,7 @@ class ViewManager {
   }
 
   async _enforceViewLimit() {
-    if (this.views.size < this.options.maxConcurrentViews) return;
+    if (this.views.size < this.performanceOptimizer.options.maxConcurrentViews) return;
     const viewsByAccessTime = this.performanceOptimizer.getViewsByAccessTime(this.views, this.activeAccountId);
     const viewsToDestroy = this.performanceOptimizer.getViewsToDestroyCount(this.views.size);
     for (let i = 0; i < Math.min(viewsToDestroy, viewsByAccessTime.length); i++) {
@@ -509,7 +510,6 @@ class ViewManager {
     try {
       if (!accountId) throw new Error('Account ID is required');
       if (this.hasView(accountId)) return { success: true, alreadyOpen: true };
-      if (this.views.size >= this.options.maxConcurrentViews) throw new Error(`Maximum concurrent accounts limit (${this.options.maxConcurrentViews}) reached`);
       this._notifyRenderer('account-opening', { accountId, timestamp: Date.now() });
       await this.createView(accountId, config);
       await this.showView(accountId);

@@ -60,7 +60,7 @@ async function initializeTestEnvironment() {
   mainWindow.initialize();
 
   viewManager = new ViewManager(mainWindow, sessionManager, {
-    maxConcurrentViews: 10,
+    maxConcurrentViews: 1000, // 取消限制
     lazyLoadViews: true
   });
 

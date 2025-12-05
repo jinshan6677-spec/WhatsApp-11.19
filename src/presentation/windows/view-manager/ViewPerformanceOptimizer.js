@@ -33,6 +33,9 @@ class ViewPerformanceOptimizer {
     this.viewAccessTimes = new Map();
 
     this.log = options.logger || this._createLogger();
+
+    this._resourceManager = null;
+    this._dynamicLimitTimer = null;
   }
 
   /**
@@ -104,10 +107,54 @@ class ViewPerformanceOptimizer {
    * @returns {number} Number of views to destroy
    */
   getViewsToDestroyCount(currentViewCount) {
-    if (currentViewCount < this.options.maxConcurrentViews) {
-      return 0;
+    const target = this.options.maxConcurrentViews;
+    return currentViewCount >= target ? (currentViewCount - target + 1) : 0;
+  }
+
+  async initDynamicLimit() {
+    try {
+      if (process && (process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test')) {
+        return;
+      }
+      const ResourceManager = require('../../../managers/ResourceManager');
+      this._resourceManager = new ResourceManager();
+      const recommended = await this._resourceManager.getRecommendedMaxInstances();
+      const value = Math.max(1, recommended);
+      this.options.maxConcurrentViews = value;
+      this.startDynamicLimitMonitoring();
+    } catch (e) {
     }
-    return currentViewCount - this.options.maxConcurrentViews + 1;
+  }
+
+  startDynamicLimitMonitoring(interval = 30000) {
+    if (this._dynamicLimitTimer) return;
+    this._dynamicLimitTimer = setInterval(async () => {
+      try {
+        if (!this._resourceManager) return;
+        const recommended = await this._resourceManager.getRecommendedMaxInstances();
+        const value = Math.max(1, recommended);
+        if (value !== this.options.maxConcurrentViews) {
+          this.options.maxConcurrentViews = value;
+        }
+      } catch (_) {
+      }
+    }, interval);
+  }
+
+  stopDynamicLimitMonitoring() {
+    if (this._dynamicLimitTimer) {
+      clearInterval(this._dynamicLimitTimer);
+      this._dynamicLimitTimer = null;
+    }
+  }
+
+  getMaxConcurrentViews() {
+    return this.options.maxConcurrentViews;
+  }
+
+  setMaxConcurrentViews(value) {
+    const v = Math.max(1, Number(value) || 1);
+    this.options.maxConcurrentViews = v;
   }
 
   /**
@@ -319,6 +366,7 @@ class ViewPerformanceOptimizer {
   cleanup() {
     this.clearViewPool();
     this.viewAccessTimes.clear();
+    this.stopDynamicLimitMonitoring();
     this.log('info', 'ViewPerformanceOptimizer cleaned up');
   }
 }

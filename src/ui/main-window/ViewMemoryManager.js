@@ -11,6 +11,7 @@ class ViewMemoryManager {
       maxMemoryPerView: options.maxMemoryPerView || 500,
       autoMemoryCleanup: options.autoMemoryCleanup !== false,
       memoryCheckInterval: options.memoryCheckInterval || 30000,
+      inactiveUnloadThresholdMs: options.inactiveUnloadThresholdMs || 5 * 60 * 1000,
       ...options
     };
 
@@ -194,6 +195,8 @@ class ViewMemoryManager {
    */
   checkMemoryUsage(views) {
     try {
+      let total = 0;
+      let count = 0;
       for (const [accountId, viewState] of views) {
         if (!viewState.view || viewState.view.webContents.isDestroyed()) {
           continue;
@@ -206,6 +209,8 @@ class ViewMemoryManager {
         const memoryUsage = this._estimateMemoryUsage(viewState);
         
         this.updateMemoryUsage(accountId, memoryUsage);
+        total += memoryUsage;
+        count++;
 
         if (this.isMemoryWarning(accountId)) {
           this.log('warn', `Memory warning for ${accountId}: ${memoryUsage}MB`);
@@ -215,6 +220,23 @@ class ViewMemoryManager {
           this.log('error', `Memory exceeded for ${accountId}: ${memoryUsage}MB`);
           // 触发垃圾回收或清理
           this._triggerCleanup(viewState);
+          const expired = this.isViewExpired(accountId, this.options.inactiveUnloadThresholdMs);
+          if (expired) {
+            try {
+              if (!viewState.view.webContents.isDestroyed()) {
+                viewState.view.webContents.destroy();
+                this.log('warn', `Inactive view destroyed to free memory: ${accountId}`);
+              }
+            } catch (e) {
+              this.log('error', 'Failed to destroy inactive view:', e);
+            }
+          }
+        }
+      }
+      if (count > 0) {
+        const avg = total / count;
+        if (avg > this.options.memoryWarningThreshold) {
+          this.clearViewPool();
         }
       }
     } catch (error) {

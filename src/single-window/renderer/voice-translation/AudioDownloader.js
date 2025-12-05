@@ -6,6 +6,12 @@
 class AudioDownloader {
     constructor() {
         this.downloadCache = new Map();
+        this.sizes = new Map();
+        this.maxItems = 32;
+        this.maxBytes = 20 * 1024 * 1024;
+        this.currentBytes = 0;
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
     }
 
     /**
@@ -16,9 +22,13 @@ class AudioDownloader {
     async download(blobUrl) {
         // 检查缓存
         if (this.downloadCache.has(blobUrl)) {
-            console.log('[AudioDownloader] 使用缓存的音频数据');
-            return this.downloadCache.get(blobUrl);
+            this.cacheHits++;
+            const cached = this.downloadCache.get(blobUrl);
+            this.downloadCache.delete(blobUrl);
+            this.downloadCache.set(blobUrl, cached);
+            return cached;
         }
+        this.cacheMisses++;
 
         try {
             console.log('[AudioDownloader] 开始下载音频:', blobUrl);
@@ -34,8 +44,7 @@ class AudioDownloader {
                 type: blob.type
             });
 
-            // 缓存下载的数据
-            this.downloadCache.set(blobUrl, blob);
+            this._setCache(blobUrl, blob);
 
             return blob;
         } catch (error) {
@@ -121,6 +130,10 @@ class AudioDownloader {
      */
     clearCache() {
         this.downloadCache.clear();
+        this.sizes.clear();
+        this.currentBytes = 0;
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
         console.log('[AudioDownloader] 缓存已清除');
     }
 
@@ -130,6 +143,40 @@ class AudioDownloader {
      */
     getCacheSize() {
         return this.downloadCache.size;
+    }
+
+    getStats() {
+        return {
+            items: this.downloadCache.size,
+            bytes: this.currentBytes,
+            maxItems: this.maxItems,
+            maxBytes: this.maxBytes,
+            hitRate: this.cacheHits + this.cacheMisses > 0 ? Math.round((this.cacheHits / (this.cacheHits + this.cacheMisses)) * 100) : 0
+        };
+    }
+
+    _setCache(key, blob) {
+        const size = blob && blob.size ? blob.size : 0;
+        if (this.downloadCache.has(key)) {
+            const oldSize = this.sizes.get(key) || 0;
+            this.currentBytes -= oldSize;
+            this.downloadCache.delete(key);
+            this.sizes.delete(key);
+        }
+        this.downloadCache.set(key, blob);
+        this.sizes.set(key, size);
+        this.currentBytes += size;
+        this._evictIfNeeded();
+    }
+
+    _evictIfNeeded() {
+        while (this.downloadCache.size > this.maxItems || this.currentBytes > this.maxBytes) {
+            const oldestKey = this.downloadCache.keys().next().value;
+            const oldSize = this.sizes.get(oldestKey) || 0;
+            this.downloadCache.delete(oldestKey);
+            this.sizes.delete(oldestKey);
+            this.currentBytes -= oldSize;
+        }
     }
 }
 

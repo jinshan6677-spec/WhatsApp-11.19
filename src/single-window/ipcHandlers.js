@@ -154,9 +154,45 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
 
       const apiUrl = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
-      // 动态导入 node-fetch 和 form-data
       const fetch = require('node-fetch');
       const FormData = require('form-data');
+      const AbortController = global.AbortController || require('abort-controller');
+
+      const fetchWithRetry = async (url, options, cfg = {}) => {
+        const retries = cfg.retries ?? 3;
+        const timeoutMs = cfg.timeoutMs ?? 20000;
+        const backoffBaseMs = cfg.backoffBaseMs ?? 1000;
+        const retryOn = cfg.retryOn ?? [429, 502, 503, 504];
+        let attempt = 0;
+        let lastError = null;
+        while (attempt <= retries) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const resp = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timeout);
+            if (!resp.ok && retryOn.includes(resp.status) && attempt < retries) {
+              const delay = backoffBaseMs * Math.pow(2, attempt);
+              await new Promise(r => setTimeout(r, delay));
+              attempt++;
+              continue;
+            }
+            return resp;
+          } catch (err) {
+            clearTimeout(timeout);
+            lastError = err;
+            if (attempt < retries) {
+              const delay = backoffBaseMs * Math.pow(2, attempt);
+              await new Promise(r => setTimeout(r, delay));
+              attempt++;
+              continue;
+            }
+            throw err;
+          }
+        }
+        if (lastError) throw lastError;
+        throw new Error('Unknown fetch error');
+      };
 
       // 将数组转换回 Buffer
       const audioBuffer = Buffer.from(audioBlob);
@@ -170,29 +206,25 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       formData.append('model', model || 'whisper-large-v3');
       formData.append('response_format', 'json');
 
-      const response = await fetch(apiUrl, {
+      const response = await fetchWithRetry(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           ...formData.getHeaders()
         },
         body: formData
-      });
+      }, { retries: 3, timeoutMs: 20000, backoffBaseMs: 800, retryOn: [429, 502, 503, 504] });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('[IPC] stt:groq: API 错误:', response.status, errorText);
-
-        // 如果是 503，模型正在加载
         if (response.status === 503) {
-          return {
-            success: false,
-            error: '模型正在加载，请稍后重试',
-            retryable: true
-          };
+          return { success: false, error: '模型正在加载，请稍后重试', retryable: true };
         }
-
-        throw new Error(`API 请求失败: ${response.status} ${errorText}`);
+        if (response.status === 429) {
+          return { success: false, error: '请求过多，请稍后重试', retryable: true };
+        }
+        return { success: false, error: `HTTP ${response.status}: ${errorText}`, retryable: false };
       }
 
       const result = await response.json();
@@ -204,11 +236,8 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       };
     } catch (error) {
       console.error('[IPC] stt:groq: 转录失败:', error);
-      return {
-        success: false,
-        error: error.message,
-        retryable: false
-      };
+      const msg = /abort/i.test(String(error && error.message)) ? '请求超时' : error.message;
+      return { success: false, error: msg, retryable: true };
     }
   });
 
@@ -219,6 +248,7 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
       }
       const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
       const fetch = require('node-fetch');
+      const AbortController = global.AbortController || require('abort-controller');
 
       const body = {
         model: model || 'llama-3.1-70b-versatile',
@@ -230,18 +260,26 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
         temperature: 0.3
       };
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        const retryable = [429, 502, 503, 504].includes(response.status);
+        if (retryable) {
+          return { success: false, error: `HTTP ${response.status}: ${errorText}`, retryable: true };
+        }
+        return { success: false, error: `HTTP ${response.status}: ${errorText}`, retryable: false };
       }
 
       const data = await response.json();
@@ -249,7 +287,8 @@ function registerIPCHandlers(accountManager, viewManager, mainWindow, translatio
 
       return { success: true, text };
     } catch (error) {
-      return { success: false, error: error.message };
+      const msg = /abort/i.test(String(error && error.message)) ? '请求超时' : error.message;
+      return { success: false, error: msg, retryable: true };
     }
   });
 

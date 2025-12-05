@@ -11,7 +11,7 @@ class MockViewManager {
     this.views = new Map();
     this.activeAccountId = null;
     this.options = {
-      maxConcurrentViews: 10
+      maxConcurrentViews: 1000 // 修改为很大的数字以取消限制
     };
   }
 
@@ -75,10 +75,7 @@ class MockViewManager {
         return { success: true, alreadyOpen: true };
       }
 
-      if (this.views.size >= this.options.maxConcurrentViews) {
-        const errorMsg = `Maximum concurrent accounts limit (${this.options.maxConcurrentViews}) reached`;
-        throw new Error(errorMsg);
-      }
+      // 限制已取消，不再检查并发账户数量
 
       console.log(`  Opening account ${accountId}...`);
       await this.createView(accountId, config);
@@ -201,19 +198,20 @@ async function runTests() {
   console.log(`  Result: ${JSON.stringify(recloseResult)}`);
   console.log(`  ✓ Expected: { success: true, alreadyClosed: true }\n`);
 
-  console.log('Test 8: Account limit');
-  console.log(`  Max concurrent views: ${viewManager.options.maxConcurrentViews}`);
+  console.log('Test 8: No account limit (limit removed)');
+  console.log(`  Max concurrent views: ${viewManager.options.maxConcurrentViews} (no longer enforced)`);
   
-  // Open max accounts
-  for (let i = 0; i < viewManager.options.maxConcurrentViews; i++) {
+  // Open many accounts to demonstrate no limit
+  const testAccounts = 15; // 打开15个账户来演示无限制
+  for (let i = 0; i < testAccounts; i++) {
     await viewManager.openAccount(`account-${i}`, {});
   }
-  console.log(`  Opened ${viewManager.views.size} accounts`);
+  console.log(`  Opened ${viewManager.views.size} accounts (no limit enforced)`);
   
-  // Try to open one more
-  const limitResult = await viewManager.openAccount('extra-account', {});
-  console.log(`  Result: ${JSON.stringify(limitResult)}`);
-  console.log(`  ✓ Expected: { success: false, error: '...' }\n`);
+  // Try to open one more - should succeed
+  const extraResult = await viewManager.openAccount('extra-account', {});
+  console.log(`  Result: ${JSON.stringify(extraResult)}`);
+  console.log(`  ✓ Expected: { success: true } (no limit)\n`);
 
   console.log('=== All Tests Passed! ===');
 }

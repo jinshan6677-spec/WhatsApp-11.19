@@ -482,7 +482,7 @@ class AppBootstrap {
         // 新架构支持的额外配置
         debounceDelay: 100,
         lazyLoadViews: true,
-        maxConcurrentViews: 10,
+        maxConcurrentViews: 1000, // 取消限制，设置为很大的数字
         viewPoolSize: 2,
         memoryWarningThreshold: 300,
         maxMemoryPerView: 500,

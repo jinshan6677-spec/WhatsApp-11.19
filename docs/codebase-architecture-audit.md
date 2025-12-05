@@ -38,6 +38,21 @@
 - 网络与重试
   - STT 主进程：`src/single-window/ipcHandlers.js:145–209` 使用 `node-fetch@2` 上传 `multipart/form-data`，已有 503 可重试语义。建议统一超时、错误分类与退避策略，并评估迁移至 `undici` 或 `node-fetch@3`（需考虑 ESM）。
 
+## 已实施改动（性能优化）
+- DOM 扫描与观察
+  - 语音消息按钮扫描改为事件驱动：新增 `IntersectionObserver`，在可见区域内触发精确扫描；轮询频率由 1500ms 调整为 6000ms。实现位置：`src/presentation/translation/content-script/VoiceMessageTranslator.js:200–278,283–307`。
+- 内存使用
+  - 音频下载缓存迁移至 LRU：使用 `Map` 顺序实现 LRU，加入 `maxItems=32` 与 `maxBytes=20MB` 双阈值，暴露 `getStats()`。实现位置：`src/single-window/renderer/voice-translation/AudioDownloader.js:7–9,16–21,38–41,122–134`。
+  - 视图内存管理阈值清理：当平均内存超过警告阈值自动清空视图池；单视图超过上限且不活跃时执行卸载销毁。实现位置：`src/ui/main-window/ViewMemoryManager.js:9–15,195–223`。
+- I/O 优化
+  - 预加载脚本改为异步读取并顺序注入，避免同步 `fs.readFileSync` 阻塞。实现位置：`src/preload-view.js:237–246` 改为 `fs.promises.readFile` 的异步注入。
+- 网络与重试
+  - STT/LLM 调用统一超时与退避：引入基于 `AbortController` 的 20s 超时与指数退避，统一错误结构并区分 `retryable`。实现位置：`src/single-window/ipcHandlers.js:155–213,215–254`。
+
+### 验证
+- Lint：`npm run lint` 通过。
+- Test：`npm test -- --runInBand` 通过（55 通过，1 跳过）；与本次改动相关模块未见回归。
+
 ## 技术债务分析
 - TODO/FIXME
   - `src/environment/EnvironmentConfigManager.js:32`：指纹配置将迁移至新仓库系统，需按新指纹服务落地。
