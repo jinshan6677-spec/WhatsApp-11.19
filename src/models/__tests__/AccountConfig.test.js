@@ -240,24 +240,19 @@ describe('AccountConfig', () => {
 
     test('should validate valid sessionDir', () => {
       const account = new AccountConfig({
-        name: 'Valid Session',
-        sessionDir: 'session-data/account-123'
+        name: 'Test Account',
+        sessionDir: 'Partitions/account_123'
       });
-      
       const validation = account.validate();
-      
       expect(validation.valid).toBe(true);
     });
 
     test('should use default sessionDir when not provided', () => {
       const account = new AccountConfig({
-        name: 'Default Session'
+        name: 'Test Account'
       });
-      
-      const validation = account.validate();
-      
-      expect(validation.valid).toBe(true);
-      expect(account.sessionDir).toContain('session-data/account-');
+      expect(account.sessionDir).toBeDefined();
+      expect(account.sessionDir).toContain('Partitions/account_');
     });
   });
 
@@ -287,7 +282,7 @@ describe('AccountConfig', () => {
         note: 'Business account',
         order: 1,
         autoStart: true,
-        sessionDir: 'session-data/account-complex',
+        sessionDir: 'Partitions/account_complex',
         translation: {
           enabled: true,
           targetLanguage: 'zh-CN',

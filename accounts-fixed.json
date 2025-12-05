@@ -1,0 +1,150 @@
+{
+	"accounts": {
+		"861ef0c1-f23f-41c4-a30b-2327b4022bc3": {
+			"id": "861ef0c1-f23f-41c4-a30b-2327b4022bc3",
+			"name": "账号 1",
+			"phoneNumber": "",
+			"profileName": "",
+			"avatarUrl": "",
+			"note": "",
+			"order": 2,
+			"createdAt": "2025-11-30T01:11:30.679Z",
+			"lastActiveAt": "2025-12-05T16:27:15.210Z",
+			"autoStart": false,
+			"keepAlive": true,
+			"lastRunningStatus": null,
+			"sessionDir": "Partitions/account_861ef0c1-f23f-41c4-a30b-2327b4022bc3",
+			"translation": {
+				"enabled": true,
+				"targetLanguage": "zh-CN",
+				"engine": "google",
+				"apiKey": "",
+				"autoTranslate": false,
+				"translateInput": false,
+				"friendSettings": {}
+			},
+			"notifications": {
+				"enabled": true,
+				"sound": true,
+				"badge": true
+			}
+		},
+		"6b9c6afe-ddf4-4fcd-89ef-f835c8d334fc": {
+			"id": "6b9c6afe-ddf4-4fcd-89ef-f835c8d334fc",
+			"name": "账号 3",
+			"phoneNumber": "",
+			"profileName": "",
+			"avatarUrl": "",
+			"note": "",
+			"order": 1,
+			"createdAt": "2025-11-30T01:22:33.574Z",
+			"lastActiveAt": "2025-12-05T17:24:21.638Z",
+			"autoStart": false,
+			"keepAlive": true,
+			"lastRunningStatus": null,
+			"sessionDir": "Partitions/account_6b9c6afe-ddf4-4fcd-89ef-f835c8d334fc",
+			"translation": {
+				"enabled": true,
+				"targetLanguage": "zh-CN",
+				"engine": "google",
+				"apiKey": "",
+				"autoTranslate": false,
+				"translateInput": false,
+				"friendSettings": {}
+			},
+			"notifications": {
+				"enabled": true,
+				"sound": true,
+				"badge": true
+			}
+		},
+		"8e19beed-15d1-456a-8160-207bc7364303": {
+			"id": "8e19beed-15d1-456a-8160-207bc7364303",
+			"name": "账号 2",
+			"phoneNumber": "",
+			"profileName": "",
+			"avatarUrl": "",
+			"note": "",
+			"order": 3,
+			"createdAt": "2025-11-30T03:44:06.900Z",
+			"lastActiveAt": "2025-12-05T16:02:49.216Z",
+			"autoStart": false,
+			"keepAlive": true,
+			"lastRunningStatus": null,
+			"sessionDir": "Partitions/account_8e19beed-15d1-456a-8160-207bc7364303",
+			"translation": {
+				"enabled": true,
+				"targetLanguage": "zh-CN",
+				"engine": "google",
+				"apiKey": "",
+				"autoTranslate": false,
+				"translateInput": false,
+				"friendSettings": {}
+			},
+			"notifications": {
+				"enabled": true,
+				"sound": true,
+				"badge": true
+			}
+		},
+		"6cbfa2e2-785c-49af-a047-40bd3a9df453": {
+			"id": "6cbfa2e2-785c-49af-a047-40bd3a9df453",
+			"name": "账号 5",
+			"phoneNumber": "",
+			"profileName": "",
+			"avatarUrl": "",
+			"note": "",
+			"order": 0,
+			"createdAt": "2025-12-02T05:11:38.222Z",
+			"lastActiveAt": "2025-12-05T16:26:54.468Z",
+			"autoStart": false,
+			"keepAlive": true,
+			"lastRunningStatus": null,
+			"sessionDir": "Partitions/account_6cbfa2e2-785c-49af-a047-40bd3a9df453",
+			"translation": {
+				"enabled": true,
+				"targetLanguage": "zh-CN",
+				"engine": "google",
+				"apiKey": "",
+				"autoTranslate": false,
+				"translateInput": false,
+				"friendSettings": {}
+			},
+			"notifications": {
+				"enabled": true,
+				"sound": true,
+				"badge": true
+			}
+		},
+		"3f05f7d9-0740-4157-9e5c-b510af41dc01": {
+			"id": "3f05f7d9-0740-4157-9e5c-b510af41dc01",
+			"name": "账号 4",
+			"phoneNumber": "",
+			"profileName": "",
+			"avatarUrl": "",
+			"note": "",
+			"order": 4,
+			"createdAt": "2025-12-05T14:30:27.529Z",
+			"lastActiveAt": "2025-12-05T16:03:19.834Z",
+			"autoStart": false,
+			"keepAlive": true,
+			"lastRunningStatus": null,
+			"sessionDir": "Partitions/account_3f05f7d9-0740-4157-9e5c-b510af41dc01",
+			"translation": {
+				"enabled": true,
+				"targetLanguage": "zh-CN",
+				"engine": "google",
+				"apiKey": "",
+				"autoTranslate": false,
+				"translateInput": false,
+				"friendSettings": {}
+			},
+			"notifications": {
+				"enabled": true,
+				"sound": true,
+				"badge": true
+			}
+		}
+	},
+	"version": "1.0.0"
+}

@@ -74,7 +74,23 @@ class AccountConfigManager {
         
         // 向后兼容：如果旧配置没有 sessionDir，使用默认路径
         if (!data.sessionDir) {
-          data.sessionDir = `session-data/account-${id}`;
+          data.sessionDir = `Partitions/account_${id}`;
+        } else {
+          // 修复：确保sessionDir中的ID与账号ID一致，并指向正确路径
+          const sessionDirMatch = data.sessionDir.match(/(?:account[_-])([^/]+)/);
+          if (sessionDirMatch) {
+            const sessionDirId = sessionDirMatch[1];
+            const expectedPath = `Partitions/account_${id}`;
+            
+            if (sessionDirId !== id || data.sessionDir !== expectedPath) {
+              console.warn(`Fixing mismatched sessionDir for account ${id}: ${data.sessionDir} -> ${expectedPath}`);
+              data.sessionDir = expectedPath;
+            }
+          } else {
+            // sessionDir格式不正确，修复为正确路径
+            console.warn(`Fixing invalid sessionDir format for account ${id}: ${data.sessionDir}`);
+            data.sessionDir = `Partitions/account_${id}`;
+          }
         }
         
         const account = AccountConfig.fromJSON(data);
@@ -322,7 +338,21 @@ class AccountConfigManager {
       
       // 如果需要，删除用户数据目录
       if (options.deleteUserData && options.userDataPath) {
-        const userDataDir = path.join(options.userDataPath, 'profiles', accountId);
+        // 根据sessionDir路径删除数据目录
+        const sessionDirPath = account.sessionDir;
+        let userDataDir;
+        
+        if (sessionDirPath.startsWith('Partitions/')) {
+          // Partitions目录在用户数据目录下
+          userDataDir = path.join(options.userDataPath, sessionDirPath);
+        } else if (path.isAbsolute(sessionDirPath)) {
+          // 绝对路径
+          userDataDir = sessionDirPath;
+        } else {
+          // 其他相对路径
+          userDataDir = path.join(options.userDataPath, sessionDirPath);
+        }
+        
         try {
           await fs.rm(userDataDir, { recursive: true, force: true });
           console.log(`Deleted user data directory: ${userDataDir}`);

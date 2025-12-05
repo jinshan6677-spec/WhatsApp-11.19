@@ -46,7 +46,7 @@ class Account {
     this.translationConfigId = config.translationConfigId || null;
     
     // Session directory for data isolation
-    this.sessionDir = config.sessionDir || `session-data/account-${this.id}`;
+    this.sessionDir = config.sessionDir || `Partitions/account_${this.id}`;
     
     // Additional metadata
     this.profileName = config.profileName || null;
@@ -123,55 +123,55 @@ class Account {
 
   /**
    * Validates the account data
-   * @returns {{valid: boolean, errors: Array<{field: string, reason: string, value: any}>}}
+   * @returns {{valid: boolean, errors: string[]}}
    */
   validate() {
     const errors = [];
 
     // Validate ID
     if (!this.id || typeof this.id !== 'string' || this.id.trim().length === 0) {
-      errors.push({ field: 'id', reason: 'Account ID is required and must be a non-empty string', value: this.id });
+      errors.push('Account ID is required and must be a non-empty string');
     }
 
     // Validate name
     if (!this.name || typeof this.name !== 'string' || this.name.trim().length === 0) {
-      errors.push({ field: 'name', reason: 'Account name is required and must be a non-empty string', value: this.name });
+      errors.push('Account name is required and must be a non-empty string');
     } else if (this.name.length > 100) {
-      errors.push({ field: 'name', reason: 'Account name must not exceed 100 characters', value: this.name });
+      errors.push('Account name must not exceed 100 characters');
     }
 
     // Validate status
     if (!Object.values(AccountStatus).includes(this.status)) {
-      errors.push({ field: 'status', reason: `Status must be one of: ${Object.values(AccountStatus).join(', ')}`, value: this.status });
+      errors.push(`Status must be one of: ${Object.values(AccountStatus).join(', ')}`);
     }
 
     // Validate autoStart
     if (typeof this.autoStart !== 'boolean') {
-      errors.push({ field: 'autoStart', reason: 'autoStart must be a boolean', value: this.autoStart });
+      errors.push('autoStart must be a boolean');
     }
 
     // Validate order
     if (typeof this.order !== 'number' || this.order < 0 || !Number.isInteger(this.order)) {
-      errors.push({ field: 'order', reason: 'Order must be a non-negative integer', value: this.order });
+      errors.push('Order must be a non-negative integer');
     }
 
     // Validate sessionDir
     if (!this.sessionDir || typeof this.sessionDir !== 'string' || this.sessionDir.trim().length === 0) {
-      errors.push({ field: 'sessionDir', reason: 'Session directory is required', value: this.sessionDir });
+      errors.push('Session directory is required');
     }
 
     // Validate phoneNumber (optional)
     if (this.phoneNumber !== null && this.phoneNumber !== undefined) {
       if (typeof this.phoneNumber !== 'string') {
-        errors.push({ field: 'phoneNumber', reason: 'Phone number must be a string', value: this.phoneNumber });
+        errors.push('Phone number must be a string');
       } else if (this.phoneNumber.length > 32) {
-        errors.push({ field: 'phoneNumber', reason: 'Phone number must not exceed 32 characters', value: this.phoneNumber });
+        errors.push('Phone number must not exceed 32 characters');
       }
     }
 
     // Validate createdAt
     if (!(this.createdAt instanceof Date) || isNaN(this.createdAt.getTime())) {
-      errors.push({ field: 'createdAt', reason: 'createdAt must be a valid Date', value: this.createdAt });
+      errors.push('createdAt must be a valid Date');
     }
 
     return {

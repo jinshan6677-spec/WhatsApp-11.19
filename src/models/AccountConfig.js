@@ -86,8 +86,12 @@ class AccountConfig {
     this.keepAlive = config.keepAlive !== undefined ? config.keepAlive : true;
     this.lastRunningStatus = config.lastRunningStatus || null;
 
-    // 会话数据目录路径
-    this.sessionDir = (config.sessionDir !== undefined && config.sessionDir !== null) ? config.sessionDir : `session-data/account-${this.id}`;
+    // 会话数据目录路径 - 确保使用正确的账号ID和实际存储路径
+    if (config.sessionDir !== undefined && config.sessionDir !== null) {
+      this.sessionDir = config.sessionDir;
+    } else {
+      this.sessionDir = `Partitions/account_${this.id}`;
+    }
 
     // 翻译配置
     this.translation = {

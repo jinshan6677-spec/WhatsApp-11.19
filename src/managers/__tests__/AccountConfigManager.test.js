@@ -293,7 +293,7 @@ describe('AccountConfigManager', () => {
       
       const account = await manager.getAccount(oldAccount.id);
       expect(account.sessionDir).toBeDefined();
-      expect(account.sessionDir).toContain('session-data/account-');
+      expect(account.sessionDir).toContain('Partitions/account_');
     });
 
     test('should ignore deprecated window field', async () => {

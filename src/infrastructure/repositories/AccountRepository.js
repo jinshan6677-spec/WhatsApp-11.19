@@ -126,7 +126,7 @@ class AccountRepository extends IAccountRepository {
     const validation = entity.validate();
     if (!validation.valid) {
       throw new ValidationError('Account validation failed', {
-        fields: validation.errors
+        fields: validation.errors.map(error => ({ reason: error }))
       });
     }
 
@@ -157,7 +157,7 @@ class AccountRepository extends IAccountRepository {
     const validation = updated.validate();
     if (!validation.valid) {
       throw new ValidationError('Account validation failed', {
-        fields: validation.errors
+        fields: validation.errors.map(error => ({ reason: error }))
       });
     }
 
