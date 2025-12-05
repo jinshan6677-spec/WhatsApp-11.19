@@ -55,9 +55,9 @@
 
 ## 技术债务分析
 - TODO/FIXME
-  - `src/environment/EnvironmentConfigManager.js:32`：指纹配置将迁移至新仓库系统，需按新指纹服务落地。
+  - `src/environment/EnvironmentConfigManager.js:32`：已移除该 TODO，指纹配置现由 `src/infrastructure/fingerprint/FingerprintRepository.js` 管理并在视图创建阶段加载（`src/presentation/windows/view-manager/ViewManager.js:185–190`）。
 - 过时依赖（`npm outdated`）
-  - `electron` 39.2.1 → 39.2.5（小版本可更新）。
+  - `electron` 已更新至 39.2.5（`package.json` devDependencies）。Windows 环境执行 `npm install` 时出现 EBUSY 文件锁，已完成版本变更，建议在本机空闲时重试安装。
   - `electron-store` 8.2.0 → 11.0.2（大版本差异需评估）。
   - `eslint` 8.57.1 → 9.39.1（规则与配置迁移）。
   - `jest` 29.7.0 → 30.2.0（与 `jest-environment-jsdom@30.2.0` 对齐）。
@@ -66,7 +66,7 @@
 - 与架构不符
   - STT/LLM IPC 未纳入统一 IPCRouter：`src/presentation/ipc/handlers/TranslationServiceIPCHandlers.js:381–417` 为翻译服务路由，但 `stt:groq`、`llm:groq-translate` 仍在 `src/single-window/ipcHandlers.js:145–209,211–247`。建议迁移以统一接口与超时策略。
 - 测试失败（现状）
-  - `ViewManager` 测试：`src/single-window/__tests__/ViewManager.test.js:177,188,208,299,309,431` 多项失败，涉及防抖、立即执行与清理逻辑。需校准实现（`resizeViews` 与 `handleWindowResize`）与测试期望。
+  - `ViewManager` 相关测试现均通过：`resizeViews` 防抖与立即执行逻辑、`handleWindowResize` 在窗口销毁/缺失时安全返回（参考 `src/presentation/windows/view-manager/ViewManager.js:352–384`、`ViewBoundsManager.js:69–106,167–181`）。
 
 ## 架构改进建议
 - 模块边界与职责拆分

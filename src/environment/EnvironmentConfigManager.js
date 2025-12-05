@@ -29,8 +29,7 @@ const DEFAULT_CONFIG = {
         username: '',
         password: ''
     }
-    // TODO: 新的指纹配置将在新指纹系统实现后通过FingerprintRepository管理
-};
+    };
 
 // Fields to encrypt
 const ENCRYPTED_FIELDS = ['password'];

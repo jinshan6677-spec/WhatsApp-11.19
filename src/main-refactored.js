@@ -22,6 +22,7 @@ const { registerIPCHandlers: registerSingleWindowIPCHandlers, unregisterIPCHandl
 
 // 导入新架构的IPC处理器
 const TranslationServiceIPCHandlers = require('./presentation/ipc/handlers/TranslationServiceIPCHandlers');
+const VoiceTranslationIPCHandlers = require('./presentation/ipc/handlers/VoiceTranslationIPCHandlers');
 const translationService = require('./translation/translationService');
 
  
@@ -96,6 +97,8 @@ async function registerAllIPCHandlers() {
       await translationService.initialize();
       TranslationServiceIPCHandlers.registerWithRouter(ipcRouter, { translationService });
       console.log('[INFO] 翻译服务IPC处理器注册完成 (IPCRouter - 13 channels)');
+      VoiceTranslationIPCHandlers.registerWithRouter(ipcRouter);
+      console.log('[INFO] 语音/LLM 翻译IPC处理器注册完成 (IPCRouter)');
     }
 
  
@@ -125,6 +128,8 @@ function unregisterAllIPCHandlers() {
     if (ipcRouter) {
       TranslationServiceIPCHandlers.unregisterFromRouter(ipcRouter);
       console.log('[INFO] 翻译服务IPC处理器已注销 (IPCRouter)');
+      VoiceTranslationIPCHandlers.unregisterFromRouter(ipcRouter);
+      console.log('[INFO] 语音/LLM 翻译IPC处理器已注销 (IPCRouter)');
     }
   } catch (error) {
     console.error('[ERROR] 注销翻译服务IPC处理器时出错:', error);
