@@ -20,9 +20,10 @@
   - `src/ui/main-window/ViewBoundsManager.js:138`。
   - `src/utils/encryption.js:19–20`。
 - 超大文件与复杂度
-  - `src/single-window/renderer/translate-settings/*`（已拆分模块化）、`src/single-window/renderer/preload-main.js`（1075 行）、`src/domain/fingerprint/FingerprintDatabase.js`（997 行）、`src/application/services/fingerprint/FingerprintTestRunner.js`（937 行）、`src/application/services/fingerprint/FingerprintValidator.js`（705 行）。建议按领域拆分、引入子模块与单测。
+  - `src/single-window/renderer/translate-settings/*`（已拆分模块化）、`src/single-window/renderer/preload-main/*`（已拆分模块化）、`src/domain/fingerprint/FingerprintDatabase.js`（997 行）、`src/application/services/fingerprint/FingerprintTestRunner.js`（937 行）、`src/application/services/fingerprint/FingerprintValidator.js`（705 行）。建议按领域拆分、引入子模块与单测。
   - 环境设置面板已拆分为子模块，详情见“已实施改动（环境设置面板拆分）”。
   - 翻译设置面板已拆分为子模块，详情见“已实施改动（翻译设置面板拆分）”。
+  - 预加载主桥已拆分为子模块，详情见“已实施改动（预加载主桥拆分）”。
 - 可读性与维护性
   - 预加载注入同步读文件：`src/preload-view.js:132–141`，在 `DOMContentLoaded` 阶段逐个注入，建议合并/异步或打包资源。
 
@@ -126,7 +127,7 @@
   - `cancelPending()`：`src/single-window/renderer/voice-translation/VoiceTranslationModule.js:240–247`。
   - `cleanup()`：`src/single-window/renderer/voice-translation/VoiceTranslationModule.js:252–261` 清空队列与复位状态。
 - 状态可观测性
-  - `getStatus()` 增加 `queueSize`：`src/single-window/renderer/voice-translation/VoiceTranslationModule.js:271–279`。
+ - `getStatus()` 增加 `queueSize`：`src/single-window/renderer/voice-translation/VoiceTranslationModule.js:271–279`。
 
 ## 已实施改动（代码质量）
 - 重复与冗余
@@ -145,7 +146,7 @@
   - `src/ui/main-window/ViewBoundsManager.js:138` 已移除未用解构项。
   - `src/utils/encryption.js:19–20` 已移除未用常量。
 - 验证
-  - Lint：`npm run lint` 通过（0 错误），剩余警告与本次改动无关。
+ - Lint：`npm run lint` 通过（0 错误），剩余警告与本次改动无关。
 
 ## 已实施改动（指纹与视图）
 - 指纹生成器模块化与加权分布
@@ -229,3 +230,26 @@
   - 为 I/O 密集测试（如 `OrphanedDataCleaner`）配置独立 Job 与更高资源限额。
   - 使用 `NODE_OPTIONS=--max-old-space-size=4096` 提升内存上限。
   - 对重 I/O 用例使用 `--runInBand --detectOpenHandles`，并避免无界递归/扫描。
+## 已实施改动（预加载主桥拆分）
+- 模块化目录
+  - 新增 `src/single-window/renderer/preload-main/` 目录：
+    - `accounts.js` 账号管理 IPC。
+    - `views.js` 视图切换与状态 IPC。
+    - `status.js` 登录/连接/会话状态 IPC。
+    - `layout.js` 窗口布局与侧栏/翻译面板通知。
+    - `environment.js` 环境与代理配置 IPC。
+    - `fingerprint.js` 指纹配置与模板/测试 IPC。
+    - `translation.js` 预设翻译辅助方法（活动聊天、应用配置）。
+    - `translationApi.js` 渲染层翻译 API（`window.translationAPI`）。
+    - `channels.js` `invoke/send/on` 白名单集中管理。
+    - `ipc.js` 通用 `invoke/send` 包装器。
+    - `events.js` 事件监听/移除包装器。
+    - `errors.js` 错误事件监听包装器。
+- 聚合入口
+  - `src/single-window/renderer/preload-main.js` 作为唯一预加载入口，聚合并暴露 `window.electronAPI` 与 `window.translationAPI`。
+- 兼容性
+  - 对外 API 名称与调用方式保持不变（方法同名，参数约束不变）。
+  - 保留通道白名单校验，统一于 `channels.js` 管理，便于未来扩展与审计。
+- 验证
+  - Lint：`npm run lint` 通过（0 错误）。
+  - 测试：`npm test -- --runInBand` 显示既有失败（ViewManager 归档用例与指纹属性测试），与本次预加载拆分无关；渲染层初始化与事件绑定正常。

@@ -96,7 +96,7 @@ class MainWindow {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        sandbox: true,
+        sandbox: false,
         preload: this.options.preloadPath
       }
     });
