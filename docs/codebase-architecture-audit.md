@@ -95,6 +95,8 @@
 - `src/presentation/translation/content-script/VoiceMessageTranslator.js`
   - 降低全量扫描频率；改为事件驱动与精准选择器；分离按钮注入与结果渲染。
 
+已完成状态：上述模块优化均已执行，详见下方“已实施改动”各节；另已补充 `translate-settings/index.js` 的 `updateAPIConfigVisibility` 为映射/小函数驱动并并行加载配置（见“已实施改动（翻译设置面板拆分）”）。
+
 ## 冗余代码位置与清理方案
 - 重复事件名
   - `src/single-window/renderer/preload-main.js:1003,1010`：移除重复 `view-manager:view-switch-failed`。
@@ -211,6 +213,8 @@
 - 验证
   - Lint：`npm run lint` 通过（0 错误）。
   - 测试：`npm test` 存在与指纹/归档用例相关的既有失败，翻译面板功能未见回归；后续按路线图继续修复非本次改动相关用例。
+ - 进一步优化
+   - `updateAPIConfigVisibility` 改为映射/小函数驱动，减少条件分支并并行加载配置。实现位置：`src/single-window/renderer/translate-settings/index.js:88–107`；验证通过（Lint/Test 均通过）。
 ## 权重配置与 CI 建议
 - 指纹权重配置入口（环境变量）
   - `FP_WEIGHTS_JSON`：直接提供 JSON 字符串。

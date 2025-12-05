@@ -91,18 +91,16 @@
       const apiSection = this.panel.querySelector('#apiConfigSection');
       const customEndpoint = this.panel.querySelector('#customEndpointItem');
       const customModel = this.panel.querySelector('#customModelItem');
-      const needsAPI = chatEngine !== 'google' || inputBoxEngine !== 'google';
-      if (apiSection) apiSection.style.display = needsAPI ? 'block' : 'none';
-      if (customEndpoint && customModel) {
-        const needsCustom = chatEngine === 'custom' || inputBoxEngine === 'custom';
-        customEndpoint.style.display = needsCustom ? 'block' : 'none';
-        customModel.style.display = needsCustom ? 'block' : 'none';
-      }
-      if (needsAPI) {
-        const engineToLoad = chatEngine !== 'google' ? chatEngine : inputBoxEngine;
-        if (['custom', 'gpt4', 'gemini', 'deepseek'].includes(engineToLoad)) {
-          await window.TranslateSettingsEngine.loadEngineConfig(this.panel, engineToLoad);
-        }
+      const apiEngines = new Set(['custom','gpt4','gemini','deepseek']);
+      const show = (el, cond) => { if (el) el.style.display = cond ? 'block' : 'none'; };
+      const needsAPI = apiEngines.has(chatEngine) || apiEngines.has(inputBoxEngine);
+      show(apiSection, needsAPI);
+      const needsCustom = chatEngine === 'custom' || inputBoxEngine === 'custom';
+      show(customEndpoint, needsCustom);
+      show(customModel, needsCustom);
+      const enginesToLoad = [chatEngine, inputBoxEngine].filter(e => apiEngines.has(e));
+      if (enginesToLoad.length) {
+        await Promise.all(enginesToLoad.map(e => window.TranslateSettingsEngine.loadEngineConfig(this.panel, e)));
       }
     }
     async loadEngineConfig(engineName){
@@ -264,4 +262,3 @@
   }
   window.TranslateSettingsPanel = TranslateSettingsPanel;
 })();
-
