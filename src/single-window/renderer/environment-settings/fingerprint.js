@@ -275,6 +275,7 @@
       advancedApis: { clipboard: { mode: 'ask' }, notification: { mode: 'deny' } }
     };
     populateFingerprintForm(defaultConfig);
+    hideFingerprintResult();
     showFingerprintSuccess('已重置为默认配置');
   }
 
@@ -382,6 +383,14 @@
     input.addEventListener('keydown', (e) => { if (e.key === 'Escape') handleCancel(); });
   }
 
+  function hideFingerprintResult() {
+    const wrapper = container().querySelector('#fingerprint-result-wrapper');
+    if (wrapper) {
+      wrapper.classList.remove('visible');
+      wrapper.classList.add('hidden');
+    }
+  }
+
   function showFingerprintResult(html) {
     const resultBox = container().querySelector('#fingerprint-result');
     const resultWrapper = container().querySelector('#fingerprint-result-wrapper');
@@ -398,18 +407,25 @@
   }
 
   function showFingerprintLoading(message) {
-    showFingerprintResult(`<div class="env-result-loading">${message}</div>`);
+    hideFingerprintResult();
+    if (window.EnvSettingsRender && window.EnvSettingsRender.showToast) {
+      window.EnvSettingsRender.showToast(message, 'info');
+    }
   }
 
   function showFingerprintError(message) {
-    showFingerprintResult(`<div class="env-result-error">❌ ${message}</div>`);
+    if (window.EnvSettingsRender && window.EnvSettingsRender.showToast) {
+      window.EnvSettingsRender.showToast(message, 'error');
+    } else {
+      // Fallback if render not ready
+      console.error(message);
+    }
   }
 
   function showFingerprintSuccess(message) {
-    showFingerprintResult(`<div class="env-result-success">${message}</div>`);
-    // Auto-hide success messages after 3 seconds if it's not a preview (simple text)
-    // But here we don't know if it's preview or not easily, but usually preview is long HTML.
-    // Let's keep it simple.
+    if (window.EnvSettingsRender && window.EnvSettingsRender.showToast) {
+      window.EnvSettingsRender.showToast(message, 'success');
+    }
   }
 
   window.FingerprintSettings = {

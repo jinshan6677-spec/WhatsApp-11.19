@@ -56,8 +56,10 @@
 .env-panel-footer {
     flex-shrink: 0;
     display: flex;
-    flex-direction: column; /* 垂直堆叠 */
-    gap: 12px; /* 上下两行间距 */
+    flex-direction: column;
+    /* 垂直堆叠 */
+    gap: 12px;
+    /* 上下两行间距 */
     padding: 16px 20px;
     background: #ffffff;
     border-top: 1px solid #e2e8f0;
@@ -68,16 +70,19 @@
 .env-footer-left,
 .env-footer-right {
     display: flex;
-    gap: 12px; /* 按钮间距 */
+    gap: 12px;
+    /* 按钮间距 */
     align-items: center;
-    justify-content: center; /* 居中对齐 */
+    justify-content: center;
+    /* 居中对齐 */
     width: 100%;
 }
 
 .env-footer-left {
     /* 指纹操作区 */
     padding-bottom: 4px;
-    border-bottom: 1px dashed #e2e8f0; /* 添加分隔线区分功能区 */
+    border-bottom: 1px dashed #e2e8f0;
+    /* 添加分隔线区分功能区 */
     padding-bottom: 12px;
     margin-bottom: 0;
 }
@@ -90,9 +95,12 @@
 /* 按钮通用样式优化 */
 .env-btn-secondary,
 .env-btn-primary {
-    flex: 1; /* 按钮平分宽度，使其整齐 */
-    max-width: 120px; /* 限制最大宽度 */
-    height: 36px; /* 固定高度 */
+    flex: 1;
+    /* 按钮平分宽度，使其整齐 */
+    max-width: 120px;
+    /* 限制最大宽度 */
+    height: 36px;
+    /* 固定高度 */
     padding: 0 12px;
     white-space: nowrap;
     border-radius: 6px;
@@ -163,7 +171,7 @@
 }
 
 .env-section:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .env-section-title {
@@ -216,7 +224,8 @@
 .env-input-group select {
     flex: 1;
     width: auto;
-    min-width: 0; /* 防止内容撑开 */
+    min-width: 0;
+    /* 防止内容撑开 */
 }
 
 .env-form-row {
@@ -293,11 +302,11 @@ textarea:focus {
     border-radius: 50%;
 }
 
-input:checked + .env-toggle-slider {
+input:checked+.env-toggle-slider {
     background-color: #25d366;
 }
 
-input:checked + .env-toggle-slider:before {
+input:checked+.env-toggle-slider:before {
     transform: translateX(16px);
 }
 
@@ -322,7 +331,8 @@ input:checked + .env-toggle-slider:before {
 }
 
 .env-btn-primary {
-    background: #25d366; /* WhatsApp Green */
+    background: #25d366;
+    /* WhatsApp Green */
     color: white;
 }
 
@@ -398,7 +408,8 @@ input:checked + .env-toggle-slider:before {
 
 .env-collapsible.active .env-collapsible-content {
     padding: 12px;
-    max-height: 1500px; /* 增加高度限制以容纳更多内容 */
+    max-height: 1500px;
+    /* 增加高度限制以容纳更多内容 */
     border-top: 1px solid #e2e8f0;
 }
 
@@ -454,7 +465,7 @@ input:checked + .env-toggle-slider:before {
     font-size: 13px;
     font-weight: 500;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     animation: fadeInDown 0.3s ease;
     pointer-events: none;
 }
@@ -477,8 +488,15 @@ input:checked + .env-toggle-slider:before {
 }
 
 @keyframes fadeInDown {
-    from { opacity: 0; transform: translate(-50%, -10px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
+    from {
+        opacity: 0;
+        transform: translate(-50%, -10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
 }
 
 /* 密码组 */
@@ -514,65 +532,72 @@ input:checked + .env-toggle-slider:before {
         gap: 12px;
         padding: 12px;
     }
-    .env-footer-left, .env-footer-right {
+
+    .env-footer-left,
+    .env-footer-right {
         width: 100%;
         justify-content: space-between;
     }
+
     .env-footer-left {
         order: 2;
         padding-top: 12px;
         border-top: 1px solid #f1f5f9;
     }
+
     .env-footer-right {
         order: 1;
     }
-    .env-btn-primary, .env-btn-secondary {
+
+    .env-btn-primary,
+    .env-btn-secondary {
         flex: 1;
     }
 }
 
-/* 结果展示容器 wrapper */
+/* 结果展示容器 wrapper - 改为嵌入式而非覆盖式 */
 .env-result-wrapper {
-    position: absolute;
-    bottom: 57px; /* Footer height approx */
-    left: 0;
-    right: 0;
+    margin-top: 16px;
     background: #ffffff;
-    border-top: 1px solid #e2e8f0;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 20;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
-    max-height: 60%; /* Max height of the panel */
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    transform: translateY(0);
-    opacity: 1;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    /* 移除绝对定位，使其成为流式布局的一部分 */
+    position: relative;
+    z-index: 1;
 }
 
 .env-result-wrapper.hidden {
     display: none;
 }
 
-/* To make animation work with display:none is hard, so let's use a visible class */
-.env-result-wrapper {
-    display: none;
-}
 .env-result-wrapper.visible {
     display: flex;
-    animation: slideUp 0.3s ease-out forwards;
+    animation: fadeIn 0.3s ease-out;
 }
 
-@keyframes slideUp {
-    from { transform: translateY(100%); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .env-result-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px;
-    background: #f1f5f9;
+    padding: 10px 16px;
+    background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
     font-size: 13px;
     font-weight: 600;
@@ -586,23 +611,27 @@ input:checked + .env-toggle-slider:before {
     line-height: 1;
     padding: 0;
     border-radius: 4px;
-    color: #64748b;
+    color: #94a3b8;
     background: transparent;
     border: none;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .env-result-close:hover {
     background: #e2e8f0;
-    color: #0f172a;
+    color: #475569;
 }
 
 .env-result-content {
     padding: 16px;
     overflow-y: auto;
-    flex: 1;
     font-size: 13px;
     line-height: 1.6;
+    max-height: 400px;
+    /* 限制由于内容过多导致过长 */
 }
 
 /* Override existing result box styles inside the wrapper */
@@ -613,7 +642,6 @@ input:checked + .env-toggle-slider:before {
     background: transparent;
 }
 
-/* Adjust specific result types if needed */
 .env-result-wrapper .env-result-success,
 .env-result-wrapper .env-result-error,
 .env-result-wrapper .env-result-loading {

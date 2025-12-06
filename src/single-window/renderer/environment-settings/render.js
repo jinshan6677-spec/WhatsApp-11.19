@@ -1,10 +1,13 @@
-;(function(){
+; (function () {
   'use strict';
   const state = window.EnvSettingsState;
 
-  function render(container){
+  function render(container) {
     state.container = container;
-    container.innerHTML = 
+    if (window.getComputedStyle(container).position === 'static') {
+      container.style.position = 'relative';
+    }
+    container.innerHTML =
       '<div class="env-panel-body">\n' +
       '  <section class="env-section">\n' +
       '    <h3 class="env-section-title">\n' +
@@ -445,7 +448,7 @@
       '</div>';
   }
 
-  function setupConditionalFields(){
+  function setupConditionalFields() {
     const c = state.container;
     const webglMode = c.querySelector('#fp-webgl-mode');
     webglMode.addEventListener('change', (e) => {
@@ -472,7 +475,7 @@
     });
   }
 
-  function setupCollapsibles(){
+  function setupCollapsibles() {
     const c = state.container;
     c.querySelectorAll('.env-collapsible-header').forEach(header => {
       header.addEventListener('click', () => {
@@ -481,5 +484,28 @@
     });
   }
 
-  window.EnvSettingsRender = { render, setupConditionalFields, setupCollapsibles };
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `env-message-toast ${type}`;
+    toast.textContent = message;
+
+    // 将Toast添加到面板容器内，而不是body，确保它只在侧边栏显示，不被视图覆盖
+    const container = state.container || document.body;
+    container.appendChild(toast);
+
+    toast.style.position = 'absolute';
+    toast.style.top = '20px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.zIndex = '1000';
+
+    // Animation in handled by CSS usually, but let's ensure it's removed
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => toast.remove(), 500);
+    }, 3000);
+  }
+
+  window.EnvSettingsRender = { render, setupConditionalFields, setupCollapsibles, showToast };
 })();
