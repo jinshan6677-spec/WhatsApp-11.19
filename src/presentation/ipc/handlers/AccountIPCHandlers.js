@@ -220,11 +220,6 @@ function register(dependencies) {
     openAccountDialog(null);
   });
 
-  // Open account dialog for editing
-  ipcMain.on('account:edit', (event, accountId) => {
-    openAccountDialog(accountId);
-  });
-
   // Create a new account
   ipcMain.handle('create-account', async (event, config) => {
     try {
@@ -701,7 +696,6 @@ function unregister() {
   ipcMain.removeHandler('get-account-status');
   ipcMain.removeHandler('get-all-account-statuses');
   ipcMain.removeAllListeners('account:create');
-  ipcMain.removeAllListeners('account:edit');
 
   _accountManager = null;
   _viewManager = null;

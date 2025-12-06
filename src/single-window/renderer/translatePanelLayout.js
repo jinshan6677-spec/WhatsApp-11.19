@@ -285,4 +285,21 @@
     }
     return window.electronAPI.applyTranslationConfig(accountId, config);
   }
+
+  /**
+   * Open environment settings panel from external call (e.g., sidebar context menu)
+   */
+  function openEnvironmentPanel() {
+    // Make sure panel is expanded
+    if (currentState === 'collapsed') {
+      setState('expanded');
+    }
+    // Switch to environment panel
+    switchPanel('environment');
+  }
+
+  // Export methods for external access
+  window.TranslatePanelLayout = {
+    openEnvironmentPanel
+  };
 })();

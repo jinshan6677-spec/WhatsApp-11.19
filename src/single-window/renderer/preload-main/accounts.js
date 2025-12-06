@@ -7,7 +7,6 @@ const createAccountsAPI = (ipcRenderer) => ({
   deleteAccount: (accountId, options) => ipcRenderer.invoke('delete-account', accountId, options),
   reorderAccounts: (accountIds) => ipcRenderer.invoke('account:reorder', accountIds),
   openCreateAccountDialog: () => ipcRenderer.send('account:create'),
-  openEditAccountDialog: (accountId) => ipcRenderer.send('account:edit', accountId),
   openAccount: (accountId) => ipcRenderer.invoke('open-account', accountId),
   closeAccount: (accountId) => ipcRenderer.invoke('close-account', accountId),
   getAccountStatus: (accountId) => ipcRenderer.invoke('get-account-status', accountId),

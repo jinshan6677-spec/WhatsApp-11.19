@@ -1646,6 +1646,7 @@ button:focus-visible {
 /* Account item in selection mode */
 .account-item.in-selection-mode {
   padding-left: 8px;
+  cursor: pointer;
 }
 
 .account-item.selected {

@@ -457,11 +457,12 @@
 
   /**
    * Create an account item element
+   * @param {Object} account - Account object
+   * @param {Object} options - Options
+   * @param {boolean} options.skipIPFetch - Whether to skip IP fetching (default: false)
    */
-  /**
-   * Create an account item element
-   */
-  function createAccountItem(account) {
+  function createAccountItem(account, options = {}) {
+    const { skipIPFetch = false } = options;
     const item = document.createElement('div');
     item.className = 'account-item';
     item.dataset.accountId = account.id;
@@ -620,10 +621,42 @@
     item.appendChild(actions);
 
     // Selection handlers
-    item.addEventListener('click', () => handleAccountSelect(account.id));
+    item.addEventListener('click', () => {
+      // In selection mode, clicking the card toggles the selection
+      if (selectionMode) {
+        const checkbox = item.querySelector('.selection-checkbox');
+        if (checkbox) {
+          checkbox.checked = !checkbox.checked;
+          if (checkbox.checked) {
+            selectedAccountIds.add(account.id);
+            item.classList.add('selected');
+          } else {
+            selectedAccountIds.delete(account.id);
+            item.classList.remove('selected');
+          }
+        }
+        return;
+      }
+      handleAccountSelect(account.id);
+    });
     item.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        // In selection mode, Enter/Space toggles selection
+        if (selectionMode) {
+          const checkbox = item.querySelector('.selection-checkbox');
+          if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+            if (checkbox.checked) {
+              selectedAccountIds.add(account.id);
+              item.classList.add('selected');
+            } else {
+              selectedAccountIds.delete(account.id);
+              item.classList.remove('selected');
+            }
+          }
+          return;
+        }
         handleAccountSelect(account.id);
       }
     });
@@ -637,8 +670,10 @@
     // Apply profile info (真实头像 / 昵称 / 号码）如果已知
     applyAccountProfileToItem(account, item);
 
-    // Fetch and render IP info
-    setTimeout(() => fetchAndRenderIPInfo(account, item), 10); // Non-blocking
+    // Fetch and render IP info (skip if requested to use cached IP)
+    if (!skipIPFetch) {
+      setTimeout(() => fetchAndRenderIPInfo(account, item), 10); // Non-blocking
+    }
 
     return item;
   }
@@ -949,9 +984,11 @@
     const options = [
       { label: '打开账号', icon: '▶', action: () => handleOpenAccount(account.id), visible: !account.isRunning },
       { label: '关闭账号', icon: '⏹', action: () => handleCloseAccount(account.id), visible: account.isRunning },
-      { label: '编辑账号', icon: '⚙️', action: () => handleEditAccount(account.id) },
-      { label: '环境设置', icon: '🌐', action: () => window.EnvironmentSettingsPanel?.open(account.id) },
-      { label: '复制号码', icon: '📋', action: () => copyToClipboard(account.phoneNumber), visible: !!account.phoneNumber },
+      {
+        label: '环境设置',
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22S20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z"></path><path d="M9 12L11 14L15 10"></path></svg>`,
+        action: () => openEnvironmentPanel(account.id)
+      },
       { type: 'separator' },
       { label: '删除账号', icon: '🗑️', action: () => handleDeleteAccount(account.id), danger: true }
     ];
@@ -1200,11 +1237,18 @@
   }
 
   /**
-   * Handle edit account button click
+   * Open environment settings panel for an account
+   * Sets the account and expands the environment panel
    */
-  function handleEditAccount(accountId) {
-    if (!window.electronAPI) return;
-    window.electronAPI.send('account:edit', accountId);
+  function openEnvironmentPanel(accountId) {
+    // Set the account for the environment settings panel
+    if (window.EnvironmentSettingsPanel) {
+      window.EnvironmentSettingsPanel.setAccount(accountId);
+    }
+    // Expand the environment panel using the global method
+    if (window.TranslatePanelLayout && window.TranslatePanelLayout.openEnvironmentPanel) {
+      window.TranslatePanelLayout.openEnvironmentPanel();
+    }
   }
 
   /**
@@ -1320,12 +1364,16 @@
    * Handle accounts updated event from main process
    * 使用防抖避免频繁重渲染
    * 修复：保留已有账号的运行状态，避免状态丢失
+   * 优化：增量更新，只对新账号获取IP信息，避免不必要的资源浪费
    */
   function handleAccountsUpdated(accountsData) {
     const newAccounts = accountsData || [];
 
-    // 创建旧账号状态的映射，用于保留运行状态
+    // 创建旧账号的ID集合和状态映射，用于识别新增账号和保留运行状态
+    const oldAccountIds = new Set(accounts.map(acc => acc.id));
     const oldAccountStatusMap = new Map();
+    const oldAccountIPMap = new Map();
+
     accounts.forEach(acc => {
       oldAccountStatusMap.set(acc.id, {
         runningStatus: acc.runningStatus,
@@ -1335,13 +1383,27 @@
         connectionStatus: acc.connectionStatus,
         status: acc.status
       });
+      // 保留已有账号的IP信息缓存
+      if (acc.lastIPInfo) {
+        oldAccountIPMap.set(acc.id, acc.lastIPInfo);
+      }
     });
 
-    // 合并新账号数据，保留旧账号的运行状态
+    // 识别新增的账号
+    const newAccountIds = [];
+
+    // 合并新账号数据，保留旧账号的运行状态和IP信息
     accounts = newAccounts.map(newAccount => {
       const oldStatus = oldAccountStatusMap.get(newAccount.id);
+      const oldIPInfo = oldAccountIPMap.get(newAccount.id);
+
+      // 标记这是一个新账号
+      if (!oldAccountIds.has(newAccount.id)) {
+        newAccountIds.push(newAccount.id);
+      }
+
       if (oldStatus) {
-        // 保留运行状态相关字段
+        // 保留运行状态相关字段和IP信息
         return {
           ...newAccount,
           runningStatus: oldStatus.runningStatus,
@@ -1349,7 +1411,8 @@
           loginStatus: oldStatus.loginStatus !== undefined ? oldStatus.loginStatus : newAccount.loginStatus,
           hasQRCode: oldStatus.hasQRCode !== undefined ? oldStatus.hasQRCode : newAccount.hasQRCode,
           connectionStatus: oldStatus.connectionStatus || newAccount.connectionStatus,
-          status: oldStatus.status || newAccount.status
+          status: oldStatus.status || newAccount.status,
+          lastIPInfo: oldIPInfo || null // 保留已有的IP信息缓存
         };
       }
       return newAccount;
@@ -1359,13 +1422,201 @@
       clearTimeout(updateTimers.get('accountList'));
     }
 
-    updateTimers.set(
-      'accountList',
-      setTimeout(() => {
-        renderAccountList();
-        updateTimers.delete('accountList');
-      }, DEBOUNCE_DELAY)
-    );
+    // 如果没有新增账号，只需要更新已有账号的DOM元素（不重新获取IP）
+    if (newAccountIds.length === 0 && oldAccountIds.size === accounts.length) {
+      updateTimers.set(
+        'accountList',
+        setTimeout(() => {
+          updateExistingAccountsDOM();
+          updateTimers.delete('accountList');
+        }, DEBOUNCE_DELAY)
+      );
+    } else {
+      // 有新增或删除账号时，需要完整渲染，但标记新账号以便只对它们获取IP
+      updateTimers.set(
+        'accountList',
+        setTimeout(() => {
+          renderAccountListIncremental(newAccountIds);
+          updateTimers.delete('accountList');
+        }, DEBOUNCE_DELAY)
+      );
+    }
+  }
+
+  /**
+   * Update existing accounts' DOM elements without full re-rendering
+   * 只更新备注、名称等属性，不重新获取IP信息
+   */
+  function updateExistingAccountsDOM() {
+    if (!accountList) return;
+
+    accounts.forEach(account => {
+      const item = accountList.querySelector(`[data-account-id="${account.id}"]`);
+      if (!item) return;
+
+      // 更新名称
+      const nameEl = item.querySelector('.account-name');
+      if (nameEl) {
+        nameEl.textContent = account.profileName || account.name || '未命名账号';
+      }
+
+      // 更新备注（只在非编辑状态下更新）
+      const noteEl = item.querySelector('.account-note');
+      if (noteEl && document.activeElement !== noteEl) {
+        noteEl.textContent = account.note || '';
+      }
+
+      // 更新电话号码
+      const phoneEl = item.querySelector('.account-phone');
+      if (phoneEl) {
+        if (account.phoneNumber) {
+          phoneEl.textContent = account.phoneNumber;
+          phoneEl.style.display = '';
+        } else {
+          phoneEl.style.display = 'none';
+        }
+      }
+
+      // 更新折叠显示名称
+      const collapsedNameEl = item.querySelector('.account-collapsed-name');
+      if (collapsedNameEl) {
+        collapsedNameEl.textContent = account.note || account.profileName || account.name || '未命名';
+      }
+
+      // 同步状态
+      syncAccountStatusWithRunningStatus(account);
+    });
+
+    console.log(`[Sidebar] Updated ${accounts.length} accounts' DOM without IP refresh`);
+  }
+
+  /**
+   * Render account list with incremental IP fetching
+   * 只对新增账号获取IP信息，已有账号使用缓存的IP信息
+   * @param {string[]} newAccountIds - 新增账号的ID列表
+   */
+  async function renderAccountListIncremental(newAccountIds) {
+    if (!accountList) return;
+
+    // Increment render version to cancel any pending stale renders
+    const currentRenderVersion = ++renderVersion;
+
+    // Clear existing items
+    const existingItems = accountList.querySelectorAll('.account-item');
+    existingItems.forEach((item) => item.remove());
+
+    // Filter accounts
+    const filteredAccounts = accounts.filter(account => {
+      if (!filterQuery) return true;
+      const name = (account.name || '').toLowerCase();
+      const profileName = (account.profileName || '').toLowerCase();
+      const phone = (account.phoneNumber || '').toLowerCase();
+      const note = (account.note || '').toLowerCase();
+      return name.includes(filterQuery) || profileName.includes(filterQuery) || phone.includes(filterQuery) || note.includes(filterQuery);
+    });
+
+    // Show/hide empty state
+    if (filteredAccounts.length === 0) {
+      if (emptyState) {
+        emptyState.classList.remove('hidden');
+        if (accounts.length > 0) {
+          const emptyText = emptyState.querySelector('p');
+          if (emptyText) emptyText.textContent = '没有找到匹配的账号';
+        }
+      }
+      return;
+    }
+
+    if (emptyState) {
+      emptyState.classList.add('hidden');
+    }
+
+    // Ensure running status is up-to-date
+    if (window.electronAPI) {
+      try {
+        const statusResult = await window.electronAPI.getAllAccountStatuses();
+        if (statusResult && statusResult.success && statusResult.statuses) {
+          mergeRunningStatuses(statusResult.statuses);
+          syncAccountStatusesWithRunningStatus();
+        }
+      } catch (error) {
+        console.error('Failed to get account statuses:', error);
+      }
+    }
+
+    // Check if this render is still valid
+    if (currentRenderVersion !== renderVersion) {
+      console.log(`[Sidebar] Aborting stale render (version ${currentRenderVersion}, current ${renderVersion})`);
+      return;
+    }
+
+    // Sort accounts by order
+    const sortedAccounts = [...filteredAccounts].sort((a, b) => {
+      const orderA = a.order !== undefined ? a.order : 999;
+      const orderB = b.order !== undefined ? b.order : 999;
+      return orderA - orderB;
+    });
+
+    // Final check before DOM mutation
+    if (currentRenderVersion !== renderVersion) {
+      console.log(`[Sidebar] Aborting stale render before DOM update (version ${currentRenderVersion}, current ${renderVersion})`);
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    const newAccountIdsSet = new Set(newAccountIds);
+
+    sortedAccounts.forEach((account) => {
+      const accountItem = createAccountItemIncremental(account, newAccountIdsSet.has(account.id));
+      fragment.appendChild(accountItem);
+    });
+
+    accountList.appendChild(fragment);
+
+    // Status recovery
+    setTimeout(() => {
+      sortedAccounts.forEach((account) => {
+        syncAccountStatusWithRunningStatus(account);
+        if (account.loginStatus === true) {
+          updateAccountStatus(account.id, 'online');
+        }
+      });
+      console.log(`[Sidebar] Status recovery completed for ${sortedAccounts.length} accounts (${newAccountIds.length} new)`);
+    }, 100);
+  }
+
+  /**
+   * Create an account item element with incremental IP fetching
+   * @param {Object} account - Account object
+   * @param {boolean} isNewAccount - Whether this is a newly added account
+   */
+  function createAccountItemIncremental(account, isNewAccount) {
+    // 对于已有账号且有缓存IP信息，跳过IP获取
+    const hasCachedIP = !isNewAccount && account.lastIPInfo;
+    const item = createAccountItem(account, { skipIPFetch: hasCachedIP });
+
+    // 对于已有账号，使用缓存的IP信息渲染
+    if (hasCachedIP) {
+      // 创建IP容器并渲染缓存的IP信息
+      let ipContainer = item.querySelector('.account-ip-info');
+      if (!ipContainer) {
+        ipContainer = document.createElement('div');
+        ipContainer.className = 'account-ip-info';
+        const infoBlock = item.querySelector('.account-info');
+        if (infoBlock) {
+          infoBlock.appendChild(ipContainer);
+        }
+      }
+      if (account.lastIPInfo.success !== false) {
+        renderIPDetails(ipContainer, account.lastIPInfo);
+        console.log(`[Sidebar] Using cached IP info for account ${account.id}`);
+      }
+    } else if (isNewAccount) {
+      console.log(`[Sidebar] Fetching IP info for new account ${account.id}`);
+      // 新账号已在 createAccountItem 中自动获取IP
+    }
+
+    return item;
   }
 
   /**

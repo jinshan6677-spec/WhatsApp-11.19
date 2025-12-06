@@ -90,7 +90,6 @@ const invokeChannels = [
 
 const sendChannels = [
   'account:create',
-  'account:edit',
   'sidebar-resized',
   'translation-panel-resized',
   'window-resize-complete',
