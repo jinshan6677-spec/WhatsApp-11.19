@@ -97,24 +97,64 @@
 
     // Position tooltip
     const rect = element.getBoundingClientRect();
-    const tooltipRect = tooltipElement.getBoundingClientRect();
+    let tooltipRect = tooltipElement.getBoundingClientRect();
+    const sidebar = document.getElementById('sidebar');
+    const boundary = sidebar ? sidebar.getBoundingClientRect() : null;
+    const PADDING = 6;
 
     // Determine best position (prefer top, then bottom)
     let position = 'top';
     let x = rect.left + rect.width / 2;
-    let y = rect.top - tooltipRect.height - 6; // 6px gap
+    let y = rect.top - tooltipRect.height - PADDING;
 
-    if (y < 10) {
+    if (y < (boundary ? boundary.top + PADDING : 10)) {
       // Not enough space on top, show below
       position = 'bottom';
-      y = rect.bottom + 6;
+      y = rect.bottom + PADDING;
     }
 
-    // Adjust horizontal position if tooltip goes off screen
-    if (x + tooltipRect.width / 2 > window.innerWidth - 10) {
-      x = window.innerWidth - tooltipRect.width / 2 - 10;
-    } else if (x - tooltipRect.width / 2 < 10) {
-      x = tooltipRect.width / 2 + 10;
+    // Clamp within sidebar bounds if target is inside sidebar
+    if (boundary) {
+      const maxWidth = Math.max(160, boundary.width - PADDING * 2);
+      tooltipElement.style.maxWidth = `${maxWidth}px`;
+      tooltipRect = tooltipElement.getBoundingClientRect();
+
+      let left = x - tooltipRect.width / 2;
+      let right = left + tooltipRect.width;
+
+      const minLeft = boundary.left + PADDING;
+      const maxRight = boundary.right - PADDING;
+
+      if (left < minLeft) {
+        left = minLeft;
+      }
+      if (right > maxRight) {
+        left = Math.max(minLeft, maxRight - tooltipRect.width);
+      }
+
+      // Vertical clamp inside sidebar
+      const minTop = boundary.top + PADDING;
+      const maxBottom = boundary.bottom - PADDING;
+      if (y < minTop) {
+        y = minTop;
+        position = 'bottom';
+      }
+      if (y + tooltipRect.height > maxBottom) {
+        y = Math.max(minTop, maxBottom - tooltipRect.height);
+        position = 'top';
+      }
+
+      tooltipElement.className = `tooltip ${position} show`;
+      tooltipElement.style.left = `${left}px`;
+      tooltipElement.style.top = `${y}px`;
+      return;
+    }
+
+    // Fallback: clamp to window bounds
+    if (x + tooltipRect.width / 2 > window.innerWidth - PADDING) {
+      x = window.innerWidth - tooltipRect.width / 2 - PADDING;
+    } else if (x - tooltipRect.width / 2 < PADDING) {
+      x = tooltipRect.width / 2 + PADDING;
     }
 
     tooltipElement.className = `tooltip ${position} show`;

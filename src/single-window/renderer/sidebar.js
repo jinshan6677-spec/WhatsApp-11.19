@@ -797,6 +797,13 @@
         infoBlock.appendChild(ipContainer);
       }
     }
+    
+    // Initial render with shield icon if not already present (for loading state)
+    // But wait, renderIPDetails clears innerHTML. 
+    // We want the shield to be always visible? 
+    // If IP is loading, we might want to show shield too.
+    // Let's skip pre-rendering shield for now to avoid complexity, assume IP loads fast.
+    // Or we can render a placeholder.
 
     // Render loading state initially if empty
     if (!ipContainer.hasChildNodes()) {
@@ -808,9 +815,11 @@
       const result = await window.electronAPI.invoke('env:get-account-network-info', account.id);
 
       if (result.success) {
+        // Inject account into result for renderIPDetails to use
+        result._account = account;
         renderIPDetails(ipContainer, result);
-        // Cache result on account object if needed for avoiding re-fetch too often
         account.lastIPInfo = result;
+        account.lastIPInfoTimestamp = Date.now();
       } else {
         renderIPError(ipContainer, result.error);
       }
@@ -867,6 +876,25 @@
     };
     ipSpan.addEventListener('click', toggleVisibility);
     row.appendChild(ipSpan);
+
+    // Shield Icon (Environment Info) - Placed after IP
+    const shieldIcon = createEnvInfoIcon(info._account || {}); // Pass account if available, or we need to pass it down
+    // Note: createEnvInfoIcon expects an account object. 
+    // In fetchAndRenderIPInfo, we have 'account'. We need to pass it to renderIPDetails or append it outside.
+    
+    // Re-implementing logic:
+    // The shield icon was created in createAccountItem. 
+    // If we want it in the IP row, we should create/move it here.
+    // But IP info is async. The shield icon should be visible immediately?
+    // Actually, createEnvInfoIcon uses async tooltips. It can be rendered immediately.
+    
+    // Let's append it here if we can access 'account'.
+    // We need to update renderIPDetails signature to accept 'account'.
+    if (info._account) {
+       const envIcon = createEnvInfoIcon(info._account);
+       envIcon.classList.add('inline-shield');
+       row.appendChild(envIcon);
+    }
 
     // Location
     if (info.location) {
@@ -985,6 +1013,115 @@
       });
       actions.appendChild(actionBtn);
     }
+  }
+
+  let _localIPCache = { ip: null, time: 0 };
+
+  async function getLocalPublicIP(force = false) {
+    if (!window.electronAPI) return null;
+    const now = Date.now();
+    if (!force && _localIPCache.ip && now - _localIPCache.time < 60000) {
+      return _localIPCache.ip;
+    }
+    try {
+      const res = await window.electronAPI.invoke('env:detect-network');
+      if (res && res.success) {
+        _localIPCache = { ip: res.ip, time: Date.now() };
+        return res.ip;
+      }
+    } catch (e) {}
+    return _localIPCache.ip;
+  }
+
+  async function getAccountUA(accountId) {
+    if (!window.electronAPI) return navigator.userAgent;
+    try {
+      const res = await window.electronAPI.getFingerprint(accountId);
+      if (res && res.success && res.config) {
+        const cfg = res.config;
+        return cfg.userAgent || (cfg.navigator && cfg.navigator.userAgent) || navigator.userAgent;
+      }
+    } catch (e) {}
+    return navigator.userAgent;
+  }
+
+  async function getProxyIPInfo(account) {
+    if (!window.electronAPI) return null;
+    const now = Date.now();
+    if (account.lastIPInfo && account.lastIPInfoTimestamp && now - account.lastIPInfoTimestamp < 60000) {
+      return account.lastIPInfo;
+    }
+    try {
+      const res = await window.electronAPI.invoke('env:get-account-network-info', account.id);
+      if (res && res.success) {
+        account.lastIPInfo = res;
+        account.lastIPInfoTimestamp = Date.now();
+        return res;
+      }
+    } catch (e) {}
+    return account.lastIPInfo || null;
+  }
+
+  function createEnvInfoIcon(account) {
+    const btn = document.createElement('button');
+    btn.className = 'account-env-icon';
+    btn.setAttribute('aria-label', '环境信息');
+    btn.title = '加载中…';
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22S20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z"></path><path d="M9 12L11 14L15 10"></path></svg>';
+
+    const updateTooltip = async () => {
+      const ua = await getAccountUA(account.id);
+      const localIP = await getLocalPublicIP(false);
+      const proxyInfo = await getProxyIPInfo(account);
+      const proxyIP = proxyInfo && proxyInfo.isProxy ? (proxyInfo.ip || '') : '直连';
+      
+      // Parse simplified UA
+      let simpleUA = '默认';
+      if (ua) {
+        const isWin = ua.includes('Windows');
+        const isMac = ua.includes('Macintosh');
+        const isLinux = ua.includes('Linux');
+        const os = isWin ? 'Win' : (isMac ? 'Mac' : (isLinux ? 'Linux' : 'OS'));
+        
+        const chromeMatch = ua.match(/Chrome\/(\d+)/);
+        const browser = chromeMatch ? `Chrome ${chromeMatch[1]}` : 'Browser';
+        simpleUA = `${os} / ${browser}`;
+      }
+
+      const tip = `代理 IP：${proxyIP}\n本机 IP：${localIP || '获取中...'}\n运行环境：${simpleUA}\n\n完整 UA：\n${ua}`;
+      
+      if (btn.dataset.originalTitle) {
+        btn.dataset.originalTitle = tip;
+      } else {
+        btn.title = tip;
+      }
+    };
+
+    btn.addEventListener('mouseover', (e) => {
+      if (!e.isTrusted) return;
+      btn.title = 'UA/IP加载中…';
+      setTimeout(() => {
+        const evt = new MouseEvent('mouseover', { bubbles: true });
+        btn.dispatchEvent(evt);
+      }, 0);
+      updateTooltip().then(() => {
+        const evt2 = new MouseEvent('mouseover', { bubbles: true });
+        btn.dispatchEvent(evt2);
+      });
+    });
+
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await updateTooltip();
+      const evt = new MouseEvent('mouseover', { bubbles: true });
+      btn.dispatchEvent(evt);
+      setTimeout(() => {
+        const outEvt = new MouseEvent('mouseout', { bubbles: true });
+        btn.dispatchEvent(outEvt);
+      }, 2000);
+    });
+
+    return btn;
   }
 
   /**
@@ -1989,6 +2126,7 @@
         if (result.success) {
           renderIPDetails(ipContainer, result);
           account.lastIPInfo = result;
+          account.lastIPInfoTimestamp = Date.now();
           console.log(`[Sidebar] IP info refreshed for account ${accountId}:`, result.ip, result.isProxy ? '(proxy)' : '(local)');
         } else {
           renderIPError(ipContainer, result.error);

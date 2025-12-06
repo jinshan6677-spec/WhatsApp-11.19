@@ -226,6 +226,40 @@ body {
   z-index: 2;
 }
 
+.account-env-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #aaa;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.account-env-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.account-env-icon:hover {
+  color: #409eff;
+}
+
+.account-item.active .account-env-icon {
+  color: #409eff;
+}
+
+#sidebar[data-collapsed="true"] .account-env-icon {
+  display: none;
+}
+
+
+
 /* Avatar & Status */
 /* Avatar & Status */
 .account-avatar-container {
@@ -309,8 +343,10 @@ body {
 
 .account-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .account-name {
@@ -321,6 +357,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 0 1 auto;
 }
 
 .account-secondary {
@@ -519,14 +556,18 @@ body {
   position: absolute;
   background-color: #333;
   color: white;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 4px;
   font-size: 12px;
-  white-space: nowrap;
+  white-space: pre-wrap;
+  word-wrap: break-word;
   z-index: 10000;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
+  text-align: left;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 .tooltip.show {
