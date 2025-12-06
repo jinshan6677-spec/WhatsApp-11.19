@@ -196,19 +196,17 @@ body {
 .account-item {
   display: flex;
   align-items: center;
-  padding: 12px 12px 12px 8px;
-  margin-bottom: 8px;
-  /* Increase spacing */
+  padding: 8px 10px 8px 8px;
+  /* Compact padding */
+  margin-bottom: 4px;
+  /* Reduced margin */
   background: #fff;
   border-radius: 12px;
-  /* Smoother corners */
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   border: 1px solid #e9edef;
-  /* Subtle border */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  /* Subtle shadow */
   user-select: none;
 }
 
@@ -216,16 +214,13 @@ body {
   background-color: #fff;
   border-color: #d1d7db;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  /* Lift effect */
   transform: translateY(-1px);
   z-index: 1;
 }
 
 .account-item.active {
   background-color: #e0f7fa;
-  /* Light Lake Blue */
   border-color: #00bcd4;
-  /* Lake Blue */
   box-shadow: 0 4px 14px rgba(0, 188, 212, 0.2);
   transform: translateY(-1px);
   z-index: 2;
@@ -239,9 +234,17 @@ body {
   flex-shrink: 0;
 }
 
+.account-avatar-container {
+  position: relative;
+  margin-right: 8px;
+  /* Compact margin */
+  flex-shrink: 0;
+}
+
 .account-avatar {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  /* Compact size */
+  height: 38px;
   border-radius: 50%;
   background: #ccc;
   display: flex;
@@ -249,10 +252,10 @@ body {
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 18px;
+  font-size: 16px;
+  /* Compact font */
   border: 1px solid rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  /* Ensure image stays inside */
 }
 
 .account-avatar img {
@@ -265,9 +268,11 @@ body {
 .status-dot {
   position: absolute;
   bottom: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
+  right: 1px;
+  /* Compact position */
+  width: 10px;
+  /* Compact size */
+  height: 10px;
   border-radius: 50%;
   border: 2px solid #fff;
   background-color: #ccc;
@@ -295,11 +300,11 @@ body {
 .account-info {
   flex: 1;
   min-width: 0;
-  /* Critical for text-overflow to work */
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 0;
+  /* Compact gap */
 }
 
 .account-header {
@@ -309,7 +314,8 @@ body {
 }
 
 .account-name {
-  font-size: 15px;
+  font-size: 14px;
+  /* Compact font */
   font-weight: 500;
   color: #111;
   white-space: nowrap;
@@ -324,12 +330,15 @@ body {
   text-overflow: ellipsis;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 2px;
+  gap: 1px;
+  /* Compact gap */
+  margin-top: 1px;
+  /* Compact margin */
 }
 
 .account-phone {
-  font-size: 13.91px;
+  font-size: 12px;
+  /* Compact font */
   cursor: pointer;
   transition: color 0.2s;
   display: flex;
@@ -339,7 +348,6 @@ body {
 
 .account-phone:hover {
   color: #00bcd4;
-  /* Lake Blue */
   text-decoration: underline;
 }
 
@@ -348,12 +356,14 @@ body {
 }
 
 .account-note {
-  font-size: 13px;
+  font-size: 12px;
+  /* Compact font */
   color: #111;
   font-weight: 500;
   background-color: transparent;
   border: 1px solid transparent;
-  min-height: 24px;
+  min-height: 20px;
+  /* Compact height */
   display: flex;
   align-items: center;
   padding: 2px 2px;
@@ -363,7 +373,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: 4px;
+  margin-top: 2px;
+  /* Compact margin */
 }
 
 .account-note:hover {

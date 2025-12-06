@@ -465,6 +465,11 @@
     const { skipIPFetch = false } = options;
     const item = document.createElement('div');
     item.className = 'account-item';
+
+    // Add logged-in class for compact styling
+    if (account.loginStatus === true) {
+      item.classList.add('loggedin');
+    }
     item.dataset.accountId = account.id;
     item.setAttribute('tabindex', '0');
     item.setAttribute('role', 'button');
@@ -1899,6 +1904,13 @@
     if (!item) {
       console.warn(`[Sidebar] Account item for ${accountId} not found in DOM when updating status`);
       return;
+    }
+
+    // Toggle loggedin class dynamically when status changes
+    if (account.loginStatus === true) {
+      item.classList.add('loggedin');
+    } else {
+      item.classList.remove('loggedin');
     }
 
     // 更新头像上的状态点，而不是创建额外的状态元素
