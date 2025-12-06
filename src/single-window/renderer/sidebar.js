@@ -1017,13 +1017,25 @@
 
     document.body.appendChild(menu);
 
-    // Position menu
+    // Position menu - ensure it stays within the sidebar to avoid being covered by BrowserView
     const rect = menu.getBoundingClientRect();
+    const sidebar = document.getElementById('sidebar');
+    const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : { right: window.innerWidth, left: 0 };
+
     let x = e.clientX;
     let y = e.clientY;
 
-    if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width;
-    if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height;
+    // Ensure menu doesn't extend beyond sidebar's right edge (BrowserView would cover it)
+    const maxX = sidebarRect.right - rect.width - 4; // 4px padding from edge
+    if (x + rect.width > sidebarRect.right) {
+      x = Math.max(sidebarRect.left + 4, maxX);
+    }
+
+    // Vertical bounds check
+    if (y + rect.height > window.innerHeight) {
+      y = window.innerHeight - rect.height - 4;
+    }
+    if (y < 0) y = 4;
 
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
@@ -2216,18 +2228,26 @@
 
   /**
    * Handle batch start all accounts
+   * 按照账号列表从上到下的顺序启动（按 order 属性升序排序）
    */
   async function handleBatchStartAll() {
     if (!window.electronAPI) return;
 
-    const notRunningAccounts = accounts.filter(acc => !acc.isRunning && acc.runningStatus !== 'loading');
+    // 获取未运行的账号，并按 order 排序
+    const notRunningAccounts = accounts
+      .filter(acc => !acc.isRunning && acc.runningStatus !== 'loading')
+      .sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : 999;
+        const orderB = b.order !== undefined ? b.order : 999;
+        return orderA - orderB;
+      });
 
     if (notRunningAccounts.length === 0) {
       console.log('[Sidebar] All accounts are already running');
       return;
     }
 
-    console.log(`[Sidebar] Batch starting ${notRunningAccounts.length} accounts...`);
+    console.log(`[Sidebar] Batch starting ${notRunningAccounts.length} accounts (in list order)...`);
 
     // Start accounts sequentially with a small delay between each
     for (const account of notRunningAccounts) {
@@ -2246,20 +2266,28 @@
 
   /**
    * Handle batch start selected accounts
+   * 按照账号列表从上到下的顺序启动（按 order 属性升序排序）
    */
   async function handleBatchStartSelected() {
     if (!window.electronAPI || selectedAccountIds.size === 0) return;
 
-    const selectedAccounts = accounts.filter(acc =>
-      selectedAccountIds.has(acc.id) && !acc.isRunning && acc.runningStatus !== 'loading'
-    );
+    // 获取选中且未运行的账号，并按 order 排序
+    const selectedAccounts = accounts
+      .filter(acc =>
+        selectedAccountIds.has(acc.id) && !acc.isRunning && acc.runningStatus !== 'loading'
+      )
+      .sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : 999;
+        const orderB = b.order !== undefined ? b.order : 999;
+        return orderA - orderB;
+      });
 
     if (selectedAccounts.length === 0) {
       console.log('[Sidebar] No selected accounts to start');
       return;
     }
 
-    console.log(`[Sidebar] Batch starting ${selectedAccounts.length} selected accounts...`);
+    console.log(`[Sidebar] Batch starting ${selectedAccounts.length} selected accounts (in list order)...`);
 
     for (const account of selectedAccounts) {
       try {

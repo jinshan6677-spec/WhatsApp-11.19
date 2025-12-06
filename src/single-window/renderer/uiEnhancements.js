@@ -376,38 +376,36 @@
         // Show success feedback
         showReorderFeedback(targetItem, '已重新排序');
 
-        // 确保排序后状态正确恢复
+        // 排序成功后，只需要同步状态，不需要重新加载账号列表（避免触发IP刷新）
+        // DOM顺序已经在拖放时通过 insertBefore 更新了
         setTimeout(() => {
-          // 先重新加载账号数据，确保DOM是最新的
-          if (window.sidebar && window.sidebar.loadAccounts) {
-            window.sidebar.loadAccounts().then(() => {
-              // DOM更新完成后，再同步状态和按钮
-              setTimeout(() => {
-                // 手动同步所有账号的运行状态
-                if (window.sidebar && window.sidebar.getAccounts) {
-                  const accounts = window.sidebar.getAccounts();
-                  accounts.forEach(account => {
-                    // 确保已登录账号的运行状态正确
-                    if (account.loginStatus === true && (account.runningStatus === 'loading' || account.runningStatus === 'not_started')) {
-                      account.runningStatus = 'connected';
-                      account.isRunning = true;
+          // 直接同步所有账号的运行状态，不重新渲染
+          if (window.sidebar && window.sidebar.getAccounts) {
+            const accounts = window.sidebar.getAccounts();
+            accounts.forEach(account => {
+              // 确保已登录账号的运行状态正确
+              if (account.loginStatus === true && (account.runningStatus === 'loading' || account.runningStatus === 'not_started')) {
+                account.runningStatus = 'connected';
+                account.isRunning = true;
 
-                      // 更新该账号的按钮显示
-                      const item = document.querySelector(`[data-account-id="${account.id}"]`);
-                      if (item) {
-                        const actions = item.querySelector('.account-actions');
-                        if (actions && window.sidebar.renderQuickActions) {
-                          window.sidebar.renderQuickActions(account, actions);
-                        }
-                      }
-                    }
-                  });
-                  console.log('[UIEnhancements] Status and button recovery after reordering completed');
+                // 更新该账号的按钮显示
+                const item = document.querySelector(`[data-account-id="${account.id}"]`);
+                if (item) {
+                  const actions = item.querySelector('.account-actions');
+                  if (actions && window.sidebar.renderQuickActions) {
+                    window.sidebar.renderQuickActions(account, actions);
+                  }
                 }
-              }, 100);
+              }
             });
+
+            // 同步状态确保一致性
+            if (window.sidebar.syncAccountStatusesWithRunningStatus) {
+              window.sidebar.syncAccountStatusesWithRunningStatus();
+            }
+            console.log('[UIEnhancements] Status recovery after reordering completed (no IP refresh)');
           }
-        }, 100);
+        }, 50);
       }
     } catch (error) {
       console.error('Failed to reorder accounts:', error);
