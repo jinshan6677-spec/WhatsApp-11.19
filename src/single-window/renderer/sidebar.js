@@ -1578,6 +1578,64 @@
   function handleAccountOpened(data) {
     const { accountId } = data;
     updateAccountRunningStatus(accountId, 'connected');
+
+    // Refresh IP info for this account after view is opened/restarted
+    // This ensures IP display updates when proxy settings have changed
+    refreshAccountIPInfo(accountId);
+  }
+
+  /**
+   * Refresh IP information for a specific account
+   * Used after view restart to update IP display when proxy settings have changed
+   * @param {string} accountId - Account ID to refresh IP info for
+   */
+  async function refreshAccountIPInfo(accountId) {
+    if (!accountList || !window.electronAPI) return;
+
+    const item = accountList.querySelector(`[data-account-id="${accountId}"]`);
+    if (!item) return;
+
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) return;
+
+    // Clear cached IP info to force refresh
+    delete account.lastIPInfo;
+
+    // Find or create IP container
+    let ipContainer = item.querySelector('.account-ip-info');
+    if (!ipContainer) {
+      ipContainer = document.createElement('div');
+      ipContainer.className = 'account-ip-info';
+      const infoBlock = item.querySelector('.account-info');
+      if (infoBlock) {
+        infoBlock.appendChild(ipContainer);
+      }
+    }
+
+    // Show loading state
+    ipContainer.innerHTML = '<div class="ip-row"><span class="loading-dots">更新IP信息</span></div>';
+
+    // Delay slightly to ensure the view's proxy is fully configured
+    setTimeout(async () => {
+      try {
+        const result = await window.electronAPI.invoke('env:get-account-network-info', accountId);
+
+        if (result.success) {
+          renderIPDetails(ipContainer, result);
+          account.lastIPInfo = result;
+          console.log(`[Sidebar] IP info refreshed for account ${accountId}:`, result.ip, result.isProxy ? '(proxy)' : '(local)');
+        } else {
+          renderIPError(ipContainer, result.error);
+          console.warn(`[Sidebar] Failed to refresh IP info for account ${accountId}:`, result.error);
+        }
+      } catch (error) {
+        console.error(`[Sidebar] Error refreshing IP info for account ${accountId}:`, error);
+        const errorMsg = error.message && error.message.includes('No handler')
+          ? '需重启应用'
+          : (error.message || '获取失败');
+        renderIPError(ipContainer, errorMsg, error.message);
+      }
+    }, 500); // Small delay to ensure proxy is active
   }
 
   /**

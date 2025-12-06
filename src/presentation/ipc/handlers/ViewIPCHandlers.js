@@ -26,7 +26,7 @@ let _mainWindow = null;
  */
 function register(dependencies) {
   const { accountManager, viewManager, mainWindow } = dependencies;
-  
+
   _accountManager = accountManager;
   _viewManager = viewManager;
   _mainWindow = mainWindow;
@@ -39,7 +39,7 @@ function register(dependencies) {
       }
 
       const viewState = viewManager.getViewState(accountId);
-      
+
       if (!viewState) {
         return { success: true, exists: false, status: 'not_created' };
       }
@@ -106,6 +106,16 @@ function register(dependencies) {
         throw new Error('Failed to show recreated view');
       }
 
+      // Notify renderer that account view has been recreated (same as account-opened)
+      // This triggers IP info refresh in sidebar when proxy settings have changed
+      if (_mainWindow && _mainWindow.sendToRenderer) {
+        _mainWindow.sendToRenderer('view-manager:account-opened', {
+          accountId,
+          timestamp: Date.now(),
+          recreated: true
+        });
+      }
+
       return { success: true, accountId };
     } catch (error) {
       console.error('[IPC:View] Failed to recreate view:', error);
@@ -122,7 +132,7 @@ function register(dependencies) {
 
       const loginStatus = viewManager.getLoginStatus(accountId);
       const viewState = viewManager.getViewState(accountId);
-      
+
       return {
         success: true,
         accountId,
@@ -202,7 +212,7 @@ function register(dependencies) {
   ipcMain.handle('restore-active-account', async () => {
     try {
       const savedAccountId = viewManager.getSavedActiveAccountId();
-      
+
       if (!savedAccountId) {
         return { success: false, reason: 'no_saved_account' };
       }
@@ -577,11 +587,11 @@ function unregister() {
   ipcMain.removeHandler('account:stop-login-status-monitoring');
   ipcMain.removeHandler('account:start-all-login-status-monitoring');
   ipcMain.removeHandler('account:stop-all-login-status-monitoring');
-  
+
   _accountManager = null;
   _viewManager = null;
   _mainWindow = null;
-  
+
   console.log('[IPC:View] View handlers unregistered');
 }
 
