@@ -223,13 +223,11 @@ function register(dependencies) {
   // Create a new account
   ipcMain.handle('create-account', async (event, config) => {
     try {
-      if (!config.name || config.name.trim() === '') {
-        throw new Error('Account name is required');
-      }
+
 
       const accountConfig = {
         id: uuidv4(),
-        name: config.name.trim(),
+        name: config.name ? config.name.trim() : '',
         phoneNumber: (config.phoneNumber || '').trim(),
         note: config.note || '',
         translation: config.translation || {
@@ -274,12 +272,10 @@ function register(dependencies) {
         throw new Error(`Account ${accountId} not found`);
       }
 
-      if (updates.name !== undefined && updates.name.trim() === '') {
-        throw new Error('Account name cannot be empty');
-      }
+
 
       const accountUpdates = {};
-      if (updates.name !== undefined) accountUpdates.name = updates.name.trim();
+      if (updates.name !== undefined) accountUpdates.name = updates.name ? updates.name.trim() : '';
       if (updates.phoneNumber !== undefined) accountUpdates.phoneNumber = (updates.phoneNumber || '').trim();
       if (updates.note !== undefined) accountUpdates.note = updates.note;
 

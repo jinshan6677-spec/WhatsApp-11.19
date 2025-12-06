@@ -18,10 +18,8 @@ function validateAccountConfig(config) {
     errors.push('Account ID is required and must be a non-empty string');
   }
 
-  // Validate account name
-  if (!config.name || typeof config.name !== 'string' || config.name.trim() === '') {
-    errors.push('Account name is required and must be a non-empty string');
-  } else if (config.name.trim().length > 100) {
+  // Validate account name (optional now)
+  if (config.name && config.name.length > 100) {
     errors.push('Account name must not exceed 100 characters');
   }
 
@@ -40,8 +38,6 @@ function validateAccountConfig(config) {
       errors.push('Account order must be a non-negative integer');
     }
   }
-
-  
 
   // Validate translation configuration
   if (config.translation) {
@@ -84,7 +80,7 @@ function validateAccountConfig(config) {
   };
 }
 
- 
+
 
 /**
  * Validate translation configuration
@@ -242,10 +238,10 @@ async function validateNetworkConnectivity(url = 'https://www.google.com', optio
 
   try {
     const startTime = Date.now();
-    
+
     // Use Electron's net module for network requests
     const { net } = require('electron');
-    
+
     return new Promise((resolve) => {
       const timeoutId = setTimeout(() => {
         resolve({
@@ -262,7 +258,7 @@ async function validateNetworkConnectivity(url = 'https://www.google.com', optio
       request.on('response', (response) => {
         clearTimeout(timeoutId);
         const latency = Date.now() - startTime;
-        
+
         if (response.statusCode >= 200 && response.statusCode < 500) {
           resolve({
             connected: true,
@@ -377,7 +373,7 @@ function validateViewCreationParams(accountId, config = {}) {
     }
   }
 
-  
+
 
   // Validate translation if provided
   if (config.translation) {
@@ -441,7 +437,7 @@ function handleNetworkFailure(error, context = {}) {
 
   // Generate user-friendly message
   let userMessage = 'Network connection failed. ';
-  
+
   switch (errorCode) {
     case 'ETIMEDOUT':
       userMessage += 'The connection timed out. Please check your internet connection and try again.';
@@ -563,7 +559,7 @@ function validateOperationSafety(operation, state = {}) {
 
 module.exports = {
   validateAccountConfig,
-  
+
   validateTranslationConfig,
   checkDuplicateAccountName,
   validateAccountId,

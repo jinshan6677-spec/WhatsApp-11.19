@@ -72,7 +72,7 @@ class AccountConfig {
    */
   constructor(config = {}) {
     this.id = config.id || uuidv4();
-    this.name = (config.name !== undefined && config.name !== null) ? config.name : `Account ${this.id.substring(0, 8)}`;
+    this.name = (config.name !== undefined && config.name !== null) ? config.name : '';
 
     // 从 WhatsApp Web 提取的真实信息（可选）
     this.phoneNumber = config.phoneNumber || '';
@@ -178,9 +178,9 @@ class AccountConfig {
       errors.push('Invalid account ID');
     }
 
-    // 验证名称（应用内标签，必填）
-    if (!this.name || typeof this.name !== 'string' || this.name.trim().length === 0) {
-      errors.push('Account name is required');
+    // 验证名称（应用内标签，可选）
+    if (this.name && this.name.length > 100) {
+      errors.push('Account name must not exceed 100 characters');
     }
 
     // 验证 profileName（可选）

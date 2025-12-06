@@ -505,8 +505,12 @@
     // Avatar
     const avatar = document.createElement('div');
     avatar.className = 'account-avatar';
-    avatar.textContent = getAccountInitial(account.name);
-    avatar.style.background = getAccountColor(account.id);
+    // Only show initial and color if there is a name
+    if (account.name || account.profileName) {
+      avatar.textContent = getAccountInitial(account.name || account.profileName);
+      avatar.style.background = getAccountColor(account.id);
+    }
+    // Otherwise leave empty with default gray background
 
     // Status Dot (Online/Offline indicator on avatar)
     const statusDot = document.createElement('div');
@@ -525,7 +529,9 @@
 
     const name = document.createElement('div');
     name.className = 'account-name';
-    name.textContent = account.name || '未命名账号';
+    const displayName = account.name || '';
+    name.textContent = displayName;
+    if (!displayName) name.innerHTML = '&nbsp;'; // Maintain height
     // Removed title
 
     header.appendChild(name);
@@ -600,7 +606,8 @@
     const collapsedName = document.createElement('div');
     collapsedName.className = 'account-collapsed-name';
     // Priority: note > profileName > name
-    collapsedName.textContent = account.note || account.profileName || account.name || '未命名';
+    collapsedName.textContent = account.note || account.profileName || account.name || '';
+    if (!collapsedName.textContent) collapsedName.innerHTML = '&nbsp;';
     info.appendChild(collapsedName);
 
     // Quick Actions (Hover only)
@@ -691,7 +698,7 @@
   function applyAccountProfileToItem(account, item) {
     if (!account || !item) return;
 
-    const displayName = account.profileName || account.name || '未命名账号';
+    const displayName = account.profileName || account.name || '';
 
     // 更新名称
     const nameEl = item.querySelector('.account-name');
@@ -717,9 +724,12 @@
         img.alt = displayName;
         img.className = 'account-avatar-image';
         avatarEl.appendChild(img);
-      } else {
+      } else if (displayName) {
         avatarEl.textContent = getAccountInitial(displayName);
         avatarEl.style.background = getAccountColor(account.id);
+      } else {
+        avatarEl.textContent = '';
+        avatarEl.style.background = ''; // Revert to default
       }
     }
 
@@ -756,7 +766,9 @@
     // Update collapsed display name (priority: note > profileName > name)
     const collapsedNameEl = item.querySelector('.account-collapsed-name');
     if (collapsedNameEl) {
-      collapsedNameEl.textContent = account.note || account.profileName || account.name || '未命名';
+      const txt = account.note || account.profileName || account.name || '';
+      collapsedNameEl.textContent = txt;
+      if (!txt) collapsedNameEl.innerHTML = '&nbsp;';
     }
   }
 
@@ -1202,10 +1214,8 @@
     }
 
     try {
-      const defaultAccountName = generateDefaultAccountName();
-
       const defaultConfig = {
-        name: defaultAccountName,
+        name: '',
         note: '',
         autoStart: false,
         translation: {
@@ -1232,21 +1242,7 @@
     }
   }
 
-  /**
-   * Generate default account name in format "账号 N"
-   */
-  function generateDefaultAccountName() {
-    const existingNames = accounts.map((acc) => acc.name);
-    let counter = 1;
-    let defaultName = `账号 ${counter}`;
 
-    while (existingNames.includes(defaultName)) {
-      counter += 1;
-      defaultName = `账号 ${counter}`;
-    }
-
-    return defaultName;
-  }
 
   /**
    * Open environment settings panel for an account
@@ -1469,7 +1465,9 @@
       // 更新名称
       const nameEl = item.querySelector('.account-name');
       if (nameEl) {
-        nameEl.textContent = account.profileName || account.name || '未命名账号';
+        const displayName = account.profileName || account.name || '';
+        nameEl.textContent = displayName;
+        if (!displayName) nameEl.innerHTML = '&nbsp;';
       }
 
       // 更新备注（只在非编辑状态下更新）
@@ -1492,7 +1490,9 @@
       // 更新折叠显示名称
       const collapsedNameEl = item.querySelector('.account-collapsed-name');
       if (collapsedNameEl) {
-        collapsedNameEl.textContent = account.note || account.profileName || account.name || '未命名';
+        const txt = account.note || account.profileName || account.name || '';
+        collapsedNameEl.textContent = txt;
+        if (!txt) collapsedNameEl.innerHTML = '&nbsp;';
       }
 
       // 同步状态

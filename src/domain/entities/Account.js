@@ -35,19 +35,19 @@ class Account {
    */
   constructor(config = {}) {
     this.id = config.id || uuidv4();
-    this.name = config.name || `Account ${this.id.substring(0, 8)}`;
+    this.name = config.name || '';
     this.phoneNumber = config.phoneNumber || null;
     this.status = config.status || AccountStatus.Inactive;
     this.autoStart = config.autoStart !== undefined ? config.autoStart : false;
     this.createdAt = config.createdAt ? new Date(config.createdAt) : new Date();
     this.lastActiveAt = config.lastActiveAt ? new Date(config.lastActiveAt) : null;
-    
+
     // Optional nested configurations (stored as IDs or embedded objects)
     this.translationConfigId = config.translationConfigId || null;
-    
+
     // Session directory for data isolation
     this.sessionDir = config.sessionDir || `Partitions/account_${this.id}`;
-    
+
     // Additional metadata
     this.profileName = config.profileName || null;
     this.avatarUrl = config.avatarUrl || null;
@@ -102,7 +102,7 @@ class Account {
     return this.status === AccountStatus.Loading;
   }
 
-  
+
 
   /**
    * Updates the translation configuration reference
@@ -134,9 +134,7 @@ class Account {
     }
 
     // Validate name
-    if (!this.name || typeof this.name !== 'string' || this.name.trim().length === 0) {
-      errors.push('Account name is required and must be a non-empty string');
-    } else if (this.name.length > 100) {
+    if (this.name && this.name.length > 100) {
       errors.push('Account name must not exceed 100 characters');
     }
 

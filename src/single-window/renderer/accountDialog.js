@@ -3,7 +3,7 @@
  * Handles form validation, conditional field display, and save/cancel operations
  */
 
-(function() {
+(function () {
   'use strict';
 
   // State
@@ -20,101 +20,6 @@
   const formErrors = document.getElementById('form-errors');
   const errorList = document.getElementById('error-list');
 
-  // Form fields
-  const accountName = document.getElementById('account-name');
-  const accountPhoneNumber = document.getElementById('phoneNumber');
-  const accountNote = document.getElementById('account-note');
-  const autoStart = document.getElementById('auto-start');
-
-  // Translation fields - removed from UI but keep references for compatibility
-  // Translation is now configured only within WhatsApp Web interface
-  
-  
-
-  /**
-   * Initialize the dialog
-   */
-  function init() {
-    setupEventListeners();
-    loadAccountData();
-  }
-
-  /**
-   * Setup event listeners
-   */
-  function setupEventListeners() {
-    // Form submission
-    form.addEventListener('submit', handleSubmit);
-
-    // Close/Cancel buttons
-    closeBtn.addEventListener('click', handleCancel);
-    cancelBtn.addEventListener('click', handleCancel);
-
-    // Real-time validation
-    accountName.addEventListener('input', () => validateField('name'));
-    if (accountPhoneNumber) {
-      accountPhoneNumber.addEventListener('input', () => validatePhoneNumberField());
-    }
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', handleKeyDown);
-  }
-
-  /**
-   * Load account data if in edit mode
-   */
-  async function loadAccountData() {
-    try {
-      // Check if we're in edit mode by looking at URL params
-      const urlParams = new URLSearchParams(window.location.search);
-      accountId = urlParams.get('accountId');
-
-      if (accountId) {
-        editMode = true;
-        dialogTitle.textContent = '编辑账号';
-        saveBtn.querySelector('.btn-text').textContent = '保存更改';
-
-        // Load account data from main process
-        if (window.electronAPI) {
-          const account = await window.electronAPI.invoke('get-account', accountId);
-          if (account) {
-            originalData = account;
-            populateForm(account);
-          } else {
-            showError('账号未找到');
-          }
-        }
-      } else {
-        editMode = false;
-        dialogTitle.textContent = '添加账号';
-        saveBtn.querySelector('.btn-text').textContent = '创建账号';
-      }
-    } catch (error) {
-      console.error('Failed to load account data:', error);
-      showError('加载账号数据失败');
-    }
-  }
-
-  /**
-   * Populate form with account data
-   */
-  function populateForm(account) {
-    // Basic information
-    accountName.value = account.name || '';
-    if (accountPhoneNumber) {
-      accountPhoneNumber.value = account.phoneNumber || '';
-    }
-    accountNote.value = account.note || '';
-    autoStart.checked = account.autoStart || false;
-
-    
-
-    // Translation configuration - removed from UI
-    // Translation is now configured only within WhatsApp Web interface
-  }
-
-  
-
   /**
    * Validate a single field
    */
@@ -123,17 +28,12 @@
 
     switch (fieldName) {
       case 'name':
-        if (!accountName.value.trim()) {
-          setFieldError('name', '账号名称为必填项');
-          return false;
-        }
         if (accountName.value.trim().length > 100) {
           setFieldError('name', '账号名称不能超过 100 个字符');
           return false;
         }
         break;
 
-      
     }
 
     return true;
@@ -175,15 +75,10 @@
     const errors = [];
 
     // Validate account name
-    if (!accountName.value.trim()) {
-      errors.push('账号名称为必填项');
-      setFieldError('name', '账号名称为必填项');
-    } else if (accountName.value.trim().length > 100) {
+    if (accountName.value.trim().length > 100) {
       errors.push('账号名称不能超过 100 个字符');
       setFieldError('name', '账号名称不能超过 100 个字符');
     }
-
-    
 
     // Additional phone number validation (optional)
     if (!validatePhoneNumberField()) {
@@ -227,12 +122,7 @@
 
 
 
-  /**
-   * Clear translation validation errors
-   */
-  function clearTranslationValidation() {
-    clearFieldError('translation-api-key');
-  }
+
 
   /**
    * Show form errors
@@ -260,8 +150,6 @@
       phoneNumber: accountPhoneNumber ? accountPhoneNumber.value.trim() : '',
       note: accountNote.value.trim(),
       autoStart: autoStart.checked,
-      // Translation configuration - keep existing translation settings from originalData
-      // Translation is now configured only within WhatsApp Web interface
       translation: originalData?.translation || {
         enabled: true,
         engine: 'google',
@@ -350,9 +238,9 @@
     if (!editMode || !originalData) {
       // In create mode, check if any field has been filled
       return accountName.value.trim() !== '' ||
-             (accountPhoneNumber && accountPhoneNumber.value.trim() !== '') ||
-             accountNote.value.trim() !== '' ||
-             autoStart.checked;
+        (accountPhoneNumber && accountPhoneNumber.value.trim() !== '') ||
+        accountNote.value.trim() !== '' ||
+        autoStart.checked;
     }
 
     // In edit mode, compare with original data
