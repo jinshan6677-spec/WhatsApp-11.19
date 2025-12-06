@@ -92,6 +92,7 @@ class MainWindow {
       minHeight: this.options.minHeight,
       title: this.options.title,
       show: false, // Don't show until ready
+      autoHideMenuBar: true, // Hide the menu bar (press Alt to show temporarily)
       backgroundColor: '#ffffff',
       webPreferences: {
         nodeIntegration: false,
@@ -128,7 +129,7 @@ class MainWindow {
     // Save window state on resize
     this.window.on('resize', () => {
       this._saveWindowState();
-      
+
       // Notify about window resize for view bounds recalculation
       this._notifyWindowResize();
     });
@@ -141,14 +142,14 @@ class MainWindow {
     // Save maximized state
     this.window.on('maximize', () => {
       this.stateStore.set('isMaximized', true);
-      
+
       // Recalculate view bounds when maximized
       this._notifyWindowResize();
     });
 
     this.window.on('unmaximize', () => {
       this.stateStore.set('isMaximized', false);
-      
+
       // Recalculate view bounds when unmaximized
       this._notifyWindowResize();
     });
@@ -208,12 +209,12 @@ class MainWindow {
    */
   _ensureVisibleBounds(bounds) {
     const displays = screen.getAllDisplays();
-    
+
     // If no saved bounds, center on primary display
     if (!bounds || bounds.x === undefined || bounds.y === undefined) {
       const primaryDisplay = screen.getPrimaryDisplay();
       const { width, height } = primaryDisplay.workAreaSize;
-      
+
       return {
         x: Math.floor((width - this.options.width) / 2),
         y: Math.floor((height - this.options.height) / 2),
@@ -237,7 +238,7 @@ class MainWindow {
     if (!isVisible) {
       const primaryDisplay = screen.getPrimaryDisplay();
       const { width, height } = primaryDisplay.workAreaSize;
-      
+
       return {
         x: Math.floor((width - bounds.width) / 2),
         y: Math.floor((height - bounds.height) / 2),
