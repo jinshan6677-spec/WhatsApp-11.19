@@ -5,7 +5,7 @@
  * management sidebar and the session display area for BrowserViews.
  */
 
-const { BrowserWindow, screen } = require('electron');
+const { BrowserWindow, screen, nativeImage } = require('electron');
 const Store = require('electron-store');
 const path = require('path');
 
@@ -82,6 +82,29 @@ class MainWindow {
     // Ensure window is visible on screen
     const bounds = this._ensureVisibleBounds(savedState);
 
+    // Get icon path - use ICO on Windows for better compatibility
+    let iconPath;
+    if (this.options.icon) {
+      iconPath = this.options.icon;
+    } else {
+      // Use platform-specific icon
+      if (process.platform === 'win32') {
+        iconPath = path.join(process.cwd(), 'resources', 'icon.ico');
+      } else {
+        iconPath = path.join(process.cwd(), 'resources', 'icon.png');
+      }
+    }
+    
+    console.log('[MainWindow] Loading icon from:', iconPath);
+    const icon = nativeImage.createFromPath(iconPath);
+    
+    if (icon.isEmpty()) {
+      console.warn('[MainWindow] ⚠ Icon is empty or failed to load');
+    } else {
+      const size = icon.getSize();
+      console.log(`[MainWindow] ✓ Icon loaded successfully (${size.width}x${size.height})`);
+    }
+    
     // Create the browser window
     this.window = new BrowserWindow({
       x: bounds.x,
@@ -91,6 +114,7 @@ class MainWindow {
       minWidth: this.options.minWidth,
       minHeight: this.options.minHeight,
       title: this.options.title,
+      icon: icon,
       show: false, // Don't show until ready
       autoHideMenuBar: true, // Hide the menu bar (press Alt to show temporarily)
       backgroundColor: '#ffffff',

@@ -424,12 +424,18 @@ class AppBootstrap {
   async initializeUIComponents() {
     try {
       // 1. 初始化主窗口
+      // Use platform-specific icon
+      const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+      const iconPath = path.join(process.cwd(), 'resources', iconFile);
+      console.log('[Bootstrap] Icon path:', iconPath);
+      
       this.mainWindow = new MainWindow({
         width: 1400,
         height: 900,
         minWidth: 1000,
         minHeight: 600,
-        title: '老板稳了！天天旺'
+        title: '老板稳了！天天旺',
+        icon: iconPath
       });
       this.mainWindow.initialize();
       console.log('✓ MainWindow initialized');

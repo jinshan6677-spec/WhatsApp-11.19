@@ -54,7 +54,7 @@ class TrayManager {
     const icon = nativeImage.createFromPath(iconPath);
     
     this.tray = new Tray(icon);
-    this.tray.setToolTip('WhatsApp Desktop');
+    this.tray.setToolTip('老板稳了！天天旺');
 
     // 创建托盘菜单
     this.updateTrayMenu();
@@ -390,7 +390,7 @@ class TrayManager {
   updateTrayTooltip() {
     if (!this.tray) return;
 
-    let tooltip = 'WhatsApp Desktop';
+    let tooltip = '老板稳了！天天旺';
     if (this.unreadCount > 0) {
       tooltip += ` (${this.unreadCount} 条未读消息)`;
     }

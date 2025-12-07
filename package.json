@@ -71,7 +71,7 @@
   },
   "build": {
     "appId": "com.laobenwenle.tiantianwang",
-    "productName": "BossStable",
+    "productName": "老板稳了！天天旺",
     "copyright": "Copyright © 2024 ${author}",
     "directories": {
       "output": "dist",
@@ -129,7 +129,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "BossStable",
+      "shortcutName": "老板稳了！天天旺",
       "license": "LICENSE",
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",

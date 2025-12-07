@@ -99,7 +99,7 @@
     const rect = element.getBoundingClientRect();
     let tooltipRect = tooltipElement.getBoundingClientRect();
     const sidebar = document.getElementById('sidebar');
-    const boundary = sidebar ? sidebar.getBoundingClientRect() : null;
+    const translatePanel = document.querySelector('.translate-panel');
     const PADDING = 6;
 
     // Determine best position (prefer top, then bottom)
@@ -107,13 +107,19 @@
     let x = rect.left + rect.width / 2;
     let y = rect.top - tooltipRect.height - PADDING;
 
+    // Check if element is inside translate panel
+    const isInTranslatePanel = translatePanel && translatePanel.contains(element);
+    const boundary = isInTranslatePanel 
+      ? (translatePanel ? translatePanel.getBoundingClientRect() : null)
+      : (sidebar ? sidebar.getBoundingClientRect() : null);
+
     if (y < (boundary ? boundary.top + PADDING : 10)) {
       // Not enough space on top, show below
       position = 'bottom';
       y = rect.bottom + PADDING;
     }
 
-    // Clamp within sidebar bounds if target is inside sidebar
+    // Clamp within container bounds (sidebar or translate panel)
     if (boundary) {
       const maxWidth = Math.max(160, boundary.width - PADDING * 2);
       tooltipElement.style.maxWidth = `${maxWidth}px`;
@@ -132,7 +138,7 @@
         left = Math.max(minLeft, maxRight - tooltipRect.width);
       }
 
-      // Vertical clamp inside sidebar
+      // Vertical clamp inside container
       const minTop = boundary.top + PADDING;
       const maxBottom = boundary.bottom - PADDING;
       if (y < minTop) {

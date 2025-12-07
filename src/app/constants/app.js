@@ -7,10 +7,10 @@
 
 // 应用基本信息
 const APP_INFO = {
-  NAME: 'WhatsApp Desktop Translation',
+  NAME: '老板稳了！天天旺',
   VERSION: '1.0.0',
-  DESCRIPTION: 'WhatsApp Desktop application with comprehensive translation support',
-  AUTHOR: 'WhatsApp Desktop Team',
+  DESCRIPTION: '老板稳了！天天旺 - 专业的WhatsApp桌面应用，支持多账号管理、翻译功能等',
+  AUTHOR: '老板稳了团队',
   HOMEPAGE: 'https://github.com/your-org/whatsapp-desktop-translation'
 };
 
