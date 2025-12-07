@@ -76,12 +76,14 @@ Main application logic:
 
 #### sidebar.js
 
-Sidebar component logic:
+Sidebar component logic (modular architecture):
 - Account list rendering
 - Account switching
 - Account CRUD operations
 - Status indicators
 - Event handling
+
+**Note**: The sidebar has been refactored into a modular structure. See [MODULE_STRUCTURE.md](renderer/sidebar/MODULE_STRUCTURE.md) for detailed documentation on the module architecture, dependencies, and usage patterns.
 
 ## Architecture
 

@@ -1,0 +1,334 @@
+﻿
+馃И Starting test suite...
+
+node.exe : PASS src/single-window/
+renderer/sidebar/__tests__/render.
+property.test.js
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/node.
+exe" "D:\Users\txy39\AppData\Roami
+ng\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~
+    + CategoryInfo          : Not 
+   Specified: (PASS src/single..  
+  .roperty.test.js:String) [],    
+ RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+  Sidebar Render Module Property T
+ests
+    Property 3: createAccountItem 
+DOM Structure Consistency
+      鈭?createAccountItem always p
+roduces valid DOM element (411 ms)
+      鈭?createAccountItem produces
+ idempotent structure for same acc
+ount (180 ms)
+      鈭?createAccountItem sets act
+ive class correctly (82 ms)
+      鈭?createAccountItem sets log
+gedin class based on loginStatus (
+71 ms)
+    Property 3: renderStatusDot St
+atus Class Consistency
+      鈭?renderStatusDot always set
+s exactly one status class (42 ms)
+      鈭?renderStatusDot is idempot
+ent (14 ms)
+      鈭?renderStatusDot sets warni
+ng class for needs-login state (6 
+ms)
+      鈭?renderStatusDot sets onlin
+e class for online status (7 ms)
+    Property 3: renderQuickActions
+ Button Consistency
+      鈭?renderQuickActions produce
+s correct button for not_started s
+tatus (18 ms)
+      鈭?renderQuickActions produce
+s spinner for loading status (8 ms
+)
+      鈭?renderQuickActions produce
+s stop button for connected status
+ (19 ms)
+      鈭?renderQuickActions produce
+s retry button for error status (1
+5 ms)
+      鈭?renderQuickActions clears 
+previous content (33 ms)
+    Property 3: renderUnreadBadge 
+Display Consistency
+      鈭?renderUnreadBadge shows ba
+dge for positive counts (31 ms)
+      鈭?renderUnreadBadge shows 99
++ for counts over 99 (12 ms)
+      鈭?renderUnreadBadge hides ba
+dge for zero count (10 ms)
+      鈭?renderUnreadBadge is idemp
+otent (35 ms)
+    Property 3: setActiveAccount S
+tate Consistency
+      鈭?setActiveAccount updates s
+tate correctly (10 ms)
+      鈭?setActiveAccount updates D
+OM active class (55 ms)
+    Property 3: applyAccountProfil
+eToItem Update Consistency
+      鈭?applyAccountProfileToItem 
+updates name element (64 ms)
+      鈭?applyAccountProfileToItem 
+updates phone element (68 ms)
+      鈭?applyAccountProfileToItem 
+hides phone when empty (38 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/css.property.test.
+js
+  CSS Class Style Preservation
+    鈭?Property 4.1: All original C
+SS classes exist in modular CSS (3
+ ms)
+    鈭?Property 4.2: Class count is
+ approximately equal (2 ms)
+    鈭?Property 4.3: Random class s
+ample has matching rules (1487 ms)
+    鈭?Property 4.4: Common classes
+ have consistent declarations (600
+ ms)
+    鈭?Property 4.5: No duplicate c
+lass definitions across modules (2
+4 ms)
+    鈭?Property 4.6: All keyframe a
+nimations are preserved (36 ms)
+    鈭?Property 4.7: Media queries 
+are preserved (31 ms)
+    鈭?Property 4.8: CSS variable d
+efinitions are preserved (26 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/utils.property.tes
+t.js
+  Sidebar Utils Module Property Te
+sts
+    Property 1: getAccountInitial 
+Consistency
+      鈭?getAccountInitial returns 
+first character uppercase for non-
+empty strings (28 ms)
+      鈭?getAccountInitial returns 
+"?" for empty/null/undefined (4 ms
+)
+      鈭?getAccountInitial is idemp
+otent (6 ms)
+    Property 1: getAccountColor Co
+nsistency
+      鈭?getAccountColor returns sa
+me color for same ID (deterministi
+c) (14 ms)
+      鈭?getAccountColor returns va
+lid CSS gradient (30 ms)
+      鈭?getAccountColor returns fi
+rst color for null/undefined (3 ms
+)
+      鈭?getAccountColor distribute
+s across all colors (4 ms)
+    Property 1: getStatusText Cons
+istency
+      鈭?getStatusText returns non-
+empty string for valid statuses (5
+ ms)
+      鈭?getStatusText returns "鏈煡
+" for invalid statuses (9 ms)
+      鈭?getStatusText is idempoten
+t (6 ms)
+      鈭?getStatusText maps to expe
+cted Chinese text (2 ms)
+    Property 1: getFlagEmoji Consi
+stency
+      鈭?getFlagEmoji returns empty
+ string for null/undefined/empty (
+2 ms)
+      鈭?getFlagEmoji returns non-e
+mpty string for valid country code
+s (7 ms)
+      鈭?getFlagEmoji is case-insen
+sitive (7 ms)
+      鈭?getFlagEmoji is idempotent
+ (4 ms)
+      鈭?getFlagEmoji produces diff
+erent emojis for different codes (
+5 ms)
+    Property 1: debounce Behavior
+      鈭?debounce returns a functio
+n (3 ms)
+      鈭?debounce delays execution 
+(568 ms)
+      鈭?debounce coalesces rapid c
+alls (651 ms)
+    Property 1: throttle Behavior
+      鈭?throttle returns a functio
+n (3 ms)
+      鈭?throttle executes immediat
+ely on first call (2 ms)
+      鈭?throttle limits execution 
+rate (788 ms)
+    Property 1: Constants Export
+      鈭?AVATAR_COLORS is an array 
+of valid gradients (2 ms)
+      鈭?STATUS_TEXT_MAP contains a
+ll expected statuses (2 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/events.property.te
+st.js
+  Events Module - Property Tests
+    Property 2: IPC Event Handler 
+Equivalence
+      鈭?should always set active a
+ccount when handleAccountSwitched 
+is called (52 ms)
+      鈭?should extract accountId f
+rom data and set active account (1
+5 ms)
+      鈭?should update account stat
+us when handleAccountStatusChanged
+ is called (23 ms)
+      鈭?should set status to loadi
+ng when handleViewLoading is calle
+d (18 ms)
+      鈭?should set status to error
+ and update connection error in st
+ate (37 ms)
+      鈭?should update login status
+ and related fields in state (63 m
+s)
+      鈭?should update connection s
+tatus and details in state (93 ms)
+      鈭?should update profile fiel
+ds when handleAccountProfileUpdate
+d is called (26 ms)
+      鈭?should update unread count
+ when handleUnreadCountUpdated is 
+called (14 ms)
+      鈭?should set running status 
+to loading when account is opening
+ (13 ms)
+      鈭?should set running status 
+to connected when account is opene
+d (21 ms)
+      鈭?should set running status 
+to error when account open fails (
+19 ms)
+      鈭?should set running status 
+to loading when account is closing
+ (11 ms)
+      鈭?should reset account state
+ when account is closed (41 ms)
+      鈭?should set running status 
+to error when account close fails 
+(23 ms)
+      鈭?should handle view crash b
+y setting error status and showing
+ message (31 ms)
+    Event Setup
+      鈭?should setup all event lis
+teners when electronAPI is availab
+le (5 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/state.property.tes
+t.js
+  Sidebar State Module Property Te
+sts
+    Property 1: State Getter/Sette
+r Consistency
+      鈭?setAccounts/getAccounts ro
+und-trip preserves accounts (48 ms
+)
+      鈭?setActiveAccountId/getActi
+veAccountId round-trip preserves I
+D (10 ms)
+      鈭?setFilterQuery/getFilterQu
+ery round-trip preserves query (8 
+ms)
+      鈭?setFilterQuery with null/u
+ndefined returns empty string (2 m
+s)
+      鈭?incrementRenderVersion alw
+ays increases version (6 ms)
+    Property 1: Selection Mode Con
+sistency
+      鈭?toggleSelectionModeState a
+lternates between true and false (
+7 ms)
+      鈭?setSelectionMode directly 
+sets the mode (3 ms)
+      鈭?addSelectedAccount/isAccou
+ntSelected consistency (15 ms)
+      鈭?removeSelectedAccount remo
+ves account from selection (27 ms)
+      鈭?clearSelectedAccounts remo
+ves all selections (18 ms)
+      鈭?selectAllAccounts selects 
+all accounts in state (24 ms)
+    Property 1: Account Operations
+ Consistency
+      鈭?getAccountById returns cor
+rect account (16 ms)
+      鈭?getAccountById returns und
+efined for non-existent ID (15 ms)
+      鈭?updateAccount modifies acc
+ount properties (23 ms)
+      鈭?updateAccount returns null
+ for non-existent ID (12 ms)
+      鈭?getAccountName returns cor
+rect name or fallback (11 ms)
+      鈭?getAccountName returns "鏈
+煡璐﹀彿" for non-existent ID (9 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/api.property.test.
+js
+  Sidebar API Interface Preservati
+on
+    鈭?Property 1.1: All required A
+PI methods exist (12 ms)
+    鈭?Property 1.2: getAccounts re
+turns array type (28 ms)
+    鈭?Property 1.3: getActiveAccou
+ntId returns string or null (5 ms)
+    鈭?Property 1.4: setActiveAccou
+nt accepts string parameter (18 ms
+)
+    鈭?Property 1.5: loadAccounts r
+eturns Promise (6 ms)
+    鈭?Property 1.6: renderAccountL
+ist returns Promise (5 ms)
+    鈭?Property 1.7: handleBatchSta
+rtAll returns Promise (5 ms)
+    鈭?Property 1.8: toggleSidebar 
+does not throw (5 ms)
+    鈭?Property 1.9: toggleSelectio
+nMode does not throw (5 ms)
+    鈭?Property 1.10: syncAccountSt
+atusesWithRunningStatus does not t
+hrow (4 ms)
+    鈭?Property 1.11: renderQuickAc
+tions accepts account and containe
+r parameters (29 ms)
+    鈭?Property 1.12: API methods a
+re callable multiple times (9 ms)
+
+Test Suites: 6 passed, 6 total
+Tests:       100 passed, 100 total
+Snapshots:   0 total
+Time:        9.679 s
+Ran all test suites matching /src\
+\single-window\\renderer\\sidebar\
+\__tests__\\/i.
+
+鉁?Test suite completed in 9.70s
+

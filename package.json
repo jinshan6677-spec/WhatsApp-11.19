@@ -61,6 +61,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "css": "^3.0.0",
     "electron": "^39.2.5",
     "electron-builder": "^26.0.12",
     "electron-icon-maker": "^0.0.5",

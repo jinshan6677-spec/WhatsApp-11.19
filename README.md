@@ -359,6 +359,11 @@ whatsapp-desktop-translation/
 │   ├── managers/            # 管理器实现
 │   ├── translation/         # 翻译服务
 │   ├── single-window/       # 单窗口架构
+│   │   └── renderer/        # 渲染进程组件
+│   │       ├── sidebar.js   # 侧边栏入口（模块化）
+│   │       ├── sidebar/     # 侧边栏模块（详见 MODULE_STRUCTURE.md）
+│   │       ├── styles.css   # 样式入口
+│   │       └── styles/      # CSS 模块
 │   ├── models/              # 数据模型
 │   └── utils/               # 工具类
 │
@@ -486,6 +491,7 @@ npm test -- --testPathPattern="property"
 - **[API 文档](docs/API.md)** - 完整的 API 接口文档
 - **[扩展开发指南](docs/EXTENSION_GUIDE.md)** - 创建翻译引擎插件
 - **[构建和发布指南](docs/BUILD_GUIDE.md)** - 打包和发布流程
+- **[侧边栏模块结构](src/single-window/renderer/sidebar/MODULE_STRUCTURE.md)** - 侧边栏模块化架构文档
 
 ### 架构文档 (v2.0)
 

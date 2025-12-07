@@ -1,0 +1,59 @@
+/* ===== Responsive Styles Module ===== */
+/* Media queries for responsive design */
+
+/* ===== Medium Screens (max-width: 1000px) ===== */
+@media (max-width: 1000px) {
+  #sidebar {
+    width: var(--sidebar-width, 219px);
+    min-width: 80px;
+  }
+
+  .sidebar-header h2 {
+    font-size: 16px;
+  }
+
+  .btn-primary .text {
+    display: none;
+  }
+
+  .account-note {
+    display: none;
+  }
+
+  .account-list {
+    padding: 6px;
+  }
+
+  .account-item {
+    padding: 10px 12px 10px 6px;
+    margin-bottom: 6px;
+  }
+
+  .account-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    margin-right: 10px;
+  }
+
+  .account-name {
+    font-size: 13px;
+  }
+
+  .account-note {
+    display: none;
+  }
+}
+
+/* ===== Small Screens (max-width: 768px) ===== */
+@media (max-width: 768px) {
+  .translate-panel.env-mode {
+    width: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  }
+}

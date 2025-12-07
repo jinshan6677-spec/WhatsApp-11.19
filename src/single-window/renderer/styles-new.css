@@ -1,26 +1,20 @@
-/**
- * Modular Styles Entry File
- * This file imports all component-specific stylesheets
- * 
- * @module styles
- */
+/* ===== Styles Entry File ===== */
+/* This file imports all modular CSS files */
 
-/* Base Styles - CSS Reset, Variables, Global Fonts */
+/* Base styles - CSS Reset, variables, global styles */
 @import './styles/base.css';
 
-/* Layout Styles - App Container, Sidebar, View Container */
+/* Layout styles - app container, sidebar, view container */
 @import './styles/layout.css';
 
-/* Component Styles */
+/* Component styles */
 @import './styles/accountItem.css';
 @import './styles/buttons.css';
 @import './styles/status.css';
-
-/* Feature Styles */
 @import './styles/contextMenu.css';
 @import './styles/translatePanel.css';
 @import './styles/selection.css';
 
-/* State Styles */
+/* State and responsive styles */
 @import './styles/responsive.css';
 @import './styles/collapsed.css';

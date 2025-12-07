@@ -1,0 +1,390 @@
+/* ===== Account Item Styles ===== */
+.account-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px 8px 8px;
+  /* Compact padding */
+  margin-bottom: 4px;
+  /* Reduced margin */
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  border: 1px solid #e9edef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  user-select: none;
+}
+
+.account-item:hover {
+  background-color: #fff;
+  border-color: #d1d7db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  z-index: 1;
+}
+
+.account-item.active {
+  background-color: #e0f7fa;
+  border-color: #00bcd4;
+  box-shadow: 0 4px 14px rgba(0, 188, 212, 0.2);
+  transform: translateY(-1px);
+  z-index: 2;
+}
+
+/* Environment Icon */
+.account-env-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #aaa;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.account-env-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.account-env-icon:hover {
+  color: #409eff;
+}
+
+.account-item.active .account-env-icon {
+  color: #409eff;
+}
+
+#sidebar[data-collapsed="true"] .account-env-icon {
+  display: none;
+}
+
+/* Avatar & Status */
+.account-avatar-container {
+  position: relative;
+  margin-right: 8px;
+  /* Compact margin */
+  flex-shrink: 0;
+}
+
+.account-avatar {
+  width: 38px;
+  /* Compact size */
+  height: 38px;
+  border-radius: 50%;
+  background: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  /* Compact font */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Info */
+.account-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  /* Compact gap */
+}
+
+.account-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.account-name {
+  font-size: 14px;
+  /* Compact font */
+  font-weight: 500;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+}
+
+.account-secondary {
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Compact gap */
+  margin-top: 1px;
+  /* Compact margin */
+}
+
+.account-phone {
+  font-size: 12px;
+  /* Compact font */
+  cursor: pointer;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.account-phone:hover {
+  color: #00bcd4;
+  text-decoration: underline;
+}
+
+.account-phone:active {
+  color: #00acc1;
+}
+
+.account-note {
+  font-size: 12px;
+  /* Compact font */
+  color: #111;
+  font-weight: 500;
+  background-color: transparent;
+  border: 1px solid transparent;
+  min-height: 20px;
+  /* Compact height */
+  display: flex;
+  align-items: center;
+  padding: 2px 2px;
+  border-radius: 4px;
+  cursor: text;
+  transition: background-color 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+  /* Compact margin */
+}
+
+.account-note:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.account-note:focus {
+  background-color: #fff;
+  border-color: transparent;
+  outline: none;
+  color: #000;
+  box-shadow: none;
+}
+
+.account-note:empty::before {
+  content: '添加备注...';
+  color: #888;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.account-note:not(:empty) {
+  color: #000;
+  border-color: transparent;
+}
+
+/* Account Actions Container */
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* Action buttons are always visible */
+.account-item .action-btn,
+.account-item .mini-spinner {
+  opacity: 1;
+}
+
+/* ===== Account IP Info Styles ===== */
+.account-ip-info {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #888;
+}
+
+/* Inline shield icon in IP row */
+.inline-shield {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.ip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+}
+
+.ip-row.compact {
+  flex-wrap: nowrap;
+}
+
+.ip-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.ip-icon.error {
+  color: #d32f2f;
+}
+
+.ip-address {
+  font-family: 'Consolas', monospace;
+  color: #555;
+  cursor: pointer;
+}
+
+.ip-address:hover {
+  text-decoration: underline;
+  color: #333;
+}
+
+.ip-location {
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  /* Prevent long location from breaking layout */
+}
+
+.ip-meta {
+  color: #888;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Collapsed name (only shown in collapsed sidebar) */
+.account-collapsed-name {
+  display: none;
+}
+
+/* Account item in collapsed state */
+#sidebar[data-collapsed="true"] .account-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+#sidebar[data-collapsed="true"] .account-avatar-container {
+  margin-right: 0;
+  margin-bottom: 6px;
+}
+
+#sidebar[data-collapsed="true"] .account-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+#sidebar[data-collapsed="true"] .account-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#sidebar[data-collapsed="true"] .account-header {
+  display: none;
+}
+
+/* Show collapsed display name only in collapsed state */
+#sidebar[data-collapsed="true"] .account-collapsed-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 64px;
+  text-align: center;
+}
+
+/* Hide secondary info (phone, note editor) in collapsed mode */
+#sidebar[data-collapsed="true"] .account-secondary {
+  display: none;
+}
+
+/* Hide IP info in collapsed mode */
+#sidebar[data-collapsed="true"] .account-ip-info {
+  display: none;
+}
+
+/* Hide quick actions in collapsed mode - show on hover */
+#sidebar[data-collapsed="true"] .account-actions {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  opacity: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+#sidebar[data-collapsed="true"] .account-item:hover .account-actions {
+  opacity: 1;
+}
+
+/* Expanded state - hide collapsed name */
+#sidebar[data-collapsed="false"] .account-collapsed-name {
+  display: none;
+}
+
+/* Status dot position adjustment in collapsed mode */
+#sidebar[data-collapsed="true"] .status-dot {
+  width: 10px;
+  height: 10px;
+  bottom: -1px;
+  right: -1px;
+}
+
+/* Account item in selection mode */
+.account-item.in-selection-mode {
+  padding-left: 8px;
+  cursor: pointer;
+}
+
+.account-item.selected {
+  background-color: #e3f2fd !important;
+  border-color: #42a5f5 !important;
+}
+
+/* Selection checkbox in account items */
+.selection-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  cursor: pointer;
+  accent-color: #00bcd4;
+  flex-shrink: 0;
+}

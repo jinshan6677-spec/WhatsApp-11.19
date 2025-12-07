@@ -1,0 +1,190 @@
+/* ===== Sidebar Collapsed State Styles ===== */
+/* Styles for when the sidebar is in collapsed mode */
+
+/* CSS Variables for collapsed state */
+:root {
+  --sidebar-collapsed-width: 80px;
+  --sidebar-expanded-width: 300px;
+  --sidebar-transition-duration: 0.3s;
+}
+
+/* Header actions container */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Toggle button */
+.sidebar-toggle-btn {
+  transition: transform var(--sidebar-transition-duration) ease;
+}
+
+.sidebar-toggle-btn .icon {
+  font-size: 14px;
+}
+
+/* Sidebar collapsed state */
+#sidebar[data-collapsed="true"] {
+  width: var(--sidebar-collapsed-width) !important;
+  min-width: var(--sidebar-collapsed-width) !important;
+}
+
+/* Sidebar expanded state - 显式设置展开宽度 */
+#sidebar[data-collapsed="false"] {
+  width: var(--sidebar-width) !important;
+  min-width: 219px !important;
+}
+
+#sidebar[data-collapsed="true"] .sidebar-toggle-btn {
+  transform: rotate(180deg);
+}
+
+#sidebar[data-collapsed="true"] .sidebar-title,
+#sidebar[data-collapsed="true"] .search-container,
+#sidebar[data-collapsed="true"] #add-account {
+  display: none;
+}
+
+#sidebar[data-collapsed="true"] .sidebar-header {
+  padding: 12px 8px;
+}
+
+#sidebar[data-collapsed="true"] .header-top {
+  justify-content: center;
+}
+
+#sidebar[data-collapsed="true"] .header-actions {
+  gap: 0;
+}
+
+/* Account item in collapsed state */
+#sidebar[data-collapsed="true"] .account-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+#sidebar[data-collapsed="true"] .account-avatar-container {
+  margin-right: 0;
+  margin-bottom: 6px;
+}
+
+#sidebar[data-collapsed="true"] .account-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+#sidebar[data-collapsed="true"] .account-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#sidebar[data-collapsed="true"] .account-header {
+  display: none;
+}
+
+/* Show collapsed display name only in collapsed state */
+#sidebar[data-collapsed="true"] .account-collapsed-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 64px;
+  text-align: center;
+}
+
+/* Hide secondary info (phone, note editor) in collapsed mode */
+#sidebar[data-collapsed="true"] .account-secondary {
+  display: none;
+}
+
+/* Hide IP info in collapsed mode */
+#sidebar[data-collapsed="true"] .account-ip-info {
+  display: none;
+}
+
+/* Hide environment icon in collapsed mode */
+#sidebar[data-collapsed="true"] .account-env-icon {
+  display: none;
+}
+
+/* Hide quick actions in collapsed mode - show on hover */
+#sidebar[data-collapsed="true"] .account-actions {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  opacity: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+#sidebar[data-collapsed="true"] .account-item:hover .account-actions {
+  opacity: 1;
+}
+
+/* Empty state in collapsed mode */
+#sidebar[data-collapsed="true"] .empty-state {
+  padding: 20px 8px;
+}
+
+#sidebar[data-collapsed="true"] .empty-state .empty-icon {
+  font-size: 32px;
+}
+
+#sidebar[data-collapsed="true"] .empty-state h3,
+#sidebar[data-collapsed="true"] .empty-state p {
+  display: none;
+}
+
+/* Expanded state - hide collapsed name */
+#sidebar[data-collapsed="false"] .account-collapsed-name {
+  display: none;
+}
+
+/* Transition for sidebar */
+#sidebar {
+  transition: width var(--sidebar-transition-duration) ease,
+    min-width var(--sidebar-transition-duration) ease;
+}
+
+/* Account list scrollbar in collapsed mode */
+#sidebar[data-collapsed="true"] .account-list {
+  padding: 6px 4px;
+}
+
+#sidebar[data-collapsed="true"] .account-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+/* Status dot position adjustment in collapsed mode */
+#sidebar[data-collapsed="true"] .status-dot {
+  width: 10px;
+  height: 10px;
+  bottom: -1px;
+  right: -1px;
+}
+
+/* Hide resize handle when sidebar is collapsed */
+#sidebar[data-collapsed="true"]~.resize-handle {
+  display: none;
+}
+
+/* Hide batch/selection buttons in collapsed sidebar */
+#sidebar[data-collapsed="true"] #batch-start,
+#sidebar[data-collapsed="true"] #selection-mode-btn {
+  display: none;
+}
+
+/* Hide selection action bar in collapsed sidebar */
+#sidebar[data-collapsed="true"] .selection-action-bar {
+  display: none;
+}

@@ -1,0 +1,297 @@
+/* ===== Translation Panel Styles ===== */
+.translate-panel {
+  width: var(--translate-panel-width-expanded);
+  min-width: var(--translate-panel-width-collapsed);
+  height: 100%;
+  background-color: #fff;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.04);
+}
+
+.translate-panel.env-mode {
+  width: var(--translate-panel-width-expanded);
+  max-width: 100vw;
+}
+
+@media (max-width: 768px) {
+  .translate-panel.env-mode {
+    width: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.translate-panel[data-state="collapsed"] {
+  width: var(--translate-panel-width-collapsed);
+}
+
+.translate-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+  gap: 8px;
+}
+
+.translate-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  transition: all 0.2s ease;
+}
+
+.translate-panel-text {
+  font-weight: 600;
+  color: #111;
+  white-space: nowrap;
+  transition: opacity 0.2s ease, max-width 0.2s ease;
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-text {
+  display: inline-block;
+  font-size: 12px;
+  /* 在收起状态下使用较小字体 */
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-icon {
+  font-size: 14px;
+}
+
+.translate-panel[data-state="expanded"] .translate-panel-text {
+  display: inline-block;
+  font-size: inherit;
+}
+
+.translate-panel[data-state="expanded"] .translate-panel-icon {
+  font-size: 18px;
+}
+
+/* 在收起状态下调整标题布局 */
+.translate-panel[data-state="collapsed"] .translate-panel-title {
+  flex-direction: column;
+  /* 图标和文字垂直排列 */
+  gap: 2px;
+}
+
+.translate-panel[data-state="expanded"] .translate-panel-text {
+  display: inline-block;
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-actions {
+  display: none;
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-header {
+  justify-content: center;
+}
+
+/* 确保收起状态下标题居中显示 */
+.translate-panel[data-state="collapsed"] .translate-panel-title {
+  justify-content: center;
+}
+
+.panel-state-btn {
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #333;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 32px;
+}
+
+.panel-state-btn .icon {
+  display: block;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.panel-state-btn:hover {
+  border-color: #25d366;
+  color: #25d366;
+  box-shadow: 0 2px 6px rgba(37, 211, 102, 0.15);
+}
+
+.panel-state-btn.active {
+  background: #e8f9f0;
+  border-color: #25d366;
+  color: #128c7e;
+}
+
+.translate-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  background: #f8f9fa;
+}
+
+.translate-panel-placeholder {
+  padding: 16px;
+  font-size: 13px;
+  color: #666;
+  border-bottom: 1px dashed #e0e0e0;
+  background: #fafafa;
+}
+
+.translate-panel-placeholder {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#translate-settings-host {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.translate-panel[data-state="expanded"] .translate-panel-body {
+  display: flex;
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-body {
+  display: none;
+}
+
+.translate-panel-menu {
+  width: 80px;
+  background: #f5f7fa;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.panel-menu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.panel-menu-btn:hover {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+}
+
+.panel-menu-btn.active {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+  position: relative;
+}
+
+.panel-menu-btn.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: #409eff;
+  border-radius: 0 2px 2px 0;
+}
+
+.menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 2px;
+}
+
+.menu-icon svg {
+  width: 20px;
+  height: 20px;
+  transition: all 0.2s ease;
+}
+
+.panel-menu-btn:hover .menu-icon svg,
+.panel-menu-btn.active .menu-icon svg {
+  transform: scale(1.1);
+}
+
+.menu-label {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Collapsed State */
+.translate-panel[data-state="collapsed"] .translate-panel-body {
+  display: none;
+}
+
+.translate-panel[data-state="collapsed"] .translate-panel-menu {
+  width: 56px;
+}
+
+.translate-panel[data-state="collapsed"] .menu-label {
+  display: none;
+}
+
+.translate-panel[data-state="collapsed"] .menu-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.translate-panel[data-state="collapsed"] .panel-menu-btn {
+  padding: 12px 4px;
+}
+
+/* Scrollbar Styling */
+.translate-panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.translate-panel-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.translate-panel-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.translate-panel-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

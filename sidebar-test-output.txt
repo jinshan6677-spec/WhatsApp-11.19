@@ -1,0 +1,435 @@
+﻿
+馃И Starting test suite...
+
+node.exe : FAIL src/single-window/
+renderer/sidebar/__tests__/css.pro
+perty.test.js
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/node.
+exe" "D:\Users\txy39\AppData\Roami
+ng\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~
+    + CategoryInfo          : Not 
+   Specified: (FAIL src/single..  
+  .roperty.test.js:String) [],    
+ RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+  CSS Class Style Preservation
+    鈭?Property 4.1: All original C
+SS classes exist in modular CSS (6
+ ms)
+    脳 Property 4.2: Class count is
+ approximately equal (3 ms)
+    脳 Property 4.3: Random class s
+ample has matching rules (5 ms)
+    鈭?Property 4.4: Common classes
+ have consistent declarations (2 m
+s)
+    鈭?Property 4.5: No duplicate c
+lass definitions across modules (2
+7 ms)
+    鈭?Property 4.6: All keyframe a
+nimations are preserved (17 ms)
+    脳 Property 4.7: Media queries 
+are preserved (27 ms)
+    鈭?Property 4.8: CSS variable d
+efinitions are preserved (18 ms)
+
+  鈼?CSS Class Style Preservation 鈥
+?Property 4.2: Class count is appr
+oximately equal
+
+    expect(received).toBeLessThanO
+rEqual(expected)
+
+    Expected: <= 0
+    Received:    84
+
+    [0m [90m 214 |[39m     cons
+ole[33m.[39mlog([32m`Original c
+lasses: ${originalCount}, Modular 
+classes: ${modularCount}, Differen
+ce: ${difference}, Tolerance: ${to
+lerance}`[39m)[33m;[39m
+     [90m 215 |[39m     
+    [31m[1m>[22m[39m[90m 216 
+|[39m     expect(difference)[33m
+.[39mtoBeLessThanOrEqual(toleranc
+e)[33m;[39m
+     [90m     |[39m             
+           [31m[1m^[22m[39m
+     [90m 217 |[39m   })[33m;[
+39m
+     [90m 218 |[39m
+     [90m 219 |[39m   [90m/**[
+39m[0m
+
+      at Object.<anonymous> (src/s
+ingle-window/renderer/sidebar/__te
+sts__/css.property.test.js:216:24)
+
+  鈼?CSS Class Style Preservation 鈥
+?Property 4.3: Random class sample
+ has matching rules
+
+    fc.constantFrom expects at lea
+st one parameter
+
+    [0m [90m 227 |[39m     fc[
+33m.[39massert(
+     [90m 228 |[39m       fc[33
+m.[39mproperty(
+    [31m[1m>[22m[39m[90m 229 
+|[39m         fc[33m.[39mconsta
+ntFrom([33m...[39m[33mArray[39
+m[33m.[39m[36mfrom[39m(origina
+lClasses))[33m,[39m
+     [90m     |[39m            
+[31m[1m^[22m[39m
+     [90m 230 |[39m         (cla
+ssName) [33m=>[39m {
+     [90m 231 |[39m           [
+90m// Skip known exclusions[39m
+     [90m 232 |[39m           [
+36mif[39m (knownExclusions[33m.
+[39mhas(className)) {[0m
+
+      at Object.constantFrom (node
+_modules/fast-check/lib/cjs/arbitr
+ary/constantFrom.js:7:15)
+      at Object.<anonymous> (src/s
+ingle-window/renderer/sidebar/__te
+sts__/css.property.test.js:229:12)
+
+  鈼?CSS Class Style Preservation 鈥
+?Property 4.7: Media queries are p
+reserved
+
+    expect(received).toBeLessThanO
+rEqual(expected)
+
+    Expected: <= 0
+    Received:    3
+
+    [0m [90m 471 |[39m     [36
+mconst[39m difference [33m=[39m
+ [33mMath[39m[33m.[39mabs(orig
+inalMediaQueries[33m.[39mlength 
+[33m-[39m modularMediaQueries[3
+3m.[39mlength)[33m;[39m
+     [90m 472 |[39m     
+    [31m[1m>[22m[39m[90m 473 
+|[39m     expect(difference)[33m
+.[39mtoBeLessThanOrEqual(toleranc
+e)[33m;[39m
+     [90m     |[39m             
+           [31m[1m^[22m[39m
+     [90m 474 |[39m   })[33m;[
+39m
+     [90m 475 |[39m
+     [90m 476 |[39m   [90m/**[
+39m[0m
+
+      at Object.<anonymous> (src/s
+ingle-window/renderer/sidebar/__te
+sts__/css.property.test.js:473:24)
+
+PASS src/single-window/renderer/si
+debar/__tests__/render.property.te
+st.js
+  Sidebar Render Module Property T
+ests
+    Property 3: createAccountItem 
+DOM Structure Consistency
+      鈭?createAccountItem always p
+roduces valid DOM element (444 ms)
+      鈭?createAccountItem produces
+ idempotent structure for same acc
+ount (200 ms)
+      鈭?createAccountItem sets act
+ive class correctly (83 ms)
+      鈭?createAccountItem sets log
+gedin class based on loginStatus (
+84 ms)
+    Property 3: renderStatusDot St
+atus Class Consistency
+      鈭?renderStatusDot always set
+s exactly one status class (40 ms)
+      鈭?renderStatusDot is idempot
+ent (19 ms)
+      鈭?renderStatusDot sets warni
+ng class for needs-login state (9 
+ms)
+      鈭?renderStatusDot sets onlin
+e class for online status (5 ms)
+    Property 3: renderQuickActions
+ Button Consistency
+      鈭?renderQuickActions produce
+s correct button for not_started s
+tatus (21 ms)
+      鈭?renderQuickActions produce
+s spinner for loading status (9 ms
+)
+      鈭?renderQuickActions produce
+s stop button for connected status
+ (19 ms)
+      鈭?renderQuickActions produce
+s retry button for error status (2
+0 ms)
+      鈭?renderQuickActions clears 
+previous content (34 ms)
+    Property 3: renderUnreadBadge 
+Display Consistency
+      鈭?renderUnreadBadge shows ba
+dge for positive counts (33 ms)
+      鈭?renderUnreadBadge shows 99
++ for counts over 99 (14 ms)
+      鈭?renderUnreadBadge hides ba
+dge for zero count (13 ms)
+      鈭?renderUnreadBadge is idemp
+otent (32 ms)
+    Property 3: setActiveAccount S
+tate Consistency
+      鈭?setActiveAccount updates s
+tate correctly (7 ms)
+      鈭?setActiveAccount updates D
+OM active class (60 ms)
+    Property 3: applyAccountProfil
+eToItem Update Consistency
+      鈭?applyAccountProfileToItem 
+updates name element (56 ms)
+      鈭?applyAccountProfileToItem 
+updates phone element (59 ms)
+      鈭?applyAccountProfileToItem 
+hides phone when empty (45 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/utils.property.tes
+t.js
+  Sidebar Utils Module Property Te
+sts
+    Property 1: getAccountInitial 
+Consistency
+      鈭?getAccountInitial returns 
+first character uppercase for non-
+empty strings (38 ms)
+      鈭?getAccountInitial returns 
+"?" for empty/null/undefined (3 ms
+)
+      鈭?getAccountInitial is idemp
+otent (13 ms)
+    Property 1: getAccountColor Co
+nsistency
+      鈭?getAccountColor returns sa
+me color for same ID (deterministi
+c) (14 ms)
+      鈭?getAccountColor returns va
+lid CSS gradient (31 ms)
+      鈭?getAccountColor returns fi
+rst color for null/undefined (3 ms
+)
+      鈭?getAccountColor distribute
+s across all colors (3 ms)
+    Property 1: getStatusText Cons
+istency
+      鈭?getStatusText returns non-
+empty string for valid statuses (6
+ ms)
+      鈭?getStatusText returns "鏈煡
+" for invalid statuses (9 ms)
+      鈭?getStatusText is idempoten
+t (4 ms)
+      鈭?getStatusText maps to expe
+cted Chinese text (3 ms)
+    Property 1: getFlagEmoji Consi
+stency
+      鈭?getFlagEmoji returns empty
+ string for null/undefined/empty (
+2 ms)
+      鈭?getFlagEmoji returns non-e
+mpty string for valid country code
+s (12 ms)
+      鈭?getFlagEmoji is case-insen
+sitive (4 ms)
+      鈭?getFlagEmoji is idempotent
+ (6 ms)
+      鈭?getFlagEmoji produces diff
+erent emojis for different codes (
+10 ms)
+    Property 1: debounce Behavior
+      鈭?debounce returns a functio
+n (5 ms)
+      鈭?debounce delays execution 
+(470 ms)
+      鈭?debounce coalesces rapid c
+alls (623 ms)
+    Property 1: throttle Behavior
+      鈭?throttle returns a functio
+n (5 ms)
+      鈭?throttle executes immediat
+ely on first call (5 ms)
+      鈭?throttle limits execution 
+rate (889 ms)
+    Property 1: Constants Export
+      鈭?AVATAR_COLORS is an array 
+of valid gradients (3 ms)
+      鈭?STATUS_TEXT_MAP contains a
+ll expected statuses (3 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/events.property.te
+st.js
+  Events Module - Property Tests
+    Property 2: IPC Event Handler 
+Equivalence
+      鈭?should always set active a
+ccount when handleAccountSwitched 
+is called (70 ms)
+      鈭?should extract accountId f
+rom data and set active account (1
+8 ms)
+      鈭?should update account stat
+us when handleAccountStatusChanged
+ is called (25 ms)
+      鈭?should set status to loadi
+ng when handleViewLoading is calle
+d (17 ms)
+      鈭?should set status to error
+ and update connection error in st
+ate (33 ms)
+      鈭?should update login status
+ and related fields in state (91 m
+s)
+      鈭?should update connection s
+tatus and details in state (73 ms)
+      鈭?should update profile fiel
+ds when handleAccountProfileUpdate
+d is called (27 ms)
+      鈭?should update unread count
+ when handleUnreadCountUpdated is 
+called (13 ms)
+      鈭?should set running status 
+to loading when account is opening
+ (9 ms)
+      鈭?should set running status 
+to connected when account is opene
+d (24 ms)
+      鈭?should set running status 
+to error when account open fails (
+20 ms)
+      鈭?should set running status 
+to loading when account is closing
+ (16 ms)
+      鈭?should reset account state
+ when account is closed (53 ms)
+      鈭?should set running status 
+to error when account close fails 
+(26 ms)
+      鈭?should handle view crash b
+y setting error status and showing
+ message (48 ms)
+    Event Setup
+      鈭?should setup all event lis
+teners when electronAPI is availab
+le (10 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/api.property.test.
+js
+  Sidebar API Interface Preservati
+on
+    鈭?Property 1.1: All required A
+PI methods exist (13 ms)
+    鈭?Property 1.2: getAccounts re
+turns array type (38 ms)
+    鈭?Property 1.3: getActiveAccou
+ntId returns string or null (7 ms)
+    鈭?Property 1.4: setActiveAccou
+nt accepts string parameter (17 ms
+)
+    鈭?Property 1.5: loadAccounts r
+eturns Promise (5 ms)
+    鈭?Property 1.6: renderAccountL
+ist returns Promise (5 ms)
+    鈭?Property 1.7: handleBatchSta
+rtAll returns Promise (5 ms)
+    鈭?Property 1.8: toggleSidebar 
+does not throw (5 ms)
+    鈭?Property 1.9: toggleSelectio
+nMode does not throw (5 ms)
+    鈭?Property 1.10: syncAccountSt
+atusesWithRunningStatus does not t
+hrow (3 ms)
+    鈭?Property 1.11: renderQuickAc
+tions accepts account and containe
+r parameters (33 ms)
+    鈭?Property 1.12: API methods a
+re callable multiple times (15 ms)
+
+PASS src/single-window/renderer/si
+debar/__tests__/state.property.tes
+t.js
+  Sidebar State Module Property Te
+sts
+    Property 1: State Getter/Sette
+r Consistency
+      鈭?setAccounts/getAccounts ro
+und-trip preserves accounts (45 ms
+)
+      鈭?setActiveAccountId/getActi
+veAccountId round-trip preserves I
+D (10 ms)
+      鈭?setFilterQuery/getFilterQu
+ery round-trip preserves query (9 
+ms)
+      鈭?setFilterQuery with null/u
+ndefined returns empty string (2 m
+s)
+      鈭?incrementRenderVersion alw
+ays increases version (4 ms)
+    Property 1: Selection Mode Con
+sistency
+      鈭?toggleSelectionModeState a
+lternates between true and false (
+6 ms)
+      鈭?setSelectionMode directly 
+sets the mode (4 ms)
+      鈭?addSelectedAccount/isAccou
+ntSelected consistency (20 ms)
+      鈭?removeSelectedAccount remo
+ves account from selection (20 ms)
+      鈭?clearSelectedAccounts remo
+ves all selections (26 ms)
+      鈭?selectAllAccounts selects 
+all accounts in state (25 ms)
+    Property 1: Account Operations
+ Consistency
+      鈭?getAccountById returns cor
+rect account (16 ms)
+      鈭?getAccountById returns und
+efined for non-existent ID (13 ms)
+      鈭?updateAccount modifies acc
+ount properties (29 ms)
+      鈭?updateAccount returns null
+ for non-existent ID (13 ms)
+      鈭?getAccountName returns cor
+rect name or fallback (14 ms)
+      鈭?getAccountName returns "鏈
+煡璐﹀彿" for non-existent ID (13 ms)
+
+Test Suites: 1 failed, 5 passed, 6
+ total
+Tests:       3 failed, 97 passed, 
+100 total
+Snapshots:   0 total
+Time:        7.928 s
+Ran all test suites matching /src\
+\single-window\\renderer\\sidebar\
+\__tests__\\/i.
+
+鉁?Test suite completed in 7.95s
+
