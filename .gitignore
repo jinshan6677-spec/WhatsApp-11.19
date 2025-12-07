@@ -10,6 +10,7 @@ test-session-data/
 
 # Build output
 dist/
+dist-*/
 build/
 out/
 
