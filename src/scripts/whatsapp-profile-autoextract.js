@@ -3,10 +3,10 @@
  * 
  * 功能：
  * 1. 自动从 localStorage 提取手机号码
- * 2. 自动从 IndexedDB 提取昵称和头像
- * 3. 自动发送提取到的信息到主进程进行更新和持久化
+ * 2. 智能扫描 localStorage 提取昵称
+ * 3. DOM 点击备用方案
  * 
- * @version 5.0.0 - 生产就绪版 (Stable)
+ * @version 6.0.0 - 精简版
  */
 
 (function WhatsAppProfileAutoExtractor() {
@@ -14,9 +14,9 @@
 
     const CONFIG = {
         checkInterval: 3000,
-        maxAttempts: 20,     // 最多尝试次数
-        startTime: 5000,     // 页面加载后等待 5 秒再开始
-        debug: false         // 关闭调试日志
+        maxAttempts: 20,
+        startTime: 2000,
+        debug: false
     };
 
     let attempts = 0;
@@ -29,7 +29,7 @@
         }
     }
 
-    // 获取带+号的号码，用于显示和发送
+    // 获取带+号的号码
     function getPhoneFromLocalStorage() {
         try {
             const lastWid = localStorage.getItem('last-wid-md');
@@ -38,11 +38,11 @@
                 const match = cleaned.match(/^(\d+)/);
                 if (match) return '+' + match[1];
             }
-        } catch (e) { }
+        } catch (e) { log('Error reading localStorage:', e); }
         return null;
     }
 
-    // 获取纯数字号码，用于 IndexedDB 查询
+    // 获取纯数字号码
     function getRawPhone() {
         const lastWid = localStorage.getItem('last-wid-md');
         if (lastWid) {
@@ -53,53 +53,133 @@
         return null;
     }
 
-    function getFromModelStorage() {
-        return new Promise((resolve) => {
-            const result = { profileName: null, avatarUrl: null };
-            const rawPhone = getRawPhone();
+    // ========== 方案1：智能 LocalStorage 扫描 ==========
+    function getFromLocalStorage() {
+        log('Attempting smart LocalStorage scan...');
+        try {
+            const excludeValues = [
+                'NOT_ACCEPTED', 'ACCEPTED', 'migrated', 'true', 'false', 'null',
+                'init_', 'x1', ':1'
+            ];
 
-            if (!rawPhone) {
-                resolve(result);
-                return;
+            const excludeKeyPatterns = [
+                'mutex', 'Session', 'last-wid', 'Lang', 'Lid', 'Hash', 'Secret',
+                'History', 'Synced', 'banzai', 'Logging', 'Thread', 'Chunk', 'Blocklist'
+            ];
+
+            let candidates = [];
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                let val = localStorage.getItem(key);
+
+                if (excludeKeyPatterns.some(p => key.includes(p))) continue;
+
+                val = val.replace(/^"|"$/g, '');
+
+                if (val.length < 1 || val.length > 30) continue;
+                if (/^\d+$/.test(val)) continue;
+                if (excludeValues.some(e => val.includes(e))) continue;
+                if (/[:@\[\]{}]/.test(val)) continue;
+
+                candidates.push({ key, value: val });
             }
+
+            if (candidates.length > 0) {
+                log('Found profile name via smart LS scan:', candidates[0].value);
+                return { profileName: candidates[0].value, avatarUrl: null };
+            }
+        } catch (e) { log('LS scan error', e); }
+        return { profileName: null, avatarUrl: null };
+    }
+
+    // ========== 方案2：DOM 点击备用 ==========
+    async function extractFromDOM() {
+        log('Attempting DOM extraction via UI interaction...');
+
+        const header = document.querySelector('header');
+        if (!header) {
+            log('DOM Fail: Header not found');
+            return { profileName: null, avatarUrl: null };
+        }
+
+        const avatarImg = header.querySelector('img');
+        if (!avatarImg) {
+            log('DOM Fail: Header IMG not found');
+            return { profileName: null, avatarUrl: null };
+        }
+
+        let clickTarget = avatarImg.closest('[role="button"]') ||
+            avatarImg.closest('button') ||
+            avatarImg.closest('div[tabindex]') ||
+            avatarImg.parentElement;
+
+        log('Clicking avatar to open profile...');
+        (clickTarget || avatarImg).click();
+
+        await new Promise(r => setTimeout(r, 1200));
+
+        let name = null;
+        const potentialDivs = Array.from(document.querySelectorAll('div, span'));
+
+        for (let div of potentialDivs) {
+            const txt = div.innerText ? div.innerText.trim() : '';
+            if (['姓名', 'Your name', 'Name', 'Nama'].includes(txt)) {
+                log(`Found label "${txt}"`);
+
+                let sibling = div.nextElementSibling;
+                if (sibling && sibling.innerText && sibling.innerText.length > 0) {
+                    name = sibling.innerText.split('\n')[0];
+                    log('Found name via Sibling:', name);
+                    break;
+                }
+
+                const parent = div.parentElement;
+                if (parent && parent.innerText.includes('\n')) {
+                    const parts = parent.innerText.split('\n');
+                    if (parts[0].trim() === txt && parts[1]) {
+                        name = parts[1].trim();
+                        log('Found name via Parent:', name);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!name) {
+            const editables = document.querySelectorAll('div[contenteditable="true"]');
+            for (let ed of editables) {
+                if (ed.innerText && ed.innerText.length > 0) {
+                    name = ed.innerText;
+                    log('Found name via contenteditable:', name);
+                    break;
+                }
+            }
+        }
+
+        // 关闭面板
+        const backBtn = document.querySelector('span[data-icon="back"]');
+        if (backBtn) {
+            (backBtn.closest('[role="button"]') || backBtn.parentElement)?.click();
+        } else {
+            document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        }
+
+        await new Promise(r => setTimeout(r, 500));
+        return { profileName: name, avatarUrl: null };
+    }
+
+    // ========== 头像提取（IndexedDB + 页面扫描） ==========
+    function getAvatarUrl() {
+        return new Promise((resolve) => {
+            const rawPhone = getRawPhone();
+            if (!rawPhone) { resolve(null); return; }
 
             try {
                 const request = indexedDB.open('model-storage');
-
                 request.onsuccess = (event) => {
                     const db = event.target.result;
-                    let pendingTx = 2;
 
-                    const checkDone = () => {
-                        pendingTx--;
-                        if (pendingTx <= 0) {
-                            db.close();
-                            resolve(result);
-                        }
-                    };
-
-                    // 1. 获取昵称 (contact store)
-                    if (db.objectStoreNames.contains('contact')) {
-                        const tx = db.transaction(['contact'], 'readonly');
-                        const store = tx.objectStore('contact');
-                        store.getAll().onsuccess = (e) => {
-                            const contacts = e.target.result || [];
-                            for (const contact of contacts) {
-                                if (!contact || !contact.id) continue;
-                                const contactId = contact.id._serialized || contact.id;
-                                // 模糊匹配：只要 ID 包含号码即可
-                                if (typeof contactId === 'string' && contactId.includes(rawPhone)) {
-                                    if (contact.pushname) result.profileName = contact.pushname;
-                                    break;
-                                }
-                            }
-                            checkDone();
-                        };
-                        tx.oncomplete = null;
-                        tx.onerror = checkDone;
-                    } else { checkDone(); }
-
-                    // 2. 获取头像 (profile-pic-thumb store)
                     if (db.objectStoreNames.contains('profile-pic-thumb')) {
                         const tx = db.transaction(['profile-pic-thumb'], 'readonly');
                         const store = tx.objectStore('profile-pic-thumb');
@@ -111,27 +191,29 @@
                                 if (!pic || !pic.id) continue;
                                 const picId = pic.id._serialized || pic.id;
 
-                                // 优先精确匹配，其次模糊匹配
-                                const matchExact = picId === targetId;
-                                const matchInclude = typeof picId === 'string' && picId.includes(rawPhone);
-
-                                if (matchExact || matchInclude) {
+                                if (picId === targetId || (typeof picId === 'string' && picId.includes(rawPhone))) {
                                     const url = pic.eurl || pic.imgFull || pic.img;
                                     if (url) {
-                                        result.avatarUrl = url;
-                                        break;
+                                        log('Found avatar URL via IDB:', url.substring(0, 50));
+                                        db.close();
+                                        resolve(url);
+                                        return;
                                     }
                                 }
                             }
-                            checkDone();
+                            db.close();
+                            // Fallback to page scan
+                            resolve(getAvatarFromPage());
                         };
-                        tx.oncomplete = null;
-                        tx.onerror = checkDone;
-                    } else { checkDone(); }
+                    } else {
+                        db.close();
+                        resolve(getAvatarFromPage());
+                    }
                 };
-
-                request.onerror = () => resolve(result);
-            } catch (e) { resolve(result); }
+                request.onerror = () => resolve(getAvatarFromPage());
+            } catch (e) {
+                resolve(getAvatarFromPage());
+            }
         });
     }
 
@@ -146,56 +228,80 @@
         return null;
     }
 
+    // ========== 发送到主进程 ==========
     async function sendToMainProcess(data) {
+        log('Sending to main process:', data);
         const accountId = window.ACCOUNT_ID || 'unknown';
         const payload = { accountId, ...data };
         if (window.electronAPI?.invoke) {
-            await window.electronAPI.invoke('view:update-profile', payload);
-            return true;
+            try {
+                await window.electronAPI.invoke('view:update-profile', payload);
+                log('Sent successfully');
+                return true;
+            } catch (e) {
+                log('Send failed:', e);
+            }
         }
         return false;
     }
 
+    // ========== 主提取逻辑 ==========
     async function tryExtract() {
         attempts++;
+        log(`Attempt ${attempts}/${CONFIG.maxAttempts}`);
+
         if (extracted || attempts > CONFIG.maxAttempts) {
             if (checkTimer) clearInterval(checkTimer);
             return;
         }
 
-        // 检查是否已登录
         const chatList = document.querySelector('[data-testid="chat-list"]') ||
             document.querySelector('#pane-side');
-        if (!chatList) return;
+        if (!chatList) {
+            log('Chat list not found, waiting...');
+            return;
+        }
 
         const phoneNumber = getPhoneFromLocalStorage();
-        if (!phoneNumber) return;
+        if (!phoneNumber) {
+            log('Phone number not found');
+            return;
+        }
 
-        const idbResult = await getFromModelStorage();
-        let avatarUrl = idbResult.avatarUrl || getAvatarFromPage();
+        // 方案1：智能 LocalStorage 扫描
+        let lsResult = getFromLocalStorage();
+
+        // 方案2：DOM 备用
+        let domResult = { profileName: null, avatarUrl: null };
+        if (!lsResult.profileName) {
+            domResult = await extractFromDOM();
+        }
+
+        let avatarUrl = await getAvatarUrl();
+        let profileName = lsResult.profileName || domResult.profileName;
 
         const result = {
-            profileName: idbResult.profileName,
+            profileName: profileName,
             phoneNumber: phoneNumber,
             avatarUrl: avatarUrl
         };
 
-        // 只要有号码就尝试更新
+        log('Extraction result:', result);
+
         if (result.phoneNumber) {
             const hasAvatar = !!result.avatarUrl;
             const sent = await sendToMainProcess(result);
 
-            // 成功条件：发送成功 且 (有头像 或者 尝试超过5次)
-            // 这样保证尽量获取到头像，如果真没有也不死循环
             if (sent && (hasAvatar || attempts > 5)) {
                 extracted = true;
+                log('Extraction complete');
                 if (checkTimer) clearInterval(checkTimer);
             }
         }
     }
 
     function start() {
-        // 延迟启动，避免与页面加载竞争 IndexedDB 资源
+        log('Starting profile extractor...');
         setTimeout(() => {
             checkTimer = setInterval(tryExtract, CONFIG.checkInterval);
         }, CONFIG.startTime);

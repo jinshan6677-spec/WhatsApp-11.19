@@ -180,7 +180,8 @@ function applyAccountProfileToItem(account, itemElement) {
   if (!account || !itemElement) return;
 
   const utils = getUtils();
-  const displayName = account.profileName || account.name || '';
+  // Display priority: Custom Name > WhatsApp Profile Name
+  const displayName = account.name || account.profileName || '';
 
   // Update name
   const nameElement = itemElement.querySelector('.account-name');
@@ -303,14 +304,14 @@ function createAccountItem(account, options = {}) {
   // Avatar
   const avatar = document.createElement('div');
   avatar.className = 'account-avatar';
-  
+
   // Check for avatar image
   if (account.avatarUrl) {
     const avatarImg = document.createElement('img');
     avatarImg.src = account.avatarUrl;
     avatarImg.alt = account.name || account.profileName || '';
     avatarImg.className = 'account-avatar-image';
-    avatarImg.onerror = function() {
+    avatarImg.onerror = function () {
       // Fallback to initial on error
       this.style.display = 'none';
       avatar.textContent = utils.getAccountInitial(account.name || account.profileName);
@@ -344,7 +345,8 @@ function createAccountItem(account, options = {}) {
 
   const name = document.createElement('div');
   name.className = 'account-name';
-  const displayName = account.name || '';
+  // Display priority: Custom Name > WhatsApp Profile Name > (Empty)
+  const displayName = account.name || account.profileName || '';
   name.textContent = displayName;
   if (!displayName) name.innerHTML = '&nbsp;'; // Maintain height
 
@@ -373,7 +375,7 @@ function createAccountItem(account, options = {}) {
   noteEl.className = 'account-note';
   noteEl.contentEditable = true;
   noteEl.textContent = account.note || '';
-  
+
   // Prevent click from bubbling to account item
   noteEl.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -410,7 +412,7 @@ function createAccountItem(account, options = {}) {
       noteEl.blur();
     }
   });
-  
+
   secondary.appendChild(noteEl);
 
   info.appendChild(header);
@@ -486,10 +488,10 @@ async function renderAccountList() {
       const profileName = (account.profileName || '').toLowerCase();
       const phone = (account.phoneNumber || '').toLowerCase();
       const note = (account.note || '').toLowerCase();
-      return name.includes(query) || 
-             profileName.includes(query) || 
-             phone.includes(query) || 
-             note.includes(query);
+      return name.includes(query) ||
+        profileName.includes(query) ||
+        phone.includes(query) ||
+        note.includes(query);
     });
   }
 
