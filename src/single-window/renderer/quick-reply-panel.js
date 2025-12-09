@@ -109,6 +109,11 @@
     });
     document.querySelector('[data-panel="quick-reply"]').classList.add('active');
 
+    // Sync with TranslatePanelLayout
+    if (window.TranslatePanelLayout && window.TranslatePanelLayout.setActivePanel) {
+      window.TranslatePanelLayout.setActivePanel('quick-reply');
+    }
+
     // Get current active account if not set
     if (!currentAccountId) {
       const activeId = await getActiveAccountId();
