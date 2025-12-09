@@ -28,6 +28,11 @@ module.exports = {
     '/backups/'
   ],
   
+  // Transform ignore patterns - allow uuid to be transformed
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)'
+  ],
+  
   // Setup files
   setupFilesAfterEnv: ['<rootDir>/test/setup.js'],
   

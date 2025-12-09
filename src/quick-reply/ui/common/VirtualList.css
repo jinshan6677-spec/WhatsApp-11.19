@@ -1,0 +1,74 @@
+/**
+ * VirtualList Styles
+ */
+
+.virtual-list {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.virtual-list-spacer {
+  position: relative;
+  width: 100%;
+}
+
+.virtual-list-item {
+  position: absolute;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Scrollbar styling */
+.virtual-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtual-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.virtual-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.virtual-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Virtual Grid */
+.virtual-grid {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.virtual-grid-spacer {
+  position: relative;
+  width: 100%;
+}
+
+.virtual-grid-item {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.virtual-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtual-grid::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.virtual-grid::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.virtual-grid::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

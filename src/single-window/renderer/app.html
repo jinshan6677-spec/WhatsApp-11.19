@@ -102,6 +102,14 @@
         <div id="environment-settings-host"></div>
       </div>
 
+      <!-- Quick Reply Panel Body -->
+      <div class="translate-panel-body" id="quick-reply-panel-body" style="display: none;">
+        <div id="quick-reply-panel-placeholder" class="translate-panel-placeholder">
+          选择账号后将显示快捷回复功能
+        </div>
+        <div id="quick-reply-host"></div>
+      </div>
+
       <!-- Right: Vertical Menu -->
       <div class="translate-panel-menu">
         <button class="panel-menu-btn active" data-panel="translate" title="翻译设置">
@@ -132,6 +140,17 @@
             </svg>
           </span>
           <span class="menu-label">环境设置</span>
+        </button>
+
+        <button class="panel-menu-btn" data-panel="quick-reply" title="快捷回复">
+          <span class="menu-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 9H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 13H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="menu-label">快捷回复</span>
         </button>
       </div>
     </aside>
@@ -167,6 +186,7 @@
   <script src="environment-settings/proxy.js"></script>
   <script src="environment-settings/fingerprint.js"></script>
   <script src="environment-settings/index.js"></script>
+  <script src="quick-reply-panel.js"></script>
 </body>
 
 </html>

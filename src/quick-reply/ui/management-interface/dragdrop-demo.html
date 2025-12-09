@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drag and Drop Demo - Quick Reply</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .demo-section {
+      margin-bottom: 40px;
+    }
+
+    .demo-section h2 {
+      color: #007bff;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+
+    .demo-list {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 200px;
+    }
+
+    .demo-item {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: grab;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    .demo-item:hover {
+      background: #f8f9fa;
+      border-color: #007bff;
+    }
+
+    .demo-item.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+      background-color: rgba(0, 123, 255, 0.1);
+      border: 2px dashed #007bff;
+    }
+
+    .demo-item.drop-target {
+      position: relative;
+    }
+
+    .demo-item.drop-target.drop-before::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background-color: #007bff;
+      border-radius: 2px;
+      z-index: 10;
+    }
+
+    .demo-item.drop-target.drop-after::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background-color: #007bff;
+      border-radius: 2px;
+      z-index: 10;
+    }
+
+    .demo-item.drop-invalid {
+      cursor: not-allowed;
+      background-color: rgba(220, 53, 69, 0.05);
+      border-color: #dc3545;
+    }
+
+    .demo-item-icon {
+      display: inline-block;
+      margin-right: 8px;
+      font-size: 18px;
+    }
+
+    .demo-item-label {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .demo-item-order {
+      float: right;
+      color: #999;
+      font-size: 12px;
+    }
+
+    .instructions {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .instructions h3 {
+      color: #007bff;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .instructions ul {
+      margin-left: 20px;
+    }
+
+    .instructions li {
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    .status {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    @keyframes drop-animation {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .drop-animation {
+      animation: drop-animation 0.3s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Drag and Drop Demo</h1>
+    <p class="subtitle">Quick Reply Feature - Task 13 Implementation</p>
+
+    <div class="instructions">
+      <h3>📋 Instructions:</h3>
+      <ul>
+        <li>Drag any item to reorder the list</li>
+        <li>Drop above or below an item to insert at that position</li>
+        <li>Watch for the blue indicator line showing where the item will be dropped</li>
+        <li>The dragged item becomes semi-transparent</li>
+        <li>Try dragging items between the two lists (cross-group move)</li>
+      </ul>
+    </div>
+
+    <div class="demo-section">
+      <h2>📁 Group 1: 常用问候</h2>
+      <div class="demo-list" id="list1" data-group="group1">
+        <div class="demo-item" draggable="true" data-id="item1" data-group="group1">
+          <span class="demo-item-icon">📝</span>
+          <span class="demo-item-label">早安问候</span>
+          <span class="demo-item-order">Order: 1</span>
+        </div>
+        <div class="demo-item" draggable="true" data-id="item2" data-group="group1">
+          <span class="demo-item-icon">📝</span>
+          <span class="demo-item-label">晚安问候</span>
+          <span class="demo-item-order">Order: 2</span>
+        </div>
+        <div class="demo-item" draggable="true" data-id="item3" data-group="group1">
+          <span class="demo-item-icon">📝</span>
+          <span class="demo-item-label">感谢回复</span>
+          <span class="demo-item-order">Order: 3</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <h2>📁 Group 2: 产品介绍</h2>
+      <div class="demo-list" id="list2" data-group="group2">
+        <div class="demo-item" draggable="true" data-id="item4" data-group="group2">
+          <span class="demo-item-icon">🖼️</span>
+          <span class="demo-item-label">产品图片</span>
+          <span class="demo-item-order">Order: 1</span>
+        </div>
+        <div class="demo-item" draggable="true" data-id="item5" data-group="group2">
+          <span class="demo-item-icon">🎬</span>
+          <span class="demo-item-label">产品视频</span>
+          <span class="demo-item-order">Order: 2</span>
+        </div>
+        <div class="demo-item" draggable="true" data-id="item6" data-group="group2">
+          <span class="demo-item-icon">📝</span>
+          <span class="demo-item-label">产品说明</span>
+          <span class="demo-item-order">Order: 3</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    let draggedElement = null;
+    let draggedData = null;
+
+    // Get all draggable items
+    const items = document.querySelectorAll('.demo-item');
+
+    items.forEach(item => {
+      // Drag start
+      item.addEventListener('dragstart', (e) => {
+        draggedElement = e.target;
+        draggedData = {
+          id: e.target.dataset.id,
+          group: e.target.dataset.group
+        };
+        
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', JSON.stringify(draggedData));
+        
+        setTimeout(() => {
+          e.target.classList.add('dragging');
+        }, 0);
+
+        showStatus(`Started dragging: ${e.target.querySelector('.demo-item-label').textContent}`);
+      });
+
+      // Drag over
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        
+        if (draggedElement === e.currentTarget) return;
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        const position = e.clientY < midpoint ? 'before' : 'after';
+
+        // Remove previous indicators
+        document.querySelectorAll('.drop-target').forEach(el => {
+          el.classList.remove('drop-target', 'drop-before', 'drop-after');
+        });
+
+        // Add new indicator
+        e.currentTarget.classList.add('drop-target', `drop-${position}`);
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      // Drag leave
+      item.addEventListener('dragleave', (e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          e.currentTarget.classList.remove('drop-target', 'drop-before', 'drop-after');
+        }
+      });
+
+      // Drop
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        
+        if (draggedElement === e.currentTarget) return;
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        const position = e.clientY < midpoint ? 'before' : 'after';
+
+        // Insert element
+        if (position === 'before') {
+          e.currentTarget.parentNode.insertBefore(draggedElement, e.currentTarget);
+        } else {
+          e.currentTarget.parentNode.insertBefore(draggedElement, e.currentTarget.nextSibling);
+        }
+
+        // Update group if cross-group move
+        const targetGroup = e.currentTarget.dataset.group;
+        if (draggedData.group !== targetGroup) {
+          draggedElement.dataset.group = targetGroup;
+          showStatus(`Moved to ${targetGroup === 'group1' ? 'Group 1' : 'Group 2'}: ${draggedElement.querySelector('.demo-item-label').textContent}`);
+        } else {
+          showStatus(`Reordered: ${draggedElement.querySelector('.demo-item-label').textContent}`);
+        }
+
+        // Add animation
+        e.currentTarget.classList.add('drop-animation');
+        setTimeout(() => {
+          e.currentTarget.classList.remove('drop-animation');
+        }, 300);
+
+        // Update order numbers
+        updateOrderNumbers();
+      });
+
+      // Drag end
+      item.addEventListener('dragend', (e) => {
+        e.target.classList.remove('dragging');
+        document.querySelectorAll('.drop-target').forEach(el => {
+          el.classList.remove('drop-target', 'drop-before', 'drop-after');
+        });
+        draggedElement = null;
+        draggedData = null;
+      });
+    });
+
+    // Update order numbers
+    function updateOrderNumbers() {
+      document.querySelectorAll('.demo-list').forEach(list => {
+        const items = list.querySelectorAll('.demo-item');
+        items.forEach((item, index) => {
+          item.querySelector('.demo-item-order').textContent = `Order: ${index + 1}`;
+        });
+      });
+    }
+
+    // Show status message
+    function showStatus(message) {
+      const status = document.getElementById('status');
+      status.textContent = `✅ ${message}`;
+      status.classList.add('show');
+      
+      setTimeout(() => {
+        status.classList.remove('show');
+      }, 3000);
+    }
+
+    // Initialize
+    updateOrderNumbers();
+  </script>
+</body>
+</html>

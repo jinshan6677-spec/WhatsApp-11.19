@@ -12,6 +12,16 @@ const channels = require('./preload-main/channels');
 const createErrorAPI = require('./preload-main/errors');
 const createTranslationAPI = require('./preload-main/translationApi');
 
+// 加载快捷回复 API
+let quickReplyAPI = {};
+try {
+  const createQuickReplyAPI = require('./preload-main/quickReply');
+  quickReplyAPI = createQuickReplyAPI(ipcRenderer);
+  console.log('[Preload] QuickReply API loaded:', Object.keys(quickReplyAPI));
+} catch (error) {
+  console.error('[Preload] Failed to load QuickReply API:', error);
+}
+
 const electronAPI = {
   ...createAccountsAPI(ipcRenderer),
   ...createViewsAPI(ipcRenderer),
@@ -20,11 +30,15 @@ const electronAPI = {
   ...createEnvironmentAPI(ipcRenderer),
   ...createFingerprintAPI(ipcRenderer),
   ...createTranslationHelpersAPI(ipcRenderer),
+  ...quickReplyAPI,
   invoke: createInvoke(ipcRenderer, channels.invokeChannels),
   send: createSend(ipcRenderer, channels.sendChannels),
   ...createEventsAPI(ipcRenderer, channels.eventChannels),
   ...createErrorAPI(ipcRenderer)
 };
+
+// 调试：检查 quickReply 是否存在
+console.log('[Preload] electronAPI.quickReply exists:', !!electronAPI.quickReply);
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 contextBridge.exposeInMainWorld('translationAPI', createTranslationAPI(ipcRenderer));

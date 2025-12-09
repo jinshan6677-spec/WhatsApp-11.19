@@ -1,0 +1,96 @@
+/* Template List Item */
+.template-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: move;
+  transition: all 0.2s ease;
+}
+
+.template-list-item:hover {
+  border-color: #adb5bd;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.template-list-item.dragging {
+  opacity: 0.5;
+}
+
+/* Checkbox */
+.template-list-item-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Icon */
+.template-list-item-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* Badge */
+.template-list-item-badge {
+  padding: 2px 8px;
+  background-color: #e9ecef;
+  color: #495057;
+  font-size: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Label */
+.template-list-item-label {
+  flex: 1;
+  font-size: 14px;
+  color: #212529;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Actions */
+.template-list-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.template-list-item:hover .template-list-item-actions {
+  opacity: 1;
+}
+
+.template-list-item-action-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.template-list-item-action-button:hover {
+  background-color: #f8f9fa;
+}
+
+.template-list-item-action-button.edit:hover {
+  background-color: #e7f3ff;
+}
+
+.template-list-item-action-button.delete:hover {
+  background-color: #f8d7da;
+}

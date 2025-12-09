@@ -25,6 +25,9 @@ const TranslationServiceIPCHandlers = require('./presentation/ipc/handlers/Trans
 const VoiceTranslationIPCHandlers = require('./presentation/ipc/handlers/VoiceTranslationIPCHandlers');
 const translationService = require('./translation/translationService');
 
+// 导入快捷回复IPC处理器
+const { registerQuickReplyHandlers, unregisterQuickReplyHandlers } = require('./ipc/QuickReplyIPCHandlers');
+
  
 
 // 导入自动清理工具
@@ -101,7 +104,14 @@ async function registerAllIPCHandlers() {
       console.log('[INFO] 语音/LLM 翻译IPC处理器注册完成 (IPCRouter)');
     }
 
- 
+    // 注册快捷回复IPC处理器
+    registerQuickReplyHandlers({
+      translationService,
+      viewManager,
+      mainWindow,
+      accountManager
+    });
+    console.log('[INFO] 快捷回复IPC处理器注册完成 (5 channels)');
 
     console.log('[INFO] 所有IPC处理器注册完成');
   } catch (error) {
@@ -135,7 +145,12 @@ function unregisterAllIPCHandlers() {
     console.error('[ERROR] 注销翻译服务IPC处理器时出错:', error);
   }
 
-  
+  try {
+    unregisterQuickReplyHandlers();
+    console.log('[INFO] 快捷回复IPC处理器已注销');
+  } catch (error) {
+    console.error('[ERROR] 注销快捷回复IPC处理器时出错:', error);
+  }
 
   console.log('[INFO] 所有IPC处理器注销完成');
 }
