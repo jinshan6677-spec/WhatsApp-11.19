@@ -13,6 +13,39 @@ const ValidationError = require('../errors/ValidationError');
 const { Logger } = require('../utils/logger');
 const TranslationIntegration = require('../services/TranslationIntegration');
 
+/**
+ * Decode HTML entities in text
+ * @param {string} text - Text with possible HTML entities
+ * @returns {string} Decoded text
+ */
+function decodeHtmlEntities(text) {
+  if (!text || typeof text !== 'string') return text;
+  
+  const entities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&#x27;': "'",
+    '&apos;': "'",
+    '&#x2F;': '/',
+    '&#47;': '/',
+    '&nbsp;': ' '
+  };
+  
+  let decoded = text;
+  for (const [entity, char] of Object.entries(entities)) {
+    decoded = decoded.replace(new RegExp(entity, 'g'), char);
+  }
+  
+  // Also handle numeric entities like &#123;
+  decoded = decoded.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
+  
+  return decoded;
+}
+
 class SendManager {
   /**
    * @param {Object} translationService - Translation service instance
@@ -326,7 +359,8 @@ class SendManager {
       
       switch (template.type) {
         case TEMPLATE_TYPES.TEXT:
-          await this.whatsappWebInterface.insertText(template.content.text);
+          // Decode any HTML entities that may have been accidentally encoded
+          await this.whatsappWebInterface.insertText(decodeHtmlEntities(template.content.text));
           break;
           
         case TEMPLATE_TYPES.IMAGE:
@@ -336,7 +370,8 @@ class SendManager {
           break;
           
         case TEMPLATE_TYPES.MIXED:
-          await this.whatsappWebInterface.insertText(template.content.text);
+          // Decode any HTML entities that may have been accidentally encoded
+          await this.whatsappWebInterface.insertText(decodeHtmlEntities(template.content.text));
           await this.whatsappWebInterface.attachMedia(template.content.mediaPath);
           break;
           
@@ -446,7 +481,10 @@ class SendManager {
         throw new SendError('WhatsApp Web interface not available');
       }
       
-      await this.whatsappWebInterface.sendMessage(text);
+      // Decode any HTML entities that may have been accidentally encoded
+      const decodedText = decodeHtmlEntities(text);
+      
+      await this.whatsappWebInterface.sendMessage(decodedText);
       
       this.logger.debug('Text message sent');
     } catch (error) {

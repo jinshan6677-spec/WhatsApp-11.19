@@ -538,7 +538,7 @@
         <div class="qr-template-header">
           <span class="qr-template-type">${getTypeIcon(template.type)}</span>
           <span class="qr-template-label">${escapeHtml(template.label || '未命名')}</span>
-          <button class="qr-btn qr-btn-icon qr-btn-edit" data-template-id="${template.id}" data-template-label="${escapeHtml(template.label || '')}" data-template-content="${escapeHtml(template.content?.text || '')}" title="编辑">
+          <button class="qr-btn qr-btn-icon qr-btn-edit" data-template-id="${template.id}" data-template-label="${encodeURIComponent(template.label || '')}" data-template-content="${encodeURIComponent(template.content?.text || '')}" title="编辑">
             ✏️
           </button>
           <button class="qr-btn qr-btn-icon qr-btn-delete" data-template-id="${template.id}" title="删除">
@@ -1017,8 +1017,9 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const templateId = e.target.dataset.templateId;
-        const label = e.target.dataset.templateLabel;
-        const content = e.target.dataset.templateContent;
+        // Decode URI-encoded values
+        const label = decodeURIComponent(e.target.dataset.templateLabel || '');
+        const content = decodeURIComponent(e.target.dataset.templateContent || '');
         showEditForm(templateId, label, content);
       });
     });
