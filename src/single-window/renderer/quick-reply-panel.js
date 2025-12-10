@@ -419,23 +419,42 @@
       <div class="quick-reply-operation-panel">
         <!-- Toolbar -->
         <div class="qr-toolbar">
+          <span class="qr-toolbar-title">快捷回复</span>
+          <div class="qr-toolbar-spacer"></div>
           <button class="qr-btn qr-btn-icon" id="qr-refresh-btn" title="刷新">
             <span>🔄</span>
           </button>
-          <button class="qr-btn qr-btn-primary-sm" id="qr-add-btn" title="添加模板">
-            <span>➕ 添加</span>
+          <button class="qr-btn qr-btn-icon" id="qr-manage-btn" title="编辑管理">
+            <span>⚙️</span>
           </button>
-          <div class="qr-toolbar-spacer"></div>
-          <div class="qr-send-mode">
-            <label>
-              <input type="radio" name="send-mode" value="original" checked>
-              <span>原文发送</span>
-            </label>
-            <label>
-              <input type="radio" name="send-mode" value="translated">
-              <span>翻译后发送</span>
-            </label>
+          <button class="qr-btn qr-btn-icon" id="qr-copy-btn" title="复制">
+            <span>📋</span>
+          </button>
+          <button class="qr-btn qr-btn-primary-sm" id="qr-add-btn" title="添加模板">
+            <span>➕</span>
+          </button>
+          <div class="qr-settings-dropdown">
+            <button class="qr-btn qr-btn-icon" id="qr-settings-btn" title="设置菜单">
+              <span>☰</span>
+            </button>
+            <div class="qr-dropdown-menu" id="qr-settings-menu" style="display: none;">
+              <div class="qr-dropdown-item" data-action="import">📥 导入模板</div>
+              <div class="qr-dropdown-item" data-action="export">📤 导出模板</div>
+              <div class="qr-dropdown-item" data-action="clear-cache">🗑️ 清空缓存</div>
+            </div>
           </div>
+        </div>
+        
+        <!-- Send Mode -->
+        <div class="qr-send-mode-bar">
+          <label>
+            <input type="radio" name="send-mode" value="original" checked>
+            <span>○ 原文发送</span>
+          </label>
+          <label>
+            <input type="radio" name="send-mode" value="translated">
+            <span>○ 翻译后发送</span>
+          </label>
         </div>
 
         <!-- Create Template Form (hidden by default) -->
@@ -490,6 +509,9 @@
     attachEventListeners(data);
   }
 
+  // Track expanded groups state
+  let expandedGroups = new Set();
+
   /**
    * Render groups
    * @param {Array} groups - Groups array
@@ -506,14 +528,17 @@
     if (!groups || groups.length === 0) {
       html += '<div class="qr-empty">暂无分组</div>';
     } else {
-      html += groups.map(group => `
-        <div class="qr-group-item" data-group-id="${group.id}">
-          <span class="qr-group-icon">${group.expanded ? '📂' : '📁'}</span>
-          <span class="qr-group-name">${escapeHtml(group.name)}</span>
+      html += groups.map(group => {
+        const isExpanded = expandedGroups.has(group.id);
+        return `
+        <div class="qr-group-item ${isExpanded ? 'expanded' : ''}" data-group-id="${group.id}">
+          <span class="qr-group-toggle" data-group-id="${group.id}">${isExpanded ? '▼' : '▶'}</span>
+          <span class="qr-group-name" data-group-id="${group.id}">${escapeHtml(group.name)}</span>
           <span class="qr-group-count">(${group.templateCount || 0})</span>
+          <button class="qr-btn qr-btn-icon qr-btn-edit-group" data-group-id="${group.id}" title="编辑分组">✏️</button>
           <button class="qr-btn qr-btn-icon qr-btn-delete-group" data-group-id="${group.id}" title="删除分组">🗑️</button>
         </div>
-      `).join('');
+      `}).join('');
     }
     
     return html;
@@ -522,10 +547,17 @@
   /**
    * Render templates
    * @param {Array} templates - Templates array
+   * @param {string} filterGroupId - Optional group ID to filter by
    * @returns {string} HTML string
    */
-  function renderTemplates(templates) {
-    if (!templates || templates.length === 0) {
+  function renderTemplates(templates, filterGroupId = null) {
+    // Filter templates by group if specified
+    let filteredTemplates = templates;
+    if (filterGroupId) {
+      filteredTemplates = templates.filter(t => t.groupId === filterGroupId);
+    }
+    
+    if (!filteredTemplates || filteredTemplates.length === 0) {
       return `
         <div class="qr-empty-state">
           <div class="qr-empty-icon">📝</div>
@@ -538,9 +570,10 @@
       `;
     }
 
-    return templates.map(template => `
-      <div class="qr-template-item" data-template-id="${template.id}">
+    return filteredTemplates.map((template, index) => `
+      <div class="qr-template-item" data-template-id="${template.id}" data-group-id="${template.groupId || ''}">
         <div class="qr-template-header">
+          <span class="qr-template-seq">${index + 1}</span>
           <span class="qr-template-type">${getTypeIcon(template.type)}</span>
           <span class="qr-template-label">${escapeHtml(template.label || '未命名')}</span>
           <button class="qr-btn qr-btn-icon qr-btn-edit" data-template-id="${template.id}" data-template-label="${encodeURIComponent(template.label || '')}" data-template-content="${encodeURIComponent(template.content?.text || '')}" title="编辑">
@@ -550,7 +583,7 @@
             🗑️
           </button>
         </div>
-        <div class="qr-template-preview">
+        <div class="qr-template-preview" data-template-id="${template.id}" data-template-full="${encodeURIComponent(JSON.stringify(template))}">
           ${getTemplatePreview(template)}
         </div>
         <div class="qr-template-actions">
@@ -558,7 +591,7 @@
             发送
           </button>
           <button class="qr-btn qr-btn-sm qr-btn-insert" data-template-id="${template.id}">
-            插入
+            输入框提示
           </button>
         </div>
       </div>
@@ -632,8 +665,57 @@
         gap: 8px;
       }
 
+      .qr-toolbar-title {
+        font-weight: 600;
+        font-size: 15px;
+        color: #333;
+      }
+
       .qr-toolbar-spacer {
         flex: 1;
+      }
+
+      .qr-send-mode-bar {
+        display: flex;
+        gap: 16px;
+        padding: 8px 12px;
+        border-bottom: 1px solid #e0e0e0;
+        background: #f9f9f9;
+      }
+
+      .qr-send-mode-bar label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      .qr-settings-dropdown {
+        position: relative;
+      }
+
+      .qr-dropdown-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        z-index: 100;
+        min-width: 140px;
+      }
+
+      .qr-dropdown-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .qr-dropdown-item:hover {
+        background: #f5f5f5;
       }
 
       .qr-btn {
@@ -734,8 +816,21 @@
         background: #f5f5f5;
       }
 
+      .qr-group-item.active {
+        background: #e3f2fd;
+      }
+
+      .qr-group-toggle {
+        color: #666;
+        font-size: 10px;
+        width: 16px;
+        text-align: center;
+        cursor: pointer;
+      }
+
       .qr-group-name {
         flex: 1;
+        color: #666;
       }
 
       .qr-group-count {
@@ -743,14 +838,22 @@
         font-size: 12px;
       }
 
+      .qr-btn-edit-group,
       .qr-btn-delete-group {
-        opacity: 0.5;
+        opacity: 0;
         font-size: 12px;
         padding: 2px 6px;
+        transition: opacity 0.2s;
       }
 
+      .qr-group-item:hover .qr-btn-edit-group,
       .qr-group-item:hover .qr-btn-delete-group {
         opacity: 1;
+      }
+
+      .qr-btn-edit-group:hover {
+        background: #e3f2fd;
+        border-color: #2196f3;
       }
 
       .qr-btn-delete-group:hover {
@@ -773,11 +876,25 @@
         margin-bottom: 8px;
       }
 
+      .qr-template-seq {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: #f0f0f0;
+        border-radius: 50%;
+        font-size: 11px;
+        color: #666;
+        flex-shrink: 0;
+      }
+
       .qr-template-header .qr-btn-edit,
       .qr-template-header .qr-btn-delete {
-        opacity: 0.5;
+        opacity: 0;
         font-size: 12px;
         padding: 2px 6px;
+        transition: opacity 0.2s;
       }
 
       .qr-template-header .qr-btn-edit {
@@ -960,6 +1077,80 @@
         gap: 8px;
         margin-top: 12px;
       }
+
+      /* Preview Modal */
+      .qr-preview-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .qr-preview-content {
+        background: #fff;
+        border-radius: 8px;
+        max-width: 500px;
+        max-height: 80vh;
+        width: 90%;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      }
+
+      .qr-preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e0e0e0;
+        background: #f9f9f9;
+      }
+
+      .qr-preview-title {
+        font-weight: 500;
+        font-size: 15px;
+      }
+
+      .qr-preview-body {
+        padding: 16px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      .qr-preview-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.6;
+        font-size: 14px;
+      }
+
+      .qr-preview-image {
+        max-width: 100%;
+        border-radius: 4px;
+      }
+
+      .qr-preview-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 12px 16px;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      /* Group Edit Input */
+      .qr-group-edit-input {
+        flex: 1;
+        padding: 4px 8px;
+        border: 1px solid #2196f3;
+        border-radius: 4px;
+        font-size: 14px;
+        outline: none;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -979,11 +1170,48 @@
       });
     }
 
-    // Manage button
+    // Manage button - open management interface
     const manageBtn = document.getElementById('qr-manage-btn');
     if (manageBtn) {
       manageBtn.addEventListener('click', () => {
-        window.electronAPI.quickReply.openManagement();
+        if (window.electronAPI && window.electronAPI.quickReply && window.electronAPI.quickReply.openManagement) {
+          window.electronAPI.quickReply.openManagement();
+        } else {
+          alert('管理界面功能正在开发中');
+        }
+      });
+    }
+
+    // Copy button
+    const copyBtn = document.getElementById('qr-copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        handleCopyTemplates();
+      });
+    }
+
+    // Settings menu button
+    const settingsBtn = document.getElementById('qr-settings-btn');
+    const settingsMenu = document.getElementById('qr-settings-menu');
+    if (settingsBtn && settingsMenu) {
+      settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsMenu.style.display = settingsMenu.style.display === 'none' ? 'block' : 'none';
+      });
+      
+      // Close menu when clicking outside
+      document.addEventListener('click', () => {
+        settingsMenu.style.display = 'none';
+      });
+      
+      // Settings menu items
+      settingsMenu.querySelectorAll('.qr-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const action = item.dataset.action;
+          handleSettingsAction(action);
+          settingsMenu.style.display = 'none';
+        });
       });
     }
 
@@ -1038,18 +1266,25 @@
       });
     });
 
+    // Template preview click - show full preview modal
+    document.querySelectorAll('.qr-template-preview').forEach(preview => {
+      preview.addEventListener('click', (e) => {
+        const templateData = preview.dataset.templateFull;
+        if (templateData) {
+          try {
+            const template = JSON.parse(decodeURIComponent(templateData));
+            showPreviewModal(template);
+          } catch (err) {
+            console.error('[QuickReply] Failed to parse template data:', err);
+          }
+        }
+      });
+    });
+
     // Create first template button (shown when no templates exist)
     const createFirstBtn = document.getElementById('qr-create-first-btn');
     if (createFirstBtn) {
       createFirstBtn.addEventListener('click', () => {
-        showCreateForm();
-      });
-    }
-
-    // Add template button in toolbar
-    const addBtn = document.getElementById('qr-add-btn');
-    if (addBtn) {
-      addBtn.addEventListener('click', () => {
         showCreateForm();
       });
     }
@@ -1068,6 +1303,41 @@
     if (formSave) {
       formSave.addEventListener('click', handleSaveTemplate);
     }
+
+    // Add template button in toolbar
+    const addBtn = document.getElementById('qr-add-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        showCreateForm();
+      });
+    }
+
+    // Group toggle (expand/collapse)
+    document.querySelectorAll('.qr-group-toggle').forEach(toggle => {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const groupId = toggle.dataset.groupId;
+        handleToggleGroup(groupId);
+      });
+    });
+
+    // Group name click - select group and filter templates
+    document.querySelectorAll('.qr-group-name').forEach(nameEl => {
+      nameEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const groupId = nameEl.dataset.groupId;
+        handleSelectGroup(groupId, data);
+      });
+    });
+
+    // Edit group buttons
+    document.querySelectorAll('.qr-btn-edit-group').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const groupId = btn.dataset.groupId;
+        handleEditGroup(groupId);
+      });
+    });
 
     // Add group button
     const addGroupBtn = document.querySelector('.qr-btn-add-group');
@@ -1389,6 +1659,296 @@
     } catch (error) {
       console.error('[QuickReply] Delete group error:', error);
       alert('删除分组失败: ' + error.message);
+    }
+  }
+
+  /**
+   * Handle toggle group expand/collapse
+   * @param {string} groupId - Group ID
+   */
+  function handleToggleGroup(groupId) {
+    if (expandedGroups.has(groupId)) {
+      expandedGroups.delete(groupId);
+    } else {
+      expandedGroups.add(groupId);
+    }
+    
+    // Update UI
+    const groupItem = document.querySelector(`.qr-group-item[data-group-id="${groupId}"]`);
+    const toggle = document.querySelector(`.qr-group-toggle[data-group-id="${groupId}"]`);
+    
+    if (groupItem && toggle) {
+      if (expandedGroups.has(groupId)) {
+        groupItem.classList.add('expanded');
+        toggle.textContent = '▼';
+      } else {
+        groupItem.classList.remove('expanded');
+        toggle.textContent = '▶';
+      }
+    }
+    
+    console.log('[QuickReply] Group toggled:', groupId, 'expanded:', expandedGroups.has(groupId));
+  }
+
+  /**
+   * Handle select group - filter templates by group
+   * @param {string} groupId - Group ID
+   * @param {Object} data - Panel data
+   */
+  function handleSelectGroup(groupId, data) {
+    // Update active state
+    document.querySelectorAll('.qr-group-item').forEach(item => {
+      item.classList.remove('active');
+    });
+    
+    const groupItem = document.querySelector(`.qr-group-item[data-group-id="${groupId}"]`);
+    if (groupItem) {
+      groupItem.classList.add('active');
+    }
+    
+    // Filter templates
+    const templatesContainer = document.querySelector('.qr-templates');
+    if (templatesContainer && data.templates) {
+      templatesContainer.innerHTML = renderTemplates(data.templates, groupId);
+      
+      // Re-attach event listeners for new template elements
+      attachTemplateEventListeners();
+    }
+    
+    console.log('[QuickReply] Group selected:', groupId);
+  }
+
+  /**
+   * Attach event listeners to template elements (after re-render)
+   */
+  function attachTemplateEventListeners() {
+    // Send buttons
+    document.querySelectorAll('.qr-btn-send').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const templateId = e.target.dataset.templateId;
+        const mode = document.querySelector('input[name="send-mode"]:checked').value;
+        handleSendTemplate(templateId, mode);
+      });
+    });
+
+    // Insert buttons
+    document.querySelectorAll('.qr-btn-insert').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const templateId = e.target.dataset.templateId;
+        const mode = document.querySelector('input[name="send-mode"]:checked').value;
+        handleInsertTemplate(templateId, mode);
+      });
+    });
+
+    // Edit buttons
+    document.querySelectorAll('.qr-btn-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const templateId = e.target.dataset.templateId;
+        const label = decodeURIComponent(e.target.dataset.templateLabel || '');
+        const content = decodeURIComponent(e.target.dataset.templateContent || '');
+        showEditForm(templateId, label, content);
+      });
+    });
+
+    // Delete buttons
+    document.querySelectorAll('.qr-btn-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const templateId = e.target.dataset.templateId;
+        handleDeleteTemplate(templateId);
+      });
+    });
+
+    // Template preview click
+    document.querySelectorAll('.qr-template-preview').forEach(preview => {
+      preview.addEventListener('click', (e) => {
+        const templateData = preview.dataset.templateFull;
+        if (templateData) {
+          try {
+            const template = JSON.parse(decodeURIComponent(templateData));
+            showPreviewModal(template);
+          } catch (err) {
+            console.error('[QuickReply] Failed to parse template data:', err);
+          }
+        }
+      });
+    });
+
+    // Create first template button
+    const createFirstBtn = document.getElementById('qr-create-first-btn');
+    if (createFirstBtn) {
+      createFirstBtn.addEventListener('click', () => {
+        showCreateForm();
+      });
+    }
+  }
+
+  /**
+   * Handle edit group name
+   * @param {string} groupId - Group ID
+   */
+  function handleEditGroup(groupId) {
+    const groupItem = document.querySelector(`.qr-group-item[data-group-id="${groupId}"]`);
+    const nameEl = groupItem?.querySelector('.qr-group-name');
+    
+    if (!nameEl) return;
+    
+    const currentName = nameEl.textContent;
+    
+    // Replace name with input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'qr-group-edit-input';
+    input.value = currentName;
+    
+    nameEl.style.display = 'none';
+    nameEl.parentNode.insertBefore(input, nameEl.nextSibling);
+    input.focus();
+    input.select();
+    
+    // Handle save on blur or enter
+    const saveEdit = async () => {
+      const newName = input.value.trim();
+      input.remove();
+      nameEl.style.display = '';
+      
+      if (newName && newName !== currentName) {
+        try {
+          const result = await window.electronAPI.quickReply.updateGroup(groupId, { name: newName });
+          if (result.success) {
+            nameEl.textContent = newName;
+            console.log('[QuickReply] Group renamed:', groupId, newName);
+          } else {
+            alert('重命名失败: ' + (result.error || '未知错误'));
+          }
+        } catch (error) {
+          console.error('[QuickReply] Rename group error:', error);
+          alert('重命名失败: ' + error.message);
+        }
+      }
+    };
+    
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        input.value = currentName;
+        input.blur();
+      }
+    });
+  }
+
+  /**
+   * Show preview modal for template
+   * @param {Object} template - Template object
+   */
+  function showPreviewModal(template) {
+    // Remove existing modal if any
+    const existingModal = document.querySelector('.qr-preview-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'qr-preview-modal';
+    
+    let contentHtml = '';
+    if (template.type === 'text') {
+      contentHtml = `<div class="qr-preview-text">${escapeHtml(template.content?.text || '')}</div>`;
+    } else if (template.type === 'image') {
+      contentHtml = `<img class="qr-preview-image" src="${template.content?.path || ''}" alt="图片预览" />`;
+    } else if (template.type === 'mixed') {
+      contentHtml = `
+        ${template.content?.imagePath ? `<img class="qr-preview-image" src="${template.content.imagePath}" alt="图片预览" />` : ''}
+        <div class="qr-preview-text">${escapeHtml(template.content?.text || '')}</div>
+      `;
+    } else {
+      contentHtml = `<div class="qr-preview-text">${template.type} 模板内容</div>`;
+    }
+    
+    modal.innerHTML = `
+      <div class="qr-preview-content">
+        <div class="qr-preview-header">
+          <span class="qr-preview-title">${escapeHtml(template.label || '模板预览')}</span>
+          <button class="qr-btn qr-btn-icon qr-preview-close">✕</button>
+        </div>
+        <div class="qr-preview-body">
+          ${contentHtml}
+        </div>
+        <div class="qr-preview-footer">
+          <button class="qr-btn qr-preview-send" data-template-id="${template.id}">发送</button>
+          <button class="qr-btn qr-preview-insert" data-template-id="${template.id}">输入框提示</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    modal.querySelector('.qr-preview-close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+    
+    modal.querySelector('.qr-preview-send').addEventListener('click', () => {
+      const mode = document.querySelector('input[name="send-mode"]:checked')?.value || 'original';
+      handleSendTemplate(template.id, mode);
+      modal.remove();
+    });
+    
+    modal.querySelector('.qr-preview-insert').addEventListener('click', () => {
+      const mode = document.querySelector('input[name="send-mode"]:checked')?.value || 'original';
+      handleInsertTemplate(template.id, mode);
+      modal.remove();
+    });
+  }
+
+  /**
+   * Handle copy templates
+   */
+  function handleCopyTemplates() {
+    if (!currentData || !currentData.templates || currentData.templates.length === 0) {
+      alert('暂无模板可复制');
+      return;
+    }
+    
+    // Copy all template labels to clipboard
+    const labels = currentData.templates.map(t => t.label || '未命名').join('\n');
+    navigator.clipboard.writeText(labels).then(() => {
+      alert('已复制 ' + currentData.templates.length + ' 个模板名称到剪贴板');
+    }).catch(err => {
+      console.error('[QuickReply] Copy failed:', err);
+      alert('复制失败');
+    });
+  }
+
+  /**
+   * Handle settings menu action
+   * @param {string} action - Action name
+   */
+  async function handleSettingsAction(action) {
+    console.log('[QuickReply] Settings action:', action);
+    
+    switch (action) {
+      case 'import':
+        // TODO: Implement import
+        alert('导入功能正在开发中');
+        break;
+      case 'export':
+        // TODO: Implement export
+        alert('导出功能正在开发中');
+        break;
+      case 'clear-cache':
+        if (confirm('确定要清空缓存吗？这将重新加载所有数据。')) {
+          currentData = null;
+          if (currentAccountId) {
+            loadQuickReplyContent(currentAccountId, true);
+          }
+        }
+        break;
     }
   }
 

@@ -27,7 +27,10 @@
     "verify:isolation": "node scripts/verify-session-isolation.js",
     "migrate": "node scripts/migrate-to-multi-instance.js",
     "lint": "eslint src/app src/config src/core src/domain src/environment src/ipc src/managers src/models src/shared src/single-window src/translation src/ui src/utils --max-warnings=50",
-    "lint:fix": "eslint src/**/*.js --fix"
+    "lint:fix": "eslint src/**/*.js --fix",
+    "build:quick-reply": "node src/single-window/renderer/quick-reply/esbuild.config.js",
+    "build:quick-reply:dev": "node src/single-window/renderer/quick-reply/esbuild.config.js --dev",
+    "watch:quick-reply": "node src/single-window/renderer/quick-reply/esbuild.config.js --watch --dev"
   },
   "keywords": [
     "whatsapp",
@@ -58,6 +61,7 @@
     "lru-cache": "^10.0.0",
     "node-fetch": "^2.7.0",
     "node-machine-id": "^1.1.12",
+    "prop-types": "^15.8.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "uuid": "^13.0.0"
@@ -67,6 +71,7 @@
     "electron": "^39.2.5",
     "electron-builder": "^26.0.12",
     "electron-icon-maker": "^0.0.5",
+    "esbuild": "^0.24.2",
     "eslint": "^8.56.0",
     "fast-check": "^4.3.0",
     "jest": "^29.7.0",

@@ -197,5 +197,4 @@ export default function OperationPanel({ controller, onClose }) {
   );
 }
 
-// Export both the component and provider
-export { OperationPanel, OperationPanelProvider };
+// Note: OperationPanel is exported as default, OperationPanelProvider is exported as named
