@@ -20,7 +20,7 @@ const TranslationIntegration = require('../services/TranslationIntegration');
  */
 function decodeHtmlEntities(text) {
   if (!text || typeof text !== 'string') return text;
-  
+
   const entities = {
     '&amp;': '&',
     '&lt;': '<',
@@ -33,16 +33,16 @@ function decodeHtmlEntities(text) {
     '&#47;': '/',
     '&nbsp;': ' '
   };
-  
+
   let decoded = text;
   for (const [entity, char] of Object.entries(entities)) {
     decoded = decoded.replace(new RegExp(entity, 'g'), char);
   }
-  
+
   // Also handle numeric entities like &#123;
   decoded = decoded.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
   decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
-  
+
   return decoded;
 }
 
@@ -57,7 +57,7 @@ class SendManager {
     this.whatsappWebInterface = whatsappWebInterface;
     this.logger = new Logger('SendManager');
     this.activeSends = new Map(); // Track active send operations
-    
+
     // Initialize translation integration if account ID is provided
     this.translationIntegration = null;
     if (accountId && translationService) {
@@ -98,7 +98,7 @@ class SendManager {
     const operation = {
       id: operationId,
       cancelled: false,
-      onStatusChange: onStatusChange || (() => {}),
+      onStatusChange: onStatusChange || (() => { }),
     };
     this.activeSends.set(operationId, operation);
     return operation;
@@ -134,26 +134,26 @@ class SendManager {
    */
   async sendOriginal(template, operationId = null, onStatusChange = null) {
     const opId = operationId || `send_${Date.now()}_${Math.random()}`;
-    
+
     try {
       if (!template) {
         throw new ValidationError('Template is required', 'template');
       }
-      
+
       // Register operation
       if (onStatusChange) {
         this.registerOperation(opId, onStatusChange);
       }
-      
+
       this.logger.info('Sending template (original)', { templateId: template.id, type: template.type });
       this.updateStatus(opId, 'sending');
-      
+
       // Check for cancellation before starting
       if (this.isCancelled(opId)) {
         this.updateStatus(opId, 'cancelled');
         throw new SendError('Send operation was cancelled');
       }
-      
+
       // Wrap send operations to check cancellation
       const checkAndExecute = async (fn) => {
         if (this.isCancelled(opId)) {
@@ -162,47 +162,47 @@ class SendManager {
         }
         return await fn();
       };
-      
+
       switch (template.type) {
         case TEMPLATE_TYPES.TEXT:
           await checkAndExecute(() => this.sendText(template.content.text));
           break;
-          
+
         case TEMPLATE_TYPES.IMAGE:
           await checkAndExecute(() => this.sendImage(template.content.mediaPath));
           break;
-          
+
         case TEMPLATE_TYPES.AUDIO:
           await checkAndExecute(() => this.sendAudio(template.content.mediaPath));
           break;
-          
+
         case TEMPLATE_TYPES.VIDEO:
           await checkAndExecute(() => this.sendVideo(template.content.mediaPath));
           break;
-          
+
         case TEMPLATE_TYPES.MIXED:
           await checkAndExecute(() => this.sendImageWithText(template.content.mediaPath, template.content.text));
           break;
-          
+
         case TEMPLATE_TYPES.CONTACT:
           await checkAndExecute(() => this.sendContact(template.content.contactInfo));
           break;
-          
+
         default:
           throw new SendError(`Unsupported template type: ${template.type}`);
       }
-      
+
       // Check for cancellation after send
       if (this.isCancelled(opId)) {
         this.updateStatus(opId, 'cancelled');
         throw new SendError('Send operation was cancelled');
       }
-      
+
       this.logger.info('Template sent successfully', { templateId: template.id });
       this.updateStatus(opId, 'success');
     } catch (error) {
       this.logger.error('Failed to send template', error);
-      
+
       // Determine error type
       if (error.message && error.message.includes('network')) {
         this.updateStatus(opId, 'network_error', { error: error.message });
@@ -211,7 +211,7 @@ class SendManager {
       } else {
         this.updateStatus(opId, 'error', { error: error.message });
       }
-      
+
       if (error instanceof SendError || error instanceof ValidationError) {
         throw error;
       }
@@ -233,80 +233,80 @@ class SendManager {
    */
   async sendTranslated(template, targetLanguage, style, operationId = null, onStatusChange = null) {
     const opId = operationId || `send_translated_${Date.now()}_${Math.random()}`;
-    
+
     try {
       if (!template) {
         throw new ValidationError('Template is required', 'template');
       }
-      
+
       // Register operation
       if (onStatusChange) {
         this.registerOperation(opId, onStatusChange);
       }
-      
-      this.logger.info('Sending template (translated)', { 
-        templateId: template.id, 
+
+      this.logger.info('Sending template (translated)', {
+        templateId: template.id,
         type: template.type,
-        targetLanguage 
+        targetLanguage
       });
-      
+
       // Only text and mixed templates can be translated
       if (template.type !== TEMPLATE_TYPES.TEXT && template.type !== TEMPLATE_TYPES.MIXED) {
         // For non-translatable types, send original
         this.logger.debug('Template type not translatable, sending original', { type: template.type });
         return await this.sendOriginal(template, opId, onStatusChange);
       }
-      
+
       // Check if translation service is available
       if (!this.translationService) {
         throw new TranslationError('Translation service not available');
       }
-      
+
       // Check for cancellation
       if (this.isCancelled(opId)) {
         this.updateStatus(opId, 'cancelled');
         throw new SendError('Send operation was cancelled');
       }
-      
+
       try {
         this.updateStatus(opId, 'translating');
-        
+
         switch (template.type) {
           case TEMPLATE_TYPES.TEXT:
             const translatedText = await this.translateText(template.content.text, targetLanguage, style);
-            
+
             // Check for cancellation after translation
             if (this.isCancelled(opId)) {
               this.updateStatus(opId, 'cancelled');
               throw new SendError('Send operation was cancelled');
             }
-            
+
             this.updateStatus(opId, 'translated');
             this.updateStatus(opId, 'sending');
             await this.sendText(translatedText);
             break;
-            
+
           case TEMPLATE_TYPES.MIXED:
             const translatedMixedText = await this.translateText(template.content.text, targetLanguage, style);
-            
+
             // Check for cancellation after translation
             if (this.isCancelled(opId)) {
               this.updateStatus(opId, 'cancelled');
               throw new SendError('Send operation was cancelled');
             }
-            
+
             this.updateStatus(opId, 'translated');
             this.updateStatus(opId, 'sending');
             await this.sendImageWithText(template.content.mediaPath, translatedMixedText);
             break;
         }
-        
+
         // Check for cancellation after send
         if (this.isCancelled(opId)) {
           this.updateStatus(opId, 'cancelled');
           throw new SendError('Send operation was cancelled');
         }
-        
+
         this.logger.info('Translated template sent successfully', { templateId: template.id });
         this.updateStatus(opId, 'success');
       } catch (translationError) {
@@ -320,7 +320,7 @@ class SendManager {
       }
     } catch (error) {
       this.logger.error('Failed to send translated template', error);
-      
+
       // Determine error type
       if (error.message && error.message.includes('network')) {
         this.updateStatus(opId, 'network_error', { error: error.message });
@@ -329,7 +329,7 @@ class SendManager {
       } else {
         this.updateStatus(opId, 'error', { error: error.message });
       }
-      
+
       if (error instanceof SendError || error instanceof TranslationError || error instanceof ValidationError) {
         throw error;
       }
@@ -350,42 +350,42 @@ class SendManager {
       if (!template) {
         throw new ValidationError('Template is required', 'template');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       this.logger.info('Inserting template (original)', { templateId: template.id, type: template.type });
-      
+
       switch (template.type) {
         case TEMPLATE_TYPES.TEXT:
           // Decode any HTML entities that may have been accidentally encoded
           await this.whatsappWebInterface.insertText(decodeHtmlEntities(template.content.text));
           break;
-          
+
         case TEMPLATE_TYPES.IMAGE:
         case TEMPLATE_TYPES.AUDIO:
         case TEMPLATE_TYPES.VIDEO:
           await this.whatsappWebInterface.attachMedia(template.content.mediaPath);
           break;
-          
+
         case TEMPLATE_TYPES.MIXED:
           // Decode any HTML entities that may have been accidentally encoded
           await this.whatsappWebInterface.insertText(decodeHtmlEntities(template.content.text));
           await this.whatsappWebInterface.attachMedia(template.content.mediaPath);
           break;
-          
+
         case TEMPLATE_TYPES.CONTACT:
           await this.whatsappWebInterface.attachContact(template.content.contactInfo);
           break;
-          
+
         default:
           throw new SendError(`Unsupported template type: ${template.type}`);
       }
-      
+
       // Set focus to end of input
       await this.whatsappWebInterface.focusInput();
-      
+
       this.logger.info('Template inserted successfully', { templateId: template.id });
     } catch (error) {
       this.logger.error('Failed to insert template', error);
@@ -408,46 +408,50 @@ class SendManager {
       if (!template) {
         throw new ValidationError('Template is required', 'template');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
-      this.logger.info('Inserting template (translated)', { 
-        templateId: template.id, 
+
+      this.logger.info('Inserting template (translated)', {
+        templateId: template.id,
         type: template.type,
-        targetLanguage 
+        targetLanguage
       });
-      
+
       // Only text and mixed templates can be translated
       if (template.type !== TEMPLATE_TYPES.TEXT && template.type !== TEMPLATE_TYPES.MIXED) {
         // For non-translatable types, insert original
         this.logger.debug('Template type not translatable, inserting original', { type: template.type });
         return await this.insertOriginal(template);
       }
-      
+
       // Check if translation service is available
       if (!this.translationService) {
         throw new TranslationError('Translation service not available');
       }
-      
+
       try {
         switch (template.type) {
           case TEMPLATE_TYPES.TEXT:
             const translatedText = await this.translateText(template.content.text, targetLanguage, style);
-            await this.whatsappWebInterface.insertText(translatedText);
+            // Decode HTML entities
+            const decodedText = decodeHtmlEntities(translatedText);
+            await this.whatsappWebInterface.insertText(decodedText);
             break;
-            
+
           case TEMPLATE_TYPES.MIXED:
             const translatedMixedText = await this.translateText(template.content.text, targetLanguage, style);
-            await this.whatsappWebInterface.insertText(translatedMixedText);
+            // Decode HTML entities
+            const decodedMixedText = decodeHtmlEntities(translatedMixedText);
+            await this.whatsappWebInterface.insertText(decodedMixedText);
             await this.whatsappWebInterface.attachMedia(template.content.mediaPath);
             break;
         }
-        
+
         // Set focus to end of input
         await this.whatsappWebInterface.focusInput();
-        
+
         this.logger.info('Translated template inserted successfully', { templateId: template.id });
       } catch (translationError) {
         // If translation fails, ask user if they want to insert original
@@ -476,16 +480,16 @@ class SendManager {
       if (!text || typeof text !== 'string' || text.trim().length === 0) {
         throw new ValidationError('Text content is required', 'text');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       // Decode any HTML entities that may have been accidentally encoded
       const decodedText = decodeHtmlEntities(text);
-      
+
       await this.whatsappWebInterface.sendMessage(decodedText);
-      
+
       this.logger.debug('Text message sent');
     } catch (error) {
       this.logger.error('Failed to send text message', error);
@@ -506,13 +510,13 @@ class SendManager {
       if (!imagePath || typeof imagePath !== 'string') {
         throw new ValidationError('Image path is required', 'imagePath');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       await this.whatsappWebInterface.sendImage(imagePath);
-      
+
       this.logger.debug('Image message sent');
     } catch (error) {
       this.logger.error('Failed to send image message', error);
@@ -533,13 +537,13 @@ class SendManager {
       if (!audioPath || typeof audioPath !== 'string') {
         throw new ValidationError('Audio path is required', 'audioPath');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       await this.whatsappWebInterface.sendAudio(audioPath);
-      
+
       this.logger.debug('Audio message sent');
     } catch (error) {
       this.logger.error('Failed to send audio message', error);
@@ -560,13 +564,13 @@ class SendManager {
       if (!videoPath || typeof videoPath !== 'string') {
         throw new ValidationError('Video path is required', 'videoPath');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       await this.whatsappWebInterface.sendVideo(videoPath);
-      
+
       this.logger.debug('Video message sent');
     } catch (error) {
       this.logger.error('Failed to send video message', error);
@@ -588,19 +592,21 @@ class SendManager {
       if (!imagePath || typeof imagePath !== 'string') {
         throw new ValidationError('Image path is required', 'imagePath');
       }
-      
+
       if (!text || typeof text !== 'string' || text.trim().length === 0) {
         throw new ValidationError('Text content is required', 'text');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       // Send image first, then text
       await this.whatsappWebInterface.sendImage(imagePath);
-      await this.whatsappWebInterface.sendMessage(text);
-      
+      // Decode any HTML entities
+      const decodedText = decodeHtmlEntities(text);
+      await this.whatsappWebInterface.sendMessage(decodedText);
+
       this.logger.debug('Image with text sent');
     } catch (error) {
       this.logger.error('Failed to send image with text', error);
@@ -621,21 +627,21 @@ class SendManager {
       if (!contactInfo || typeof contactInfo !== 'object') {
         throw new ValidationError('Contact info is required', 'contactInfo');
       }
-      
+
       if (!contactInfo.name || typeof contactInfo.name !== 'string') {
         throw new ValidationError('Contact name is required', 'contactInfo.name');
       }
-      
+
       if (!contactInfo.phone || typeof contactInfo.phone !== 'string') {
         throw new ValidationError('Contact phone is required', 'contactInfo.phone');
       }
-      
+
       if (!this.whatsappWebInterface) {
         throw new SendError('WhatsApp Web interface not available');
       }
-      
+
       await this.whatsappWebInterface.sendContact(contactInfo);
-      
+
       this.logger.debug('Contact card sent');
     } catch (error) {
       this.logger.error('Failed to send contact card', error);
@@ -655,7 +661,7 @@ class SendManager {
       this.logger.warn('Translation service not available, skipping initialization');
       return;
     }
-    
+
     try {
       this.translationIntegration = new TranslationIntegration(this.translationService, accountId);
       await this.translationIntegration.initialize();
@@ -671,9 +677,9 @@ class SendManager {
    * @returns {boolean}
    */
   isTranslationAvailable() {
-    return this.translationIntegration && 
-           this.translationIntegration.isAvailable() && 
-           this.translationIntegration.isConfigured();
+    return this.translationIntegration &&
+      this.translationIntegration.isAvailable() &&
+      this.translationIntegration.isConfigured();
   }
 
   /**
@@ -688,7 +694,7 @@ class SendManager {
         error: 'Translation integration not initialized'
       };
     }
-    
+
     return this.translationIntegration.getStatus();
   }
 
@@ -704,42 +710,42 @@ class SendManager {
       if (!text || typeof text !== 'string' || text.trim().length === 0) {
         throw new ValidationError('Text to translate is required', 'text');
       }
-      
+
       // Check if translation integration is available
       if (!this.translationIntegration) {
         throw new TranslationError('Translation integration not initialized');
       }
-      
+
       if (!this.translationIntegration.isAvailable()) {
         throw new TranslationError('Translation service not available');
       }
-      
+
       if (!this.translationIntegration.isConfigured()) {
         throw new TranslationError('Translation not configured for this account. Please configure translation settings.');
       }
-      
-      this.logger.debug('Translating text', { 
+
+      this.logger.debug('Translating text', {
         textLength: text.length,
         targetLanguage: targetLanguage || 'auto',
         style: style || 'default'
       });
-      
+
       // Use TranslationIntegration to translate
       const options = {};
       if (targetLanguage) options.targetLanguage = targetLanguage;
       if (style) options.style = style;
-      
+
       const translated = await this.translationIntegration.translate(text, options);
-      
+
       if (!translated || typeof translated !== 'string') {
         throw new TranslationError('Translation service returned invalid result');
       }
-      
+
       this.logger.debug('Text translated successfully', {
         originalLength: text.length,
         translatedLength: translated.length
       });
-      
+
       return translated;
     } catch (error) {
       this.logger.error('Failed to translate text', error);
@@ -759,7 +765,7 @@ class SendManager {
     if (this.translationIntegration) {
       return this.translationIntegration.handleTranslationError(error);
     }
-    
+
     // Fallback error handling
     return {
       error: error,
