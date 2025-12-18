@@ -4,7 +4,7 @@
  * Handles the quick reply panel display and integration with the main window
  */
 
-(function() {
+(function () {
   'use strict';
 
   // Panel state
@@ -23,13 +23,13 @@
       const accountId = window.SidebarState.getActiveAccountId();
       if (accountId) return accountId;
     }
-    
+
     // Try sidebar API
     if (window.sidebar && typeof window.sidebar.getActiveAccountId === 'function') {
       const accountId = window.sidebar.getActiveAccountId();
       if (accountId) return accountId;
     }
-    
+
     // Try electronAPI (async)
     if (window.electronAPI && window.electronAPI.getActiveAccount) {
       try {
@@ -39,7 +39,7 @@
         console.error('[QuickReply] Failed to get active account:', error);
       }
     }
-    
+
     return null;
   }
 
@@ -77,7 +77,7 @@
         handleQuickReplyEvent(event, data);
       });
     }
-    
+
     // Also listen for account:active-changed event via electronAPI.on
     if (window.electronAPI && window.electronAPI.on) {
       window.electronAPI.on('account:active-changed', (data) => {
@@ -145,47 +145,47 @@
    */
   async function handleAccountSwitch(accountId) {
     console.log('[QuickReply] Account switched:', accountId);
-    
+
     // Prevent concurrent switches
     if (isLoading) {
       console.log('[QuickReply] Already loading, skipping switch');
       return;
     }
-    
+
     // If switching to the same account, skip
     if (currentAccountId === accountId) {
       console.log('[QuickReply] Already on this account, skipping switch');
       return;
     }
-    
+
     const previousAccountId = currentAccountId;
-    
+
     try {
       // Show switching indicator
       showSwitchingIndicator(previousAccountId, accountId);
-      
+
       // Unload current data
       await unloadCurrentData();
-      
+
       // Update current account ID
       currentAccountId = accountId;
-      
+
       // Load new account data
       await loadAccountData(accountId);
-      
+
       // If quick reply panel is visible, refresh UI
       const quickReplyPanel = document.getElementById('quick-reply-panel-body');
       if (quickReplyPanel && quickReplyPanel.style.display !== 'none') {
         await refreshUI();
       }
-      
+
       console.log('[QuickReply] Account switch completed:', { from: previousAccountId, to: accountId });
     } catch (error) {
       console.error('[QuickReply] Account switch failed:', error);
-      
+
       // Show error to user
       showError(`账号切换失败: ${error.message}`);
-      
+
       // Try to restore previous account
       if (previousAccountId) {
         currentAccountId = previousAccountId;
@@ -229,17 +229,17 @@
    */
   async function unloadCurrentData() {
     console.log('[QuickReply] Unloading current data');
-    
+
     try {
       // Clear current data
       currentData = null;
-      
+
       // Clear UI
       const host = document.getElementById('quick-reply-host');
       if (host) {
         host.innerHTML = '';
       }
-      
+
       console.log('[QuickReply] Current data unloaded');
     } catch (error) {
       console.error('[QuickReply] Failed to unload current data:', error);
@@ -255,18 +255,18 @@
    */
   async function loadAccountData(accountId) {
     console.log('[QuickReply] Loading account data:', accountId);
-    
+
     if (!accountId) {
       console.warn('[QuickReply] No account ID provided');
       return;
     }
-    
+
     isLoading = true;
-    
+
     try {
       // Request quick reply data from main process
       const result = await window.electronAPI.quickReply.load(accountId);
-      
+
       if (result.success) {
         currentData = result;
         console.log('[QuickReply] Account data loaded:', {
@@ -292,7 +292,7 @@
    */
   async function refreshUI() {
     console.log('[QuickReply] Refreshing UI');
-    
+
     try {
       if (currentData) {
         renderQuickReplyPanel(currentData);
@@ -302,7 +302,7 @@
           host.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无数据</div>';
         }
       }
-      
+
       console.log('[QuickReply] UI refreshed');
     } catch (error) {
       console.error('[QuickReply] Failed to refresh UI:', error);
@@ -362,10 +362,10 @@
     try {
       // Clear current data to force reload
       currentData = null;
-      
+
       // Load account data
       await loadAccountData(accountId);
-      
+
       // Render UI
       await refreshUI();
     } catch (error) {
@@ -410,11 +410,11 @@
     console.log('[QuickReply] Rendering panel with data:', data);
 
     const host = document.getElementById('quick-reply-host');
-    
+
     // Create operation panel UI
     const templates = data.templates || [];
     const groups = data.groups || [];
-    
+
     host.innerHTML = `
       <div class="quick-reply-operation-panel">
         <!-- Toolbar -->
@@ -423,17 +423,17 @@
             <span>🔄</span>
           </button>
           <button class="qr-btn qr-btn-primary-sm" id="qr-add-btn" title="添加模板">
-            <span>➕ 添加</span>
+            <span>➕ 添加模板</span>
           </button>
           <div class="qr-toolbar-spacer"></div>
           <div class="qr-send-mode">
             <label>
               <input type="radio" name="send-mode" value="original" checked>
-              <span>原文发送</span>
+              <span>原文</span>
             </label>
             <label>
               <input type="radio" name="send-mode" value="translated">
-              <span>翻译后发送</span>
+              <span>翻译</span>
             </label>
           </div>
         </div>
@@ -462,14 +462,11 @@
 
         <!-- Search Box -->
         <div class="qr-search-box">
-          <input type="text" id="qr-search-input" placeholder="搜索模板..." />
+          <input type="text" id="qr-search-input" placeholder="🔍 搜索模板..." />
         </div>
 
-        <!-- Content Area -->
+        <!-- Content Area - Single Column -->
         <div class="qr-content">
-          <div class="qr-groups">
-            ${renderGroups(groups)}
-          </div>
           <div class="qr-templates">
             ${renderTemplates(templates)}
           </div>
@@ -477,8 +474,8 @@
 
         <!-- Status -->
         <div class="qr-status">
-          <span>模板: ${templates.length}</span>
-          <span>分组: ${groups.length}</span>
+          <span>📋 ${templates.length} 个模板</span>
+          <span>📁 ${groups.length} 个分组</span>
         </div>
       </div>
     `;
@@ -502,7 +499,7 @@
         <button class="qr-btn qr-btn-icon qr-btn-add-group" title="添加分组">➕</button>
       </div>
     `;
-    
+
     if (!groups || groups.length === 0) {
       html += '<div class="qr-empty">暂无分组</div>';
     } else {
@@ -515,7 +512,7 @@
         </div>
       `).join('');
     }
-    
+
     return html;
   }
 
@@ -528,11 +525,11 @@
     if (!templates || templates.length === 0) {
       return `
         <div class="qr-empty-state">
-          <div class="qr-empty-icon">📝</div>
-          <div class="qr-empty-title">暂无快捷回复模板</div>
-          <div class="qr-empty-desc">点击下方按钮创建您的第一个模板</div>
+          <div class="qr-empty-icon">💬</div>
+          <div class="qr-empty-title">还没有快捷回复</div>
+          <div class="qr-empty-desc">创建模板来快速发送常用消息</div>
           <button class="qr-btn qr-btn-primary" id="qr-create-first-btn">
-            ➕ 创建模板
+            ➕ 创建第一个模板
           </button>
         </div>
       `;
@@ -590,9 +587,23 @@
   function getTemplatePreview(template) {
     if (template.type === 'text') {
       const text = template.content?.text || '';
-      return escapeHtml(text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+      // Show more text in single-column layout
+      return escapeHtml(text.substring(0, 100) + (text.length > 100 ? '...' : ''));
     }
-    return `${template.type} 模板`;
+    if (template.type === 'image') {
+      return '🖼️ 图片模板';
+    }
+    if (template.type === 'video') {
+      return '🎬 视频模板';
+    }
+    if (template.type === 'audio') {
+      return '🎵 音频模板';
+    }
+    if (template.type === 'mixed') {
+      const text = template.content?.text || '';
+      return '📎 ' + escapeHtml(text.substring(0, 80) + (text.length > 80 ? '...' : ''));
+    }
+    return `📄 ${template.type || '未知'} 模板`;
   }
 
   /**
@@ -608,360 +619,20 @@
 
   /**
    * Add quick reply styles
+   * Loads external CSS stylesheet for dark theme design
    */
   function addQuickReplyStyles() {
-    if (document.getElementById('quick-reply-styles')) {
+    if (document.getElementById('quick-reply-styles-link')) {
       return;
     }
 
-    const style = document.createElement('style');
-    style.id = 'quick-reply-styles';
-    style.textContent = `
-      .quick-reply-operation-panel {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        background: #fff;
-      }
-
-      .qr-toolbar {
-        display: flex;
-        align-items: center;
-        padding: 10px;
-        border-bottom: 1px solid #e0e0e0;
-        gap: 8px;
-      }
-
-      .qr-toolbar-spacer {
-        flex: 1;
-      }
-
-      .qr-btn {
-        padding: 6px 12px;
-        border: 1px solid #ddd;
-        background: #fff;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-      }
-
-      .qr-btn:hover {
-        background: #f5f5f5;
-      }
-
-      .qr-btn-icon {
-        padding: 6px 10px;
-      }
-
-      .qr-btn-sm {
-        padding: 4px 8px;
-        font-size: 12px;
-      }
-
-      .qr-send-mode {
-        display: flex;
-        gap: 12px;
-      }
-
-      .qr-send-mode label {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        cursor: pointer;
-        font-size: 13px;
-      }
-
-      .qr-search-box {
-        padding: 10px;
-        border-bottom: 1px solid #e0e0e0;
-      }
-
-      .qr-search-box input {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-      }
-
-      .qr-content {
-        flex: 1;
-        display: flex;
-        overflow: hidden;
-      }
-
-      .qr-groups {
-        width: 200px;
-        border-right: 1px solid #e0e0e0;
-        overflow-y: auto;
-        padding: 10px;
-      }
-
-      .qr-templates {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-      }
-
-      .qr-group-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 12px;
-        font-weight: 500;
-        font-size: 14px;
-        color: #333;
-        border-bottom: 1px solid #e0e0e0;
-        margin-bottom: 8px;
-      }
-
-      .qr-group-header .qr-btn-add-group {
-        padding: 2px 6px;
-        font-size: 12px;
-      }
-
-      .qr-group-item {
-        padding: 8px 12px;
-        cursor: pointer;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-      }
-
-      .qr-group-item:hover {
-        background: #f5f5f5;
-      }
-
-      .qr-group-name {
-        flex: 1;
-      }
-
-      .qr-group-count {
-        color: #999;
-        font-size: 12px;
-      }
-
-      .qr-btn-delete-group {
-        opacity: 0.5;
-        font-size: 12px;
-        padding: 2px 6px;
-      }
-
-      .qr-group-item:hover .qr-btn-delete-group {
-        opacity: 1;
-      }
-
-      .qr-btn-delete-group:hover {
-        background: #ffebee;
-        border-color: #f44336;
-      }
-
-      .qr-template-item {
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        padding: 12px;
-        margin-bottom: 10px;
-        background: #fff;
-      }
-
-      .qr-template-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-      }
-
-      .qr-template-header .qr-btn-edit,
-      .qr-template-header .qr-btn-delete {
-        opacity: 0.5;
-        font-size: 12px;
-        padding: 2px 6px;
-      }
-
-      .qr-template-header .qr-btn-edit {
-        margin-left: auto;
-      }
-
-      .qr-template-item:hover .qr-btn-edit,
-      .qr-template-item:hover .qr-btn-delete {
-        opacity: 1;
-      }
-
-      .qr-btn-edit:hover {
-        background: #e3f2fd;
-        border-color: #2196f3;
-      }
-
-      .qr-btn-delete:hover {
-        background: #ffebee;
-        border-color: #f44336;
-      }
-
-      .qr-template-label {
-        font-weight: 500;
-        font-size: 14px;
-      }
-
-      .qr-template-preview {
-        color: #666;
-        font-size: 13px;
-        margin-bottom: 10px;
-        line-height: 1.4;
-      }
-
-      .qr-template-actions {
-        display: flex;
-        gap: 8px;
-      }
-
-      .qr-btn-send {
-        background: #25D366;
-        color: white;
-        border-color: #25D366;
-      }
-
-      .qr-btn-send:hover {
-        background: #20BA5A;
-      }
-
-      .qr-btn-insert {
-        background: #0088cc;
-        color: white;
-        border-color: #0088cc;
-      }
-
-      .qr-btn-insert:hover {
-        background: #0077b3;
-      }
-
-      .qr-status {
-        padding: 8px 10px;
-        border-top: 1px solid #e0e0e0;
-        display: flex;
-        gap: 16px;
-        font-size: 12px;
-        color: #666;
-      }
-
-      .qr-empty {
-        padding: 20px;
-        text-align: center;
-        color: #999;
-      }
-
-      .qr-empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
-        text-align: center;
-      }
-
-      .qr-empty-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-      }
-
-      .qr-empty-title {
-        font-size: 16px;
-        font-weight: 500;
-        color: #333;
-        margin-bottom: 8px;
-      }
-
-      .qr-empty-desc {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 20px;
-      }
-
-      .qr-btn-primary {
-        background: #25D366;
-        color: white;
-        border-color: #25D366;
-        padding: 10px 20px;
-        font-size: 14px;
-      }
-
-      .qr-btn-primary:hover {
-        background: #20BA5A;
-      }
-
-      .qr-btn-primary-sm {
-        background: #25D366;
-        color: white;
-        border-color: #25D366;
-        padding: 4px 10px;
-        font-size: 13px;
-      }
-
-      .qr-btn-primary-sm:hover {
-        background: #20BA5A;
-      }
-
-      .qr-btn-close {
-        background: transparent;
-        border: none;
-        font-size: 16px;
-        cursor: pointer;
-        padding: 4px 8px;
-      }
-
-      .qr-create-form {
-        border-bottom: 1px solid #e0e0e0;
-        background: #f9f9f9;
-      }
-
-      .qr-form-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 12px;
-        border-bottom: 1px solid #e0e0e0;
-        font-weight: 500;
-      }
-
-      .qr-form-body {
-        padding: 12px;
-      }
-
-      .qr-form-group {
-        margin-bottom: 12px;
-      }
-
-      .qr-form-group label {
-        display: block;
-        font-size: 13px;
-        color: #666;
-        margin-bottom: 4px;
-      }
-
-      .qr-form-group input,
-      .qr-form-group textarea {
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-        box-sizing: border-box;
-      }
-
-      .qr-form-group textarea {
-        resize: vertical;
-        min-height: 80px;
-      }
-
-      .qr-form-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        margin-top: 12px;
-      }
-    `;
-    document.head.appendChild(style);
+    // Load external CSS file
+    const link = document.createElement('link');
+    link.id = 'quick-reply-styles-link';
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = './quick-reply-panel.css';
+    document.head.appendChild(link);
   }
 
   /**
@@ -1132,17 +803,17 @@
     if (form) {
       form.style.display = 'block';
       form.dataset.editId = templateId;
-      
+
       // Update form header
       const formHeader = form.querySelector('.qr-form-header span');
       if (formHeader) formHeader.textContent = '编辑模板';
-      
+
       // Fill in current values
       const labelInput = document.getElementById('qr-template-label');
       const contentInput = document.getElementById('qr-template-content');
       if (labelInput) labelInput.value = label || '';
       if (contentInput) contentInput.value = content || '';
-      
+
       // Focus on label input
       if (labelInput) labelInput.focus();
     }
@@ -1181,14 +852,14 @@
 
     try {
       let result;
-      
+
       if (editId) {
         // Update existing template
         result = await window.electronAPI.quickReply.updateTemplate(editId, {
           label,
           content
         });
-        
+
         if (result.success) {
           console.log('[QuickReply] Template updated:', result.template);
         }
@@ -1198,7 +869,7 @@
           label,
           content
         });
-        
+
         if (result.success) {
           console.log('[QuickReply] Template created:', result.template);
         }
@@ -1231,7 +902,7 @@
    */
   function handleSearch(keyword) {
     console.log('[QuickReply] Searching:', keyword);
-    
+
     // If keyword is empty, reload all templates
     if (!keyword || !keyword.trim()) {
       if (currentAccountId) {
@@ -1239,7 +910,7 @@
       }
       return;
     }
-    
+
     window.electronAPI.quickReply.searchTemplates(keyword).then(response => {
       if (response.success && response.results) {
         // Re-render with filtered results
@@ -1265,10 +936,10 @@
    */
   async function handleSendTemplate(templateId, mode) {
     console.log('[QuickReply] Sending template:', templateId, mode);
-    
+
     try {
       const result = await window.electronAPI.quickReply.sendTemplate(templateId, mode);
-      
+
       if (result.success) {
         console.log('[QuickReply] Template sent successfully');
         // Show success feedback (optional)
@@ -1288,10 +959,10 @@
    */
   async function handleInsertTemplate(templateId, mode) {
     console.log('[QuickReply] Inserting template:', templateId, mode);
-    
+
     try {
       const result = await window.electronAPI.quickReply.insertTemplate(templateId, mode);
-      
+
       if (result.success) {
         console.log('[QuickReply] Template inserted successfully');
         // Show success feedback (optional)
@@ -1314,10 +985,10 @@
     }
 
     console.log('[QuickReply] Deleting template:', templateId);
-    
+
     try {
       const result = await window.electronAPI.quickReply.deleteTemplate(templateId);
-      
+
       if (result.success) {
         console.log('[QuickReply] Template deleted');
         // Reload templates
@@ -1338,16 +1009,16 @@
    */
   async function handleCreateGroup() {
     const groupName = prompt('请输入分组名称:');
-    
+
     if (!groupName || !groupName.trim()) {
       return;
     }
 
     console.log('[QuickReply] Creating group:', groupName);
-    
+
     try {
       const result = await window.electronAPI.quickReply.createGroup(groupName.trim());
-      
+
       if (result.success) {
         console.log('[QuickReply] Group created:', result.group);
         // Reload content
@@ -1373,10 +1044,10 @@
     }
 
     console.log('[QuickReply] Deleting group:', groupId);
-    
+
     try {
       const result = await window.electronAPI.quickReply.deleteGroup(groupId);
-      
+
       if (result.success) {
         console.log('[QuickReply] Group deleted');
         // Reload content
