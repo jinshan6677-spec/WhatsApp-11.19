@@ -5,6 +5,7 @@
 
 export { default as OperationPanel, OperationPanelProvider, useOperationPanel } from './OperationPanel';
 export { default as Toolbar } from './Toolbar';
+export { default as TabSwitcher } from './TabSwitcher';
 export { default as SendModeSelector } from './SendModeSelector';
 export { default as SearchBox } from './SearchBox';
 export { default as GroupList } from './GroupList';

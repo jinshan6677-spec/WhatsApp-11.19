@@ -3,10 +3,10 @@
  * 
  * Represents a quick reply template.
  * 
- * Requirements: 3.1-3.13, 29.1-29.8
+ * Requirements: 3.1-3.13, 29.1-29.8, 1.1.2, 1.1.3, 1.1.4
  */
 
-const { TEMPLATE_TYPES, LIMITS } = require('../constants');
+const { TEMPLATE_TYPES, LIMITS, VISIBILITY_TYPES } = require('../constants');
 const { v4: uuidv4 } = require('../utils/uuid');
 
 class Template {
@@ -15,10 +15,14 @@ class Template {
    * @param {string} data.id - Template unique identifier
    * @param {string} data.groupId - Group ID this template belongs to
    * @param {string} data.type - Template type (text, image, audio, video, mixed, contact)
+   * @param {string} data.visibility - Visibility type ('public' | 'personal')
    * @param {string} data.label - Template label/name
    * @param {Object} data.content - Template content
    * @param {string} [data.content.text] - Text content
    * @param {string} [data.content.mediaPath] - Media file path
+   * @param {string} [data.content.thumbnailPath] - Media thumbnail path
+   * @param {number} [data.content.mediaDuration] - Media duration in seconds
+   * @param {number} [data.content.mediaSize] - Media file size in bytes
    * @param {Object} [data.content.contactInfo] - Contact information
    * @param {number} data.order - Order within group
    * @param {number} data.createdAt - Creation timestamp
@@ -30,6 +34,7 @@ class Template {
     this.id = data.id || uuidv4();
     this.groupId = data.groupId || null;
     this.type = data.type || TEMPLATE_TYPES.TEXT;
+    this.visibility = data.visibility || VISIBILITY_TYPES.PERSONAL;
     this.label = data.label || '';
     this.content = data.content || {};
     this.order = data.order || 0;
@@ -48,6 +53,7 @@ class Template {
       id: this.id,
       groupId: this.groupId,
       type: this.type,
+      visibility: this.visibility,
       label: this.label,
       content: this.content,
       order: this.order,
@@ -82,6 +88,13 @@ class Template {
       errors.push('Template type is required');
     } else if (!Object.values(TEMPLATE_TYPES).includes(this.type)) {
       errors.push(`Invalid template type: ${this.type}`);
+    }
+
+    // Validate visibility (Requirements: 1.1.2, 1.1.3, 1.1.4)
+    if (!this.visibility) {
+      errors.push('Visibility is required');
+    } else if (!Object.values(VISIBILITY_TYPES).includes(this.visibility)) {
+      errors.push(`Invalid visibility type: ${this.visibility}`);
     }
 
     if (!this.label) {
@@ -152,6 +165,61 @@ class Template {
    */
   isTranslatable() {
     return this.type === TEMPLATE_TYPES.TEXT || this.type === TEMPLATE_TYPES.MIXED;
+  }
+
+  /**
+   * Check if template is public
+   * @returns {boolean}
+   */
+  isPublic() {
+    return this.visibility === VISIBILITY_TYPES.PUBLIC;
+  }
+
+  /**
+   * Check if template is personal
+   * @returns {boolean}
+   */
+  isPersonal() {
+    return this.visibility === VISIBILITY_TYPES.PERSONAL;
+  }
+
+  /**
+   * Set visibility
+   * @param {string} visibility - Visibility type ('public' | 'personal')
+   */
+  setVisibility(visibility) {
+    if (Object.values(VISIBILITY_TYPES).includes(visibility)) {
+      this.visibility = visibility;
+      this.touch();
+    }
+  }
+
+  /**
+   * Check if template has thumbnail
+   * @returns {boolean}
+   */
+  hasThumbnail() {
+    return !!(this.content && this.content.thumbnailPath);
+  }
+
+  /**
+   * Get thumbnail path
+   * @returns {string|null}
+   */
+  getThumbnailPath() {
+    return this.content && this.content.thumbnailPath ? this.content.thumbnailPath : null;
+  }
+
+  /**
+   * Set thumbnail path
+   * @param {string} thumbnailPath - Path to thumbnail file
+   */
+  setThumbnailPath(thumbnailPath) {
+    if (!this.content) {
+      this.content = {};
+    }
+    this.content.thumbnailPath = thumbnailPath;
+    this.touch();
   }
 }
 

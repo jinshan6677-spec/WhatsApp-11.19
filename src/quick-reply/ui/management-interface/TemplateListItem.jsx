@@ -124,6 +124,13 @@ export default function TemplateListItem({
 
       <span className="template-list-item-label">{template.label}</span>
 
+      {/* Requirement 11.1: Display usage count */}
+      {(template.usageCount !== undefined && template.usageCount > 0) && (
+        <span className="template-list-item-usage" title={`使用次数: ${template.usageCount}`}>
+          {template.usageCount}次
+        </span>
+      )}
+
       <div className="template-list-item-actions">
         <button
           className="template-list-item-action-button edit"

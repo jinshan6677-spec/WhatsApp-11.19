@@ -10,6 +10,8 @@ const file = require('./file');
 const logger = require('./logger');
 const concurrency = require('./concurrency');
 const uuid = require('./uuid');
+const exportUtils = require('./export');
+const importUtils = require('./import');
 
 module.exports = {
   validation,
@@ -17,5 +19,7 @@ module.exports = {
   file,
   logger,
   concurrency,
-  uuid
+  uuid,
+  export: exportUtils,
+  import: importUtils
 };

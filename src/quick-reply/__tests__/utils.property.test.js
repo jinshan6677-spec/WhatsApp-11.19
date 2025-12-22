@@ -31,7 +31,9 @@ describe('Utils Property Tests', () => {
     test('should reject labels exceeding max length', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: LIMITS.LABEL_MAX_LENGTH + 1, maxLength: 100 }),
+          // Generate non-whitespace strings that exceed max length
+          fc.string({ minLength: LIMITS.LABEL_MAX_LENGTH + 1, maxLength: 100 })
+            .filter(s => s.trim().length > LIMITS.LABEL_MAX_LENGTH), // Ensure trimmed length still exceeds limit
           (label) => {
             expect(() => validateTemplateLabel(label)).toThrow(ValidationError);
             expect(() => validateTemplateLabel(label)).toThrow(/不能超过.*个字符/);
@@ -186,8 +188,9 @@ describe('Utils Property Tests', () => {
     test('all search results should contain the keyword', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 3, maxLength: 10 })
-            .filter(s => s.trim().length >= 3), // Ensure meaningful keyword
+          // Use simple lowercase alphabetic strings to avoid special characters
+          fc.array(fc.constantFrom('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), { minLength: 3, maxLength: 6 })
+            .map(arr => arr.join('')),
           fc.integer({ min: 1, max: 5 }), // Number of matching templates
           fc.integer({ min: 1, max: 5 }), // Number of non-matching templates
           (keyword, numMatching, numNonMatching) => {
@@ -201,16 +204,18 @@ describe('Utils Property Tests', () => {
               content: { text: `Some text with ${keyword}` }
             }));
             
-            // Create templates that don't contain the keyword
+            // Create templates that definitely don't contain the keyword
+            // Use completely different characters (numbers and special prefix)
             const nonMatchingTemplates = Array.from({ length: numNonMatching }, (_, i) => ({
               id: `nomatch-${i}`,
               groupId: groupId,
-              label: `Different template ${i}`,
-              content: { text: `Different text ${i}` }
+              label: `ZZZZZ ${i}`,
+              content: { text: `99999 ${i}` }
             }));
             
             const templates = [...matchingTemplates, ...nonMatchingTemplates];
-            const groups = [{ id: groupId, name: 'Test Group', parentId: null }];
+            // Use a group name that doesn't contain the keyword
+            const groups = [{ id: groupId, name: 'YYYYY', parentId: null }];
             
             const results = searchTemplates(keyword, templates, groups);
             

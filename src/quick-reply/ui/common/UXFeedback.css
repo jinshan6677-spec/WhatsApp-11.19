@@ -1,0 +1,345 @@
+/**
+ * UX Feedback Styles
+ * 
+ * Common styles for user experience feedback including:
+ * - Button click effects
+ * - Loading states
+ * - Hover effects
+ * - Focus states
+ * - Transition animations
+ * 
+ * Requirements: 17.1, 17.5
+ */
+
+/* ============================================
+   Button Click Effects
+   ============================================ */
+
+/* Ripple effect for buttons */
+.qr-btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.qr-btn-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+}
+
+.qr-btn-ripple:active::after {
+  width: 200%;
+  height: 200%;
+  opacity: 1;
+  transition: width 0s, height 0s, opacity 0s;
+}
+
+/* Scale effect on click */
+.qr-btn-scale {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.qr-btn-scale:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Press down effect */
+.qr-btn-press {
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.qr-btn-press:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+
+/* Button loading state */
+.qr-btn-loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.qr-btn-loading .qr-btn-content {
+  visibility: hidden;
+}
+
+.qr-btn-loading .qr-btn-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Skeleton loading */
+.qr-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: qr-skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes qr-skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Pulse loading */
+.qr-pulse {
+  animation: qr-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes qr-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ============================================
+   Hover Effects
+   ============================================ */
+
+/* Lift effect on hover */
+.qr-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qr-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Glow effect on hover */
+.qr-hover-glow {
+  transition: box-shadow 0.2s ease;
+}
+
+.qr-hover-glow:hover {
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2);
+}
+
+/* Background highlight on hover */
+.qr-hover-highlight {
+  transition: background-color 0.2s ease;
+}
+
+.qr-hover-highlight:hover {
+  background-color: rgba(24, 144, 255, 0.08);
+}
+
+/* ============================================
+   Focus States
+   ============================================ */
+
+/* Focus ring */
+.qr-focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.4);
+}
+
+.qr-focus-ring:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+.qr-focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.4);
+}
+
+/* ============================================
+   Transition Animations
+   ============================================ */
+
+/* Fade in */
+.qr-fade-in {
+  animation: qr-fade-in 0.2s ease;
+}
+
+@keyframes qr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Fade out */
+.qr-fade-out {
+  animation: qr-fade-out 0.2s ease forwards;
+}
+
+@keyframes qr-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Slide in from top */
+.qr-slide-in-top {
+  animation: qr-slide-in-top 0.3s ease;
+}
+
+@keyframes qr-slide-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide in from bottom */
+.qr-slide-in-bottom {
+  animation: qr-slide-in-bottom 0.3s ease;
+}
+
+@keyframes qr-slide-in-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale in */
+.qr-scale-in {
+  animation: qr-scale-in 0.2s ease;
+}
+
+@keyframes qr-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Bounce in */
+.qr-bounce-in {
+  animation: qr-bounce-in 0.4s ease;
+}
+
+@keyframes qr-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================
+   Disabled States
+   ============================================ */
+
+.qr-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================
+   Interactive States
+   ============================================ */
+
+/* Clickable item */
+.qr-clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.qr-clickable:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.qr-clickable:active {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Selectable item */
+.qr-selectable {
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.qr-selectable:hover {
+  background-color: rgba(24, 144, 255, 0.04);
+}
+
+.qr-selectable.selected {
+  background-color: rgba(24, 144, 255, 0.1);
+  border-color: #1890ff;
+}
+
+/* ============================================
+   Progress Indicators
+   ============================================ */
+
+/* Progress bar */
+.qr-progress-bar {
+  height: 4px;
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.qr-progress-bar-fill {
+  height: 100%;
+  background-color: #1890ff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Indeterminate progress */
+.qr-progress-indeterminate .qr-progress-bar-fill {
+  width: 30%;
+  animation: qr-progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes qr-progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}

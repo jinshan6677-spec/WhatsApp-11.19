@@ -119,7 +119,10 @@ describe('Quick Reply Structure', () => {
 
     test('LIMITS should have correct values', () => {
       expect(LIMITS.LABEL_MAX_LENGTH).toBe(50);
-      expect(LIMITS.IMAGE_MAX_SIZE).toBe(16 * 1024 * 1024);
+      // Requirements 6.1, 6.2, 6.3: Image 5MB, Audio 16MB, Video 64MB
+      expect(LIMITS.IMAGE_MAX_SIZE).toBe(5 * 1024 * 1024);
+      expect(LIMITS.AUDIO_MAX_SIZE).toBe(16 * 1024 * 1024);
+      expect(LIMITS.VIDEO_MAX_SIZE).toBe(64 * 1024 * 1024);
       expect(LIMITS.MAX_GROUP_DEPTH).toBe(3);
     });
   });

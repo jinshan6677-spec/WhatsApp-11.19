@@ -5,6 +5,8 @@
  */
 
 const { TEMPLATE_TYPES } = require('../constants/templateTypes');
+const { TAB_TYPES } = require('../constants/tabTypes');
+const { VISIBILITY_TYPES } = require('../constants/visibilityTypes');
 
 /**
  * Searches templates by keyword
@@ -97,6 +99,40 @@ function filterTemplatesByType(templates, type) {
   }
 
   return templates.filter(t => t.type === type);
+}
+
+/**
+ * Filters templates by tab/visibility
+ * Requirements: 1.1.2, 1.1.3, 1.1.4
+ * 
+ * Property 1: Tab Filter Correctness
+ * - When tab is 'all', returns all templates
+ * - When tab is 'public', returns only templates with visibility='public'
+ * - When tab is 'personal', returns only templates with visibility='personal'
+ * 
+ * @param {Array} templates - Array of template objects
+ * @param {string} tab - Tab type ('all' | 'public' | 'personal')
+ * @returns {Array} - Filtered templates
+ */
+function filterTemplatesByTab(templates, tab) {
+  if (!templates || !Array.isArray(templates)) {
+    return [];
+  }
+
+  if (!tab || tab === TAB_TYPES.ALL) {
+    return templates;
+  }
+
+  if (tab === TAB_TYPES.PUBLIC) {
+    return templates.filter(t => t.visibility === VISIBILITY_TYPES.PUBLIC);
+  }
+
+  if (tab === TAB_TYPES.PERSONAL) {
+    return templates.filter(t => t.visibility === VISIBILITY_TYPES.PERSONAL);
+  }
+
+  // Invalid tab type, return all templates
+  return templates;
 }
 
 /**
@@ -226,11 +262,35 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Assigns continuous sequence numbers to templates
+ * Requirements: 1.1.8
+ * 
+ * Property 2: Sequence Number Continuity
+ * - Sequence numbers start from 1
+ * - Sequence numbers are continuous (no gaps or duplicates)
+ * - Each template gets a unique sequence number
+ * 
+ * @param {Array} templates - Array of template objects
+ * @returns {Array} - Array of templates with sequenceNumber property added
+ */
+function assignSequenceNumbers(templates) {
+  if (!templates || !Array.isArray(templates)) {
+    return [];
+  }
+
+  return templates.map((template, index) => ({
+    ...template,
+    sequenceNumber: index + 1
+  }));
+}
+
 module.exports = {
   searchTemplates,
   matchesTemplateContent,
   matchesGroupName,
   filterTemplatesByType,
+  filterTemplatesByTab,
   filterTemplatesByGroup,
   getTemplatesInGroupHierarchy,
   sortTemplatesByUsage,
@@ -238,5 +298,6 @@ module.exports = {
   sortTemplatesByOrder,
   debounce,
   highlightKeyword,
-  escapeRegex
+  escapeRegex,
+  assignSequenceNumbers
 };

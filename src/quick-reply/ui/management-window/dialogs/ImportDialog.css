@@ -1,0 +1,217 @@
+/**
+ * ImportDialog Styles
+ * 
+ * Styles for the import dialog component.
+ * Requirements: 9.5, 9.6
+ */
+
+.import-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.import-dialog-error {
+  padding: 12px;
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  color: #ff4d4f;
+  font-size: 14px;
+}
+
+/* File Dropzone */
+.import-dialog-dropzone {
+  position: relative;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: #fafafa;
+}
+
+.import-dialog-dropzone:hover {
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.import-dialog-dropzone.has-file {
+  border-style: solid;
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.import-dialog-dropzone.has-error {
+  border-color: #ff4d4f;
+  background-color: #fff2f0;
+}
+
+.import-dialog-file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-dialog-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-dialog-dropzone-icon {
+  font-size: 48px;
+}
+
+.import-dialog-dropzone-text {
+  font-size: 14px;
+  color: #333;
+}
+
+.import-dialog-dropzone-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+/* File Info */
+.import-dialog-file-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.import-dialog-file-icon {
+  font-size: 24px;
+}
+
+.import-dialog-file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.import-dialog-file-size {
+  font-size: 12px;
+  color: #999;
+}
+
+/* File Error */
+.import-dialog-file-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #fff2f0;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #ff4d4f;
+}
+
+.import-dialog-error-icon {
+  font-size: 16px;
+}
+
+/* Validation */
+.import-dialog-validation {
+  padding: 12px;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+}
+
+.import-dialog-validating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.import-dialog-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.import-dialog-validation-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #52c41a;
+}
+
+.import-dialog-validation-icon {
+  font-size: 16px;
+}
+
+/* Warnings */
+.import-dialog-warnings {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #b7eb8f;
+}
+
+.import-dialog-warnings-title {
+  font-size: 13px;
+  color: #faad14;
+  margin-bottom: 8px;
+}
+
+.import-dialog-warnings-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #666;
+}
+
+.import-dialog-warnings-list li {
+  margin-bottom: 4px;
+}
+
+/* Info Section */
+.import-dialog-info {
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.import-dialog-info-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.import-dialog-info-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #666;
+}
+
+.import-dialog-info-list li {
+  margin-bottom: 4px;
+}
+
+/* Footer */
+.import-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Modal specific styles */
+.import-dialog-modal .qr-modal-body {
+  padding: 20px 24px;
+}

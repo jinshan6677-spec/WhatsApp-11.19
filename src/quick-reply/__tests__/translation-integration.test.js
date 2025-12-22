@@ -217,7 +217,7 @@ describe('TranslationIntegration', () => {
       mockTranslationService.translate.mockResolvedValue({ invalid: 'result' });
       
       await expect(translationIntegration.translate('test')).rejects.toThrow(
-        'Translation service returned invalid result'
+        'Translation service returned empty or invalid result'
       );
     });
   });

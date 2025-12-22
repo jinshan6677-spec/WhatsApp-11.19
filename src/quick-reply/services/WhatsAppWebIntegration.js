@@ -77,12 +77,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async sendMessage(text) {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.sendMessage(text);
+    return await waInterface.sendMessage(text);
   }
 
   /**
@@ -91,12 +91,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async insertText(text) {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.insertText(text);
+    return await waInterface.insertText(text);
   }
 
   /**
@@ -105,12 +105,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async sendImage(imagePath) {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.sendImage(imagePath);
+    return await waInterface.sendImage(imagePath);
   }
 
   /**
@@ -119,12 +119,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async sendAudio(audioPath) {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.sendAudio(audioPath);
+    return await waInterface.sendAudio(audioPath);
   }
 
   /**
@@ -133,12 +133,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async sendVideo(videoPath) {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.sendVideo(videoPath);
+    return await waInterface.sendVideo(videoPath);
   }
 
   /**
@@ -147,12 +147,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async sendContact(contactInfo) {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.sendContact(contactInfo);
+    return await waInterface.sendContact(contactInfo);
   }
 
   /**
@@ -160,12 +160,12 @@ class WhatsAppWebIntegration {
    * @returns {Promise<void>}
    */
   async focusInput() {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       throw new SendError('No active WhatsApp Web interface available');
     }
     
-    return await interface.focusInput();
+    return await waInterface.focusInput();
   }
 
   /**

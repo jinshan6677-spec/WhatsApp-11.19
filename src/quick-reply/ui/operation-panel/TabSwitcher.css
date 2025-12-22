@@ -1,0 +1,75 @@
+/* TabSwitcher Container */
+.tab-switcher {
+  display: flex;
+  gap: 0;
+  padding: 8px 16px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Tab Button */
+.tab-switcher-button {
+  flex: 1;
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  background-color: #ffffff;
+  color: #666666;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  outline: none;
+}
+
+/* First button - rounded left corners */
+.tab-switcher-button:first-child {
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+}
+
+/* Middle button - no rounded corners */
+.tab-switcher-button:not(:first-child):not(:last-child) {
+  border-radius: 0;
+  border-right: none;
+}
+
+/* Last button - rounded right corners */
+.tab-switcher-button:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+/* Hover state */
+.tab-switcher-button:hover:not(.tab-switcher-button--active) {
+  background-color: #f0f0f0;
+  color: #333333;
+}
+
+/* Active state - blue background as per requirement 1.1.5 */
+.tab-switcher-button--active {
+  background-color: #1976d2;
+  color: #ffffff;
+  border-color: #1976d2;
+}
+
+/* Focus state for accessibility */
+.tab-switcher-button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.4);
+  z-index: 1;
+}
+
+/* Active button hover - slightly darker blue */
+.tab-switcher-button--active:hover {
+  background-color: #1565c0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .tab-switcher {
+    padding: 8px 12px;
+  }
+
+  .tab-switcher-button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}

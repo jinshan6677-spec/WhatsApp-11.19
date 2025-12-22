@@ -118,7 +118,7 @@ class SendManager {
    * @param {string} status - New status
    * @param {Object} data - Additional data
    */
-  updateStatus(operationId, status, data = undefined) {
+  updateStatus(operationId, status, data = {}) {
     const operation = this.activeSends.get(operationId);
     if (operation && operation.onStatusChange) {
       operation.onStatusChange(status, data);

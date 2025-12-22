@@ -94,3 +94,15 @@
 .template-list-item-action-button.delete:hover {
   background-color: #f8d7da;
 }
+
+
+/* Requirement 11.1: Usage count display */
+.template-list-item-usage {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  background-color: #e6f7ff;
+  color: #1890ff;
+  font-size: 12px;
+  border-radius: 10px;
+  font-weight: 500;
+}

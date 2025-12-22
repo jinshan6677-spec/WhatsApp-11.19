@@ -268,10 +268,12 @@ describe('Account Switch Integration', () => {
       });
 
       // Try to switch to invalid account (null)
-      await expect(handler.handleAccountSwitch(null)).rejects.toThrow();
-
-      // Note: The handler logs the error but doesn't emit switch:error for null accountId
-      // because it returns early
+      // Note: The handler logs a warning but doesn't throw for null accountId
+      // because it returns early - this is by design
+      await handler.handleAccountSwitch(null);
+      
+      // No error event should be emitted for null accountId (early return)
+      expect(errorEvent).toBeNull();
     });
 
     test('should skip switch if already on target account', async () => {

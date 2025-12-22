@@ -21,7 +21,13 @@ const {
 
 describe('Performance Utilities', () => {
   describe('debounce', () => {
-    jest.useFakeTimers();
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     test('should delay function execution', () => {
       const fn = jest.fn();
@@ -70,12 +76,16 @@ describe('Performance Utilities', () => {
 
       expect(fn).toHaveBeenCalledWith('arg1', 'arg2');
     });
-
-    jest.useRealTimers();
   });
 
   describe('throttle', () => {
-    jest.useFakeTimers();
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     test('should limit function execution frequency', () => {
       const fn = jest.fn();
@@ -107,8 +117,6 @@ describe('Performance Utilities', () => {
       const result3 = throttled(15);
       expect(result3).toBe(30);
     });
-
-    jest.useRealTimers();
   });
 
   describe('LRUCache', () => {
@@ -228,7 +236,13 @@ describe('Performance Utilities', () => {
   });
 
   describe('BatchProcessor', () => {
-    jest.useFakeTimers();
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     test('should batch multiple operations', async () => {
       const processFn = jest.fn(async (items) => {
@@ -297,11 +311,16 @@ describe('Performance Utilities', () => {
       expect(processFn).not.toHaveBeenCalled();
     });
 
-    jest.useRealTimers();
   });
 
   describe('cacheWithTTL', () => {
-    jest.useFakeTimers();
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     test('should cache results with TTL', () => {
       const fn = jest.fn((x) => x * 2);

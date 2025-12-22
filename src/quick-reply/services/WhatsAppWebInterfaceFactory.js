@@ -107,11 +107,11 @@ class WhatsAppWebInterfaceFactory {
       }
       
       // Create new interface
-      const interface = new WhatsAppWebInterface(webContents);
+      const waInterface = new WhatsAppWebInterface(webContents);
       
       this.logger.info(`Created WhatsAppWebInterface for account ${accountId}`);
       
-      return interface;
+      return waInterface;
     } catch (error) {
       this.logger.error(`Failed to get interface for account ${accountId}`, error);
       return null;
@@ -123,13 +123,13 @@ class WhatsAppWebInterfaceFactory {
    * @returns {Promise<boolean>}
    */
   async isCurrentAccountReady() {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       return false;
     }
     
     try {
-      return await interface.isReady();
+      return await waInterface.isReady();
     } catch (error) {
       this.logger.error('Failed to check if current account is ready', error);
       return false;
@@ -141,13 +141,13 @@ class WhatsAppWebInterfaceFactory {
    * @returns {Promise<Object|null>}
    */
   async getCurrentChat() {
-    const interface = this.getCurrentInterface();
-    if (!interface) {
+    const waInterface = this.getCurrentInterface();
+    if (!waInterface) {
       return null;
     }
     
     try {
-      return await interface.getCurrentChat();
+      return await waInterface.getCurrentChat();
     } catch (error) {
       this.logger.error('Failed to get current chat', error);
       return null;

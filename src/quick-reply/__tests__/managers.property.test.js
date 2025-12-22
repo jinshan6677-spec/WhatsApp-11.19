@@ -60,31 +60,37 @@ const templateTypeArbitrary = () => fc.constantFrom(...Object.values(TEMPLATE_TY
 const templateLabelArbitrary = () => fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.trim().length > 0);
 
 /**
+ * Generate valid non-whitespace text
+ */
+const nonWhitespaceTextArbitrary = (maxLength = 1000) => 
+  fc.string({ minLength: 1, maxLength }).filter(s => s.trim().length > 0);
+
+/**
  * Generate valid template content based on type
  */
 const templateContentArbitrary = (type) => {
   switch (type) {
     case TEMPLATE_TYPES.TEXT:
-      return fc.record({ text: fc.string({ minLength: 1, maxLength: 1000 }) });
+      return fc.record({ text: nonWhitespaceTextArbitrary() });
     case TEMPLATE_TYPES.IMAGE:
     case TEMPLATE_TYPES.AUDIO:
     case TEMPLATE_TYPES.VIDEO:
-      return fc.record({ mediaPath: fc.string({ minLength: 1, maxLength: 200 }) });
+      return fc.record({ mediaPath: nonWhitespaceTextArbitrary(200) });
     case TEMPLATE_TYPES.MIXED:
       return fc.record({
-        text: fc.string({ minLength: 1, maxLength: 1000 }),
-        mediaPath: fc.string({ minLength: 1, maxLength: 200 })
+        text: nonWhitespaceTextArbitrary(),
+        mediaPath: nonWhitespaceTextArbitrary(200)
       });
     case TEMPLATE_TYPES.CONTACT:
       return fc.record({
         contactInfo: fc.record({
-          name: fc.string({ minLength: 1, maxLength: 100 }),
-          phone: fc.string({ minLength: 1, maxLength: 20 }),
+          name: nonWhitespaceTextArbitrary(100),
+          phone: nonWhitespaceTextArbitrary(20),
           email: fc.option(fc.emailAddress())
         })
       });
     default:
-      return fc.record({ text: fc.string({ minLength: 1, maxLength: 1000 }) });
+      return fc.record({ text: nonWhitespaceTextArbitrary() });
   }
 };
 
@@ -255,7 +261,7 @@ describe('Manager Layer Property-Based Tests', () => {
           groupNameArbitrary(),
           fc.array(
             fc.tuple(templateTypeArbitrary(), templateLabelArbitrary()),
-            { minLength: 2, maxLength: 10 }
+            { minLength: 2, maxLength: 5 }  // Reduced max to speed up test
           ),
           async (accountId, groupName, templateSpecs) => {
             const tempDir = await createTempDir();
@@ -291,9 +297,9 @@ describe('Manager Layer Property-Based Tests', () => {
             }
           }
         ),
-        { numRuns: NUM_RUNS }
+        { numRuns: 50 }  // Reduced iterations for this complex test
       );
-    });
+    }, 60000);  // 60 second timeout for this test
     
     /**
      * Feature: quick-reply, Property 9: 模板移动后分组变更

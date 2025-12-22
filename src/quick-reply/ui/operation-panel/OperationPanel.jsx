@@ -1,8 +1,11 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import Toolbar from './Toolbar';
+import TabSwitcher from './TabSwitcher';
 import SendModeSelector from './SendModeSelector';
 import SearchBox from './SearchBox';
 import GroupList from './GroupList';
+import { TAB_TYPES } from '../../constants';
+import { filterTemplatesByTab } from '../../utils/search';
 import './OperationPanel.css';
 
 // Context for operation panel state
@@ -12,6 +15,7 @@ const OperationPanelContext = createContext();
 const initialState = {
   isOpen: false,
   sendMode: 'original', // 'original' or 'translated'
+  activeTab: TAB_TYPES.ALL, // 'all' | 'public' | 'personal' - Requirement 1.1.1
   searchKeyword: '',
   expandedGroups: new Set(),
   templates: [],
@@ -33,6 +37,10 @@ function operationPanelReducer(state, action) {
     
     case 'SET_SEND_MODE':
       return { ...state, sendMode: action.payload };
+    
+    case 'SET_ACTIVE_TAB':
+      // Requirement 1.1.6: Keep search and group structure when switching tabs
+      return { ...state, activeTab: action.payload };
     
     case 'SET_SEARCH_KEYWORD':
       return { ...state, searchKeyword: action.payload };
@@ -92,6 +100,14 @@ export function OperationPanelProvider({ children, controller }) {
     }
   }, [state.isOpen, controller]);
 
+  // Update filtered templates when tab changes - Requirement 1.1.6
+  useEffect(() => {
+    if (state.templates.length > 0) {
+      const filtered = filterTemplatesByTab(state.templates, state.activeTab);
+      dispatch({ type: 'SET_FILTERED_TEMPLATES', payload: filtered });
+    }
+  }, [state.activeTab, state.templates]);
+
   // Load templates and groups
   const loadData = async () => {
     try {
@@ -102,7 +118,9 @@ export function OperationPanelProvider({ children, controller }) {
       
       dispatch({ type: 'SET_TEMPLATES', payload: templates });
       dispatch({ type: 'SET_GROUPS', payload: groups });
-      dispatch({ type: 'SET_FILTERED_TEMPLATES', payload: templates });
+      // Apply tab filter to initial templates
+      const filtered = filterTemplatesByTab(templates, state.activeTab);
+      dispatch({ type: 'SET_FILTERED_TEMPLATES', payload: filtered });
       dispatch({ type: 'SET_ERROR', payload: null });
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -111,11 +129,17 @@ export function OperationPanelProvider({ children, controller }) {
     }
   };
 
+  // Handle tab change - Requirement 1.1.1, 1.1.5, 1.1.6
+  const handleTabChange = (tab) => {
+    dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
+  };
+
   const value = {
     state,
     dispatch,
     controller,
-    loadData
+    loadData,
+    handleTabChange
   };
 
   return (
@@ -127,7 +151,7 @@ export function OperationPanelProvider({ children, controller }) {
 
 // Main OperationPanel component
 export default function OperationPanel({ controller, onClose }) {
-  const { state, dispatch } = useOperationPanel();
+  const { state, dispatch, handleTabChange } = useOperationPanel();
 
   // Handle panel close
   const handleClose = () => {
@@ -166,6 +190,12 @@ export default function OperationPanel({ controller, onClose }) {
         
         {!state.isLoading && !state.error && (
           <>
+            {/* Tab Switcher - Requirement 1.1.1, 1.1.5, 1.1.6 */}
+            <TabSwitcher
+              activeTab={state.activeTab}
+              onTabChange={handleTabChange}
+            />
+
             <Toolbar
               onManagementClick={() => {
                 // TODO: Open management interface

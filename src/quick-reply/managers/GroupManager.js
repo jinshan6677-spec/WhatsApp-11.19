@@ -29,21 +29,54 @@ class GroupManager {
   }
 
   /**
+   * Generate default group name "新分组N" where N is the next available number
+   * @returns {Promise<string>} Generated default name
+   */
+  async generateDefaultGroupName() {
+    try {
+      const allGroups = await this.storage.getAll();
+      
+      // Find all existing "新分组N" names and extract the numbers
+      const pattern = /^新分组(\d+)$/;
+      const existingNumbers = allGroups
+        .map(g => {
+          const match = g.name.match(pattern);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter(n => n > 0);
+      
+      // Find the maximum number used
+      const maxNumber = existingNumbers.length > 0 
+        ? Math.max(...existingNumbers) 
+        : 0;
+      
+      // Return the next number
+      return `新分组${maxNumber + 1}`;
+    } catch (error) {
+      this.logger.error('Failed to generate default group name', error);
+      // Fallback to timestamp-based name
+      return `新分组${Date.now()}`;
+    }
+  }
+
+  /**
    * Create a new group
-   * @param {string} name - Group name
+   * @param {string} [name] - Group name (optional, will generate default if not provided)
    * @param {string|null} parentId - Parent group ID (null for top-level)
    * @returns {Promise<Object>} Created group
    */
   async createGroup(name, parentId = null) {
     try {
-      // Validate name
+      let finalName;
+      
+      // If no name provided or empty, generate default name
       if (!name || name.trim().length === 0) {
-        throw new ValidationError('Group name is required', 'name');
+        finalName = await this.generateDefaultGroupName();
+      } else {
+        finalName = name.trim();
       }
       
-      const trimmedName = name.trim();
-      
-      if (trimmedName.length > 100) {
+      if (finalName.length > 100) {
         throw new ValidationError('Group name exceeds maximum length of 100 characters', 'name');
       }
       
@@ -63,7 +96,7 @@ class GroupManager {
       
       // Create group instance
       const group = new Group({
-        name: trimmedName,
+        name: finalName,
         parentId,
         order: maxOrder + 1,
         expanded: true,
@@ -80,7 +113,7 @@ class GroupManager {
       // Save to storage
       const saved = await this.storage.save(group.toJSON());
       
-      this.logger.info('Group created', { groupId: saved.id, name: trimmedName, parentId });
+      this.logger.info('Group created', { groupId: saved.id, name: finalName, parentId });
       
       return saved;
     } catch (error) {

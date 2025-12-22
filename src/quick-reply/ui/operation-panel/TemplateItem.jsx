@@ -7,7 +7,11 @@ import './TemplateItem.css';
 /**
  * TemplateItem component
  * Displays a single template with send and insert buttons
- * Requirements: 4.1-4.12, 26.1-26.5, 27.1-27.6, 28.1-28.8, 14.1-14.7
+ * Requirements: 4.1-4.12, 26.1-26.5, 27.1-27.6, 28.1-28.8, 14.1-14.7, 1.1.8
+ * 
+ * @param {Object} template - Template object to display
+ * @param {number} index - Sequence number to display (1-based, continuous)
+ *                         Requirement 1.1.8: Display sequence number on left side
  */
 export default function TemplateItem({ template, index }) {
   const { state, controller } = useOperationPanel();

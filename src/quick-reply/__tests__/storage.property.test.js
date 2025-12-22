@@ -280,7 +280,8 @@ describe('Storage Layer Property-Based Tests', () => {
         fc.asyncProperty(
           accountIdArbitrary(),
           fc.array(templateArbitrary(), { minLength: 1, maxLength: 10 }),
-          fc.string({ minLength: 1, maxLength: 20 }),
+          // Generate non-whitespace keywords to match the search implementation
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s => s.trim().length > 0),
           async (accountId, templatesData, keyword) => {
             const tempDir = await createTempDir();
             
@@ -296,8 +297,8 @@ describe('Storage Layer Property-Based Tests', () => {
               // Search
               const results = await storage.search(keyword);
               
-              // Verify all results match the keyword
-              const lowerKeyword = keyword.toLowerCase();
+              // Verify all results match the keyword (use trimmed keyword to match implementation)
+              const lowerKeyword = keyword.toLowerCase().trim();
               for (const result of results) {
                 const matchesLabel = result.label && result.label.toLowerCase().includes(lowerKeyword);
                 const matchesText = result.content && result.content.text && 

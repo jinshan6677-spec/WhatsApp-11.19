@@ -4,19 +4,21 @@
  * Main controller for the Quick Reply feature.
  * Coordinates between UI components, managers, and handles user interactions.
  * 
- * Requirements: 1.1-1.7, 12.1-12.14
+ * Requirements: 1.1-1.7, 1.2, 1.4, 2.5, 12.1-12.14
  */
 
 const EventEmitter = require('events');
 const TemplateManager = require('../managers/TemplateManager');
 const GroupManager = require('../managers/GroupManager');
 const SendManager = require('../managers/SendManager');
+const SyncManager = require('../managers/SyncManager');
 const AccountSwitchHandler = require('../handlers/AccountSwitchHandler');
 const { searchTemplates } = require('../utils/search');
 const { Logger } = require('../utils/logger');
 const ValidationError = require('../errors/ValidationError');
 const SendError = require('../errors/SendError');
 const TranslationError = require('../errors/TranslationError');
+const { ManagementWindow } = require('../ui/management-window');
 
 class QuickReplyController extends EventEmitter {
   /**
@@ -42,17 +44,25 @@ class QuickReplyController extends EventEmitter {
     this.templateManager = new TemplateManager(accountId, userDataPath);
     this.groupManager = new GroupManager(accountId, userDataPath);
     this.sendManager = new SendManager(translationService, whatsappWebInterface, accountId);
+    this.syncManager = new SyncManager(accountId);
     
     // Initialize account switch handler
     this.accountSwitchHandler = new AccountSwitchHandler(this, userDataPath);
+    
+    // Set up sync manager event forwarding
+    this._setupSyncManagerEvents();
     
     // UI components (will be set by UI layer)
     this.operationPanel = null;
     this.managementInterface = null;
     
+    // Management window instance
+    this.managementWindow = null;
+    
     // State
     this.isOperationPanelOpen = false;
     this.isManagementInterfaceOpen = false;
+    this.isManagementWindowOpen = false;
     
     this.logger.info('QuickReplyController initialized', { accountId });
   }
@@ -204,6 +214,561 @@ class QuickReplyController extends EventEmitter {
   }
 
   /**
+   * Open the standalone management window
+   * Requirements: 1.2, 1.4, 2.5
+   * @param {Object} [options] - Window options
+   * @returns {Promise<void>}
+   */
+  async openManagementWindow(options = {}) {
+    try {
+      // If window already exists and is open, just focus it
+      if (this.managementWindow && this.managementWindow.isOpen()) {
+        this.logger.debug('Management window already open, focusing');
+        this.managementWindow.focus();
+        return;
+      }
+
+      this.logger.info('Opening management window', { accountId: this.accountId });
+
+      // Create new management window
+      this.managementWindow = new ManagementWindow(this.accountId, options);
+
+      // Set up event handlers
+      this._setupManagementWindowEvents();
+
+      // Create and show the window
+      await this.managementWindow.create();
+
+      this.isManagementWindowOpen = true;
+      this.emit('management-window:open');
+
+      // Send initial data to the window
+      await this._sendDataToManagementWindow();
+
+      this.logger.info('Management window opened successfully');
+    } catch (error) {
+      this.logger.error('Failed to open management window', error);
+      this.emit('management-window:error', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Close the standalone management window
+   * Requirements: 2.5
+   */
+  closeManagementWindow() {
+    try {
+      if (!this.managementWindow || !this.managementWindow.isOpen()) {
+        this.logger.debug('Management window already closed');
+        return;
+      }
+
+      // Save any pending changes before closing
+      this._saveManagementWindowState();
+
+      this.managementWindow.close();
+      this.isManagementWindowOpen = false;
+      this.emit('management-window:close');
+
+      this.logger.info('Management window closed');
+    } catch (error) {
+      this.logger.error('Failed to close management window', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set up event handlers for the management window
+   * @private
+   */
+  _setupManagementWindowEvents() {
+    if (!this.managementWindow) return;
+
+    // Handle window closing
+    this.managementWindow.on('closing', () => {
+      this._saveManagementWindowState();
+    });
+
+    // Handle window closed
+    this.managementWindow.on('closed', () => {
+      this.isManagementWindowOpen = false;
+      this.managementWindow = null;
+      this.emit('management-window:closed');
+    });
+
+    // Handle window ready
+    this.managementWindow.on('ready', () => {
+      this._sendDataToManagementWindow();
+    });
+
+    // Handle window resize (for persistence)
+    this.managementWindow.on('resize', (size) => {
+      this.emit('management-window:resize', size);
+    });
+
+    // Handle window move (for persistence)
+    this.managementWindow.on('move', (position) => {
+      this.emit('management-window:move', position);
+    });
+  }
+
+  /**
+   * Set up event handlers for the sync manager
+   * Forwards sync events to controller events and updates UI components
+   * Requirements: 1.2.1-1.2.7
+   * @private
+   */
+  _setupSyncManagerEvents() {
+    if (!this.syncManager) return;
+
+    const { SYNC_EVENTS } = require('../managers/SyncManager');
+
+    // Forward all sync events to controller events
+    Object.values(SYNC_EVENTS).forEach(eventType => {
+      this.syncManager.on(eventType, (eventData) => {
+        // Forward to controller event listeners
+        this.emit(`sync:${eventType}`, eventData);
+        
+        // Update management window if open
+        if (this.managementWindow && this.managementWindow.isOpen()) {
+          this.managementWindow.sendUpdate(eventType, eventData);
+        }
+      });
+    });
+
+    // Subscribe to sync events for sidebar updates
+    this.syncManager.subscribe((event, eventData) => {
+      // Emit a general sync event for sidebar
+      this.emit('data:sync', eventData);
+    });
+
+    this.logger.debug('Sync manager events configured');
+  }
+
+  /**
+   * Get the sync manager instance
+   * @returns {SyncManager} The sync manager
+   */
+  getSyncManager() {
+    return this.syncManager;
+  }
+
+  /**
+   * Subscribe to data synchronization events
+   * @param {Function} callback - Callback function (event, data) => void
+   * @returns {Function} Unsubscribe function
+   */
+  subscribeToSync(callback) {
+    if (!this.syncManager) {
+      throw new Error('SyncManager not initialized');
+    }
+    return this.syncManager.subscribe(callback);
+  }
+
+  /**
+   * Send data to the management window
+   * @private
+   * @returns {Promise<void>}
+   */
+  async _sendDataToManagementWindow() {
+    if (!this.managementWindow || !this.managementWindow.isOpen()) return;
+
+    try {
+      const groups = await this.groupManager.getAllGroups();
+      const templates = await this.templateManager.storage.getAll();
+
+      this.managementWindow.sendData({
+        groups,
+        templates
+      });
+    } catch (error) {
+      this.logger.error('Failed to send data to management window', error);
+    }
+  }
+
+  /**
+   * Save management window state (size, position, etc.)
+   * @private
+   */
+  _saveManagementWindowState() {
+    if (!this.managementWindow) return;
+
+    try {
+      const config = this.managementWindow.getConfig();
+      this.emit('management-window:state-changed', config);
+    } catch (error) {
+      this.logger.error('Failed to save management window state', error);
+    }
+  }
+
+  /**
+   * Handle action from management window
+   * @param {Object} actionData - Action data from the window
+   * @returns {Promise<void>}
+   */
+  async handleManagementWindowAction(actionData) {
+    const { action, ...data } = actionData;
+
+    try {
+      switch (action) {
+        case 'selectGroup':
+          this.emit('management-window:group-selected', data);
+          await this._sendFilteredTemplates(data.groupId);
+          break;
+
+        case 'search':
+          await this._handleManagementWindowSearch(data.keyword);
+          break;
+
+        case 'createGroup':
+          await this._handleCreateGroup();
+          break;
+
+        case 'deleteTemplate':
+          await this._handleDeleteTemplate(data.templateId);
+          break;
+
+        case 'addText':
+        case 'addImage':
+        case 'addAudio':
+        case 'addVideo':
+        case 'addImageText':
+          this.emit('management-window:add-content', { type: action.replace('add', '').toLowerCase() });
+          break;
+
+        case 'import':
+          await this.importTemplates();
+          break;
+
+        case 'export':
+          await this.exportTemplates();
+          break;
+
+        default:
+          this.logger.warn('Unknown management window action', { action });
+      }
+    } catch (error) {
+      this.logger.error('Failed to handle management window action', { action, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Send filtered templates to management window
+   * @private
+   * @param {string} groupId - Group ID to filter by
+   */
+  async _sendFilteredTemplates(groupId) {
+    if (!this.managementWindow || !this.managementWindow.isOpen()) return;
+
+    try {
+      const templates = await this.templateManager.storage.getAll();
+      const filteredTemplates = groupId 
+        ? templates.filter(t => t.groupId === groupId)
+        : templates;
+
+      this.managementWindow.sendData({ filteredTemplates });
+    } catch (error) {
+      this.logger.error('Failed to send filtered templates', error);
+    }
+  }
+
+  /**
+   * Handle search from management window
+   * @private
+   * @param {string} keyword - Search keyword
+   */
+  async _handleManagementWindowSearch(keyword) {
+    if (!this.managementWindow || !this.managementWindow.isOpen()) return;
+
+    try {
+      const results = await this.searchTemplates(keyword);
+      this.managementWindow.sendData({ 
+        filteredTemplates: results.templates,
+        groups: results.groups
+      });
+    } catch (error) {
+      this.logger.error('Failed to handle management window search', error);
+    }
+  }
+
+  /**
+   * Handle create group from management window
+   * Requirements: 1.2.3
+   * @private
+   */
+  async _handleCreateGroup() {
+    try {
+      const newGroup = await this.groupManager.createGroup();
+      
+      // Sync group creation to all subscribers
+      if (this.syncManager) {
+        this.syncManager.syncGroupCreated(newGroup);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('group:created', newGroup);
+      return newGroup;
+    } catch (error) {
+      this.logger.error('Failed to create group', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'createGroup');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle delete group
+   * Requirements: 1.2.3
+   * @param {string} groupId - Group ID to delete
+   * @returns {Promise<boolean>}
+   */
+  async deleteGroup(groupId) {
+    try {
+      const group = await this.groupManager.getGroup(groupId);
+      const groupName = group ? group.name : '';
+      
+      const deleted = await this.groupManager.deleteGroup(groupId);
+      
+      if (deleted && this.syncManager) {
+        this.syncManager.syncGroupDeleted(groupId, groupName);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('group:deleted', { groupId, groupName });
+      return deleted;
+    } catch (error) {
+      this.logger.error('Failed to delete group', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'deleteGroup');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle update group (rename, etc.)
+   * Requirements: 1.2.3
+   * @param {string} groupId - Group ID to update
+   * @param {Object} updates - Updates to apply
+   * @returns {Promise<Object|null>}
+   */
+  async updateGroup(groupId, updates) {
+    try {
+      const updatedGroup = await this.groupManager.updateGroup(groupId, updates);
+      
+      if (updatedGroup && this.syncManager) {
+        this.syncManager.syncGroupUpdated(updatedGroup, updates);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('group:updated', { groupId, updates, group: updatedGroup });
+      return updatedGroup;
+    } catch (error) {
+      this.logger.error('Failed to update group', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'updateGroup');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle move group
+   * Requirements: 1.2.3
+   * @param {string} groupId - Group ID to move
+   * @param {string|null} newParentId - New parent group ID
+   * @returns {Promise<Object|null>}
+   */
+  async moveGroup(groupId, newParentId) {
+    try {
+      const existingGroup = await this.groupManager.getGroup(groupId);
+      const fromParentId = existingGroup ? existingGroup.parentId : null;
+      
+      const movedGroup = await this.groupManager.moveGroup(groupId, newParentId);
+      
+      if (movedGroup && this.syncManager) {
+        this.syncManager.syncGroupMoved(groupId, fromParentId, newParentId, movedGroup.order);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('group:moved', { groupId, fromParentId, toParentId: newParentId });
+      return movedGroup;
+    } catch (error) {
+      this.logger.error('Failed to move group', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'moveGroup');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle delete template from management window
+   * Requirements: 1.2.2
+   * @private
+   * @param {string} templateId - Template ID to delete
+   */
+  async _handleDeleteTemplate(templateId) {
+    try {
+      const template = await this.templateManager.getTemplate(templateId);
+      const groupId = template ? template.groupId : null;
+      
+      await this.templateManager.deleteTemplate(templateId);
+      
+      // Sync content deletion to all subscribers
+      if (this.syncManager) {
+        this.syncManager.syncContentDeleted(templateId, groupId);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('template:deleted', { templateId, groupId });
+    } catch (error) {
+      this.logger.error('Failed to delete template', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'deleteTemplate');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new template (content)
+   * Requirements: 1.2.1
+   * @param {string} groupId - Group ID
+   * @param {string} type - Template type
+   * @param {string} label - Template label
+   * @param {Object} content - Template content
+   * @returns {Promise<Object>} Created template
+   */
+  async createTemplate(groupId, type, label, content) {
+    try {
+      const template = await this.templateManager.createTemplate(groupId, type, label, content);
+      
+      // Sync content addition to all subscribers
+      if (this.syncManager) {
+        this.syncManager.syncContentAdded(template);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('template:created', template);
+      return template;
+    } catch (error) {
+      this.logger.error('Failed to create template', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'createTemplate');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update a template (content)
+   * Requirements: 1.2.5
+   * @param {string} templateId - Template ID
+   * @param {Object} updates - Updates to apply
+   * @returns {Promise<Object|null>} Updated template
+   */
+  async updateTemplate(templateId, updates) {
+    try {
+      const updatedTemplate = await this.templateManager.updateTemplate(templateId, updates);
+      
+      if (updatedTemplate && this.syncManager) {
+        this.syncManager.syncContentUpdated(updatedTemplate, updates);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('template:updated', { templateId, updates, template: updatedTemplate });
+      return updatedTemplate;
+    } catch (error) {
+      this.logger.error('Failed to update template', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'updateTemplate');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a template (content)
+   * Requirements: 1.2.2
+   * @param {string} templateId - Template ID
+   * @returns {Promise<boolean>} True if deleted
+   */
+  async deleteTemplate(templateId) {
+    try {
+      const template = await this.templateManager.getTemplate(templateId);
+      const groupId = template ? template.groupId : null;
+      
+      const deleted = await this.templateManager.deleteTemplate(templateId);
+      
+      if (deleted && this.syncManager) {
+        this.syncManager.syncContentDeleted(templateId, groupId);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('template:deleted', { templateId, groupId });
+      return deleted;
+    } catch (error) {
+      this.logger.error('Failed to delete template', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'deleteTemplate');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Move a template to another group
+   * Requirements: 1.2.5
+   * @param {string} templateId - Template ID
+   * @param {string} targetGroupId - Target group ID
+   * @returns {Promise<Object|null>} Updated template
+   */
+  async moveTemplate(templateId, targetGroupId) {
+    try {
+      const existingTemplate = await this.templateManager.getTemplate(templateId);
+      const fromGroupId = existingTemplate ? existingTemplate.groupId : null;
+      
+      const movedTemplate = await this.templateManager.moveTemplate(templateId, targetGroupId);
+      
+      if (movedTemplate && this.syncManager) {
+        this.syncManager.syncContentMoved(templateId, fromGroupId, targetGroupId);
+      }
+      
+      // Refresh data in management window
+      await this._sendDataToManagementWindow();
+      
+      this.emit('template:moved', { templateId, fromGroupId, toGroupId: targetGroupId });
+      return movedTemplate;
+    } catch (error) {
+      this.logger.error('Failed to move template', error);
+      if (this.syncManager) {
+        this.syncManager.syncError(error, 'moveTemplate');
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Send a template
    * Requirements: 7.1-7.9, 8.1-8.9
    * @param {string} templateId - Template ID
@@ -242,7 +807,16 @@ class QuickReplyController extends EventEmitter {
         }
         
         // Record usage
-        await this.templateManager.recordUsage(templateId);
+        const updatedTemplate = await this.templateManager.recordUsage(templateId);
+        
+        // Sync usage statistics update (Requirement: 1.2.4)
+        if (updatedTemplate && this.syncManager) {
+          this.syncManager.syncUsageUpdated(
+            templateId, 
+            updatedTemplate.usageCount, 
+            updatedTemplate.lastUsedAt
+          );
+        }
         
         // Emit success event
         this.emit('template:sent', { templateId, mode, success: true });
@@ -300,7 +874,16 @@ class QuickReplyController extends EventEmitter {
         }
         
         // Record usage
-        await this.templateManager.recordUsage(templateId);
+        const updatedTemplate = await this.templateManager.recordUsage(templateId);
+        
+        // Sync usage statistics update (Requirement: 1.2.4)
+        if (updatedTemplate && this.syncManager) {
+          this.syncManager.syncUsageUpdated(
+            templateId, 
+            updatedTemplate.usageCount, 
+            updatedTemplate.lastUsedAt
+          );
+        }
         
         // Emit success event
         this.emit('template:inserted', { templateId, mode, success: true });
@@ -803,7 +1386,9 @@ class QuickReplyController extends EventEmitter {
     return {
       accountId: this.accountId,
       isOperationPanelOpen: this.isOperationPanelOpen,
-      isManagementInterfaceOpen: this.isManagementInterfaceOpen
+      isManagementInterfaceOpen: this.isManagementInterfaceOpen,
+      isManagementWindowOpen: this.isManagementWindowOpen,
+      managementWindowConfig: this.managementWindow ? this.managementWindow.getConfig() : null
     };
   }
 
@@ -818,6 +1403,18 @@ class QuickReplyController extends EventEmitter {
       if (this.accountSwitchHandler) {
         this.accountSwitchHandler.destroy();
         this.accountSwitchHandler = null;
+      }
+      
+      // Destroy sync manager
+      if (this.syncManager) {
+        this.syncManager.destroy();
+        this.syncManager = null;
+      }
+      
+      // Destroy management window
+      if (this.managementWindow) {
+        this.managementWindow.destroy();
+        this.managementWindow = null;
       }
       
       // Remove all event listeners
