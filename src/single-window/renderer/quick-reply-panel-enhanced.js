@@ -542,30 +542,19 @@
    * @returns {string} HTML string
    */
   function renderTemplateItem(template, seq) {
-    const typeIcon = getTypeIcon(template.type);
     const preview = getTemplatePreview(template);
-    const visibilityBadge = template.visibility === 'public' 
-      ? '<span class="qr-badge qr-badge-public">公共</span>' 
-      : '<span class="qr-badge qr-badge-personal">个人</span>';
 
     return `
       <div class="qr-template-item" data-template-id="${template.id}">
-        <div class="qr-template-seq">${seq}</div>
-        <div class="qr-template-main">
-          <div class="qr-template-header">
-            <span class="qr-template-type">${typeIcon}</span>
-            <span class="qr-template-label">${escapeHtml(template.label || '未命名')}</span>
-            ${visibilityBadge}
-          </div>
-          <div class="qr-template-preview">${preview}</div>
+        <div class="qr-template-content">
+          ${preview}
         </div>
-        <div class="qr-template-actions">
-          <button class="qr-btn qr-btn-action qr-btn-send" data-template-id="${template.id}" title="发送">
-            发送
-          </button>
-          <button class="qr-btn qr-btn-action qr-btn-insert" data-template-id="${template.id}" title="插入到输入框">
-            插入
-          </button>
+        <div class="qr-template-footer">
+          <span class="qr-template-seq">${seq}</span>
+          <div class="qr-template-actions">
+            <button class="qr-btn-send" data-template-id="${template.id}">发送</button>
+            <button class="qr-btn-insert" data-template-id="${template.id}">输入框展示</button>
+          </div>
         </div>
       </div>
     `;
@@ -584,35 +573,61 @@
       audio: '🎵',
       mixed: '📎',
       imageText: '📎',
-      contact: '👤'
+      contact: '�'
     };
     return icons[type] || '📄';
   }
 
   /**
-   * Get template preview
+   * Get template preview - shows actual content like competitor
    * @param {Object} template - Template object
    * @returns {string} Preview HTML
    */
   function getTemplatePreview(template) {
+    const mediaPath = template.content?.mediaPath || '';
+    // Convert Windows path to file:// URL
+    const fileUrl = mediaPath ? 'file:///' + mediaPath.replace(/\\/g, '/') : '';
+    
     if (template.type === 'text') {
       const text = template.content?.text || '';
-      return escapeHtml(text.substring(0, 80) + (text.length > 80 ? '...' : ''));
+      return `<div class="qr-preview-text">${escapeHtml(text)}</div>`;
     }
+    
     if (template.type === 'image') {
-      return '🖼️ 图片';
+      return `
+        <div class="qr-preview-image-wrap">
+          <img src="${fileUrl}" alt="" onerror="this.parentElement.innerHTML='<div class=qr-preview-error>图片加载失败</div>'">
+        </div>
+      `;
     }
+    
     if (template.type === 'video') {
-      return '🎬 视频';
+      return `
+        <div class="qr-preview-video-wrap">
+          <video src="${fileUrl}" controls></video>
+        </div>
+      `;
     }
+    
     if (template.type === 'audio') {
-      return '🎵 音频';
+      return `
+        <div class="qr-preview-audio-wrap">
+          <audio src="${fileUrl}" controls></audio>
+        </div>
+      `;
     }
+    
     if (template.type === 'mixed' || template.type === 'imageText') {
       const text = template.content?.text || '';
-      return '📎 ' + escapeHtml(text.substring(0, 60) + (text.length > 60 ? '...' : ''));
+      return `
+        <div class="qr-preview-image-wrap">
+          <img src="${fileUrl}" alt="" onerror="this.style.display='none'">
+        </div>
+        <div class="qr-preview-text">${escapeHtml(text)}</div>
+      `;
     }
-    return `📄 ${template.type || '未知'}`;
+    
+    return `<div class="qr-preview-text">${escapeHtml(template.label || '未知类型')}</div>`;
   }
 
   /**
@@ -638,14 +653,26 @@
     const style = document.createElement('style');
     style.id = 'qr-enhanced-styles';
     style.textContent = `
+      /* Host container - CRITICAL for scrolling */
+      #quick-reply-panel-body #quick-reply-host {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        height: 100%;
+      }
+
       /* Enhanced Quick Reply Panel Styles */
       .qr-enhanced-panel {
         display: flex;
         flex-direction: column;
         height: 100%;
+        max-height: 100%;
         background: #1a1a1a;
         color: #e0e0e0;
         font-size: 13px;
+        overflow: hidden;
       }
 
       /* Tab Switcher */
@@ -655,6 +682,7 @@
         gap: 4px;
         background: #252525;
         border-bottom: 1px solid #333;
+        flex-shrink: 0;
       }
 
       .qr-tab {
@@ -683,6 +711,7 @@
       .qr-management-bar {
         padding: 8px;
         border-bottom: 1px solid #333;
+        flex-shrink: 0;
       }
 
       .qr-btn-management {
@@ -714,6 +743,7 @@
       .qr-search-box {
         padding: 8px;
         border-bottom: 1px solid #333;
+        flex-shrink: 0;
       }
 
       .qr-search-box input {
@@ -743,6 +773,7 @@
         padding: 8px 12px;
         background: #252525;
         border-bottom: 1px solid #333;
+        flex-shrink: 0;
       }
 
       .qr-radio-label {
@@ -762,7 +793,9 @@
       .qr-content-area {
         flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 8px;
+        min-height: 0;
       }
 
       /* Group */
@@ -774,7 +807,7 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        padding: 8px;
+        padding: 10px 12px;
         background: #2a2a2a;
         border-radius: 6px;
         cursor: pointer;
@@ -808,119 +841,6 @@
       .qr-group-content {
         padding-left: 8px;
         margin-top: 4px;
-      }
-
-      /* Template Item */
-      .qr-template-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        padding: 10px;
-        margin-bottom: 6px;
-        background: #2a2a2a;
-        border-radius: 6px;
-        transition: background 0.2s;
-      }
-
-      .qr-template-item:hover {
-        background: #333;
-      }
-
-      .qr-template-seq {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #444;
-        border-radius: 50%;
-        font-size: 12px;
-        font-weight: 600;
-        color: #fff;
-        flex-shrink: 0;
-      }
-
-      .qr-template-main {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .qr-template-header {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 4px;
-      }
-
-      .qr-template-type {
-        font-size: 14px;
-      }
-
-      .qr-template-label {
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .qr-badge {
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 500;
-      }
-
-      .qr-badge-public {
-        background: #1a4d1a;
-        color: #4caf50;
-      }
-
-      .qr-badge-personal {
-        background: #4d3d1a;
-        color: #ff9800;
-      }
-
-      .qr-template-preview {
-        color: #888;
-        font-size: 12px;
-        line-height: 1.4;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .qr-template-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        flex-shrink: 0;
-      }
-
-      .qr-btn-action {
-        padding: 6px 12px;
-        border: none;
-        border-radius: 4px;
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .qr-btn-send {
-        background: #0066cc;
-        color: #fff;
-      }
-
-      .qr-btn-send:hover {
-        background: #0055aa;
-      }
-
-      .qr-btn-insert {
-        background: #444;
-        color: #e0e0e0;
-      }
-
-      .qr-btn-insert:hover {
-        background: #555;
       }
 
       /* Empty State */
@@ -959,6 +879,7 @@
         border-top: 1px solid #333;
         font-size: 12px;
         color: #888;
+        flex-shrink: 0;
       }
 
       .qr-filter-hint {
@@ -1047,6 +968,118 @@
 
       .qr-content-area::-webkit-scrollbar-thumb:hover {
         background: #555;
+      }
+
+      /* Template Item - Competitor Style */
+      .qr-template-item {
+        background: #2a2a2a;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        overflow: hidden;
+      }
+
+      .qr-template-content {
+        padding: 12px;
+      }
+
+      .qr-template-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: #222;
+        border-top: 1px solid #333;
+      }
+
+      .qr-template-seq {
+        color: #888;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .qr-template-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .qr-btn-send {
+        padding: 6px 16px;
+        background: #0066cc;
+        border: none;
+        border-radius: 4px;
+        color: #fff;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .qr-btn-send:hover {
+        background: #0055aa;
+      }
+
+      .qr-btn-insert {
+        padding: 6px 12px;
+        background: #444;
+        border: none;
+        border-radius: 4px;
+        color: #ccc;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .qr-btn-insert:hover {
+        background: #555;
+      }
+
+      /* Preview Styles */
+      .qr-preview-text {
+        color: #e0e0e0;
+        font-size: 14px;
+        line-height: 1.5;
+        word-break: break-word;
+        white-space: pre-wrap;
+      }
+
+      .qr-preview-image-wrap {
+        max-width: 100%;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+
+      .qr-preview-image-wrap img {
+        width: 100%;
+        max-height: 150px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .qr-preview-video-wrap {
+        max-width: 100%;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .qr-preview-video-wrap video {
+        width: 100%;
+        max-height: 150px;
+        background: #000;
+      }
+
+      .qr-preview-audio-wrap {
+        width: 100%;
+      }
+
+      .qr-preview-audio-wrap audio {
+        width: 100%;
+        height: 40px;
+      }
+
+      .qr-preview-error {
+        padding: 20px;
+        text-align: center;
+        color: #666;
+        font-size: 12px;
+        background: #1a1a1a;
       }
     `;
     document.head.appendChild(style);
