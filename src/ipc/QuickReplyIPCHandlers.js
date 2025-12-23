@@ -14,6 +14,196 @@ const controllers = new Map();
 let dependencies = null;
 
 /**
+ * Get MIME type from file extension
+ * @param {string} filePath - File path
+ * @returns {string} MIME type
+ */
+function getMimeType(filePath) {
+  const ext = filePath.toLowerCase().split('.').pop();
+  const mimeTypes = {
+    // Images
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'bmp': 'image/bmp',
+    'svg': 'image/svg+xml',
+    // Videos
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'avi': 'video/x-msvideo',
+    'mov': 'video/quicktime',
+    'mkv': 'video/x-matroska',
+    '3gp': 'video/3gpp',
+    '3gpp': 'video/3gpp',
+    // Audio
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'ogg': 'audio/ogg',
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+    'flac': 'audio/flac',
+    'wma': 'audio/x-ms-wma',
+    // Documents
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'txt': 'text/plain',
+    'zip': 'application/zip',
+    'rar': 'application/x-rar-compressed'
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
+/**
+ * Generate JavaScript code to find attach button in WhatsApp Web
+ * @returns {string} JavaScript code string
+ */
+function getAttachButtonFinderScript() {
+  return `
+    // Find attach button - WhatsApp Web uses different selectors in different versions
+    // 2024-2025 WhatsApp Web selectors
+    const attachSelectors = [
+      // Primary selectors - most common in recent versions
+      '[data-testid="attach-menu-plus"]',
+      '[data-testid="clip"]',
+      'span[data-icon="attach-menu-plus"]',
+      'span[data-icon="clip"]',
+      'span[data-icon="plus"]',
+      // Button with aria-label (internationalized)
+      'button[aria-label*="Attach"]',
+      'button[aria-label*="attach"]',
+      'button[aria-label*="附"]',
+      'button[aria-label*="Adjuntar"]',
+      'div[aria-label*="Attach"]',
+      'div[aria-label*="attach"]',
+      'div[aria-label*="附"]',
+      // Button with title
+      'div[title="Attach"]',
+      'div[title="附加"]',
+      'div[title="附件"]',
+      'button[title="Attach"]',
+      'button[title="附加"]',
+      // Footer area buttons
+      'footer button[aria-label*="Attach"]',
+      'footer button[aria-label*="附"]',
+      // Plus button in compose area
+      '[data-testid="compose-btn-attach"]',
+      '[data-testid="attach-menu"]',
+      // Generic plus icon
+      'footer span[data-icon="plus"]',
+      'footer [data-icon="clip"]',
+      // Fallback: any clickable element with clip/attach icon
+      '[data-icon="clip"]',
+      '[data-icon="attach"]',
+      '[data-icon="attach-menu-plus"]',
+      // SVG based selectors
+      'button svg[viewBox="0 0 24 24"]'
+    ];
+    
+    console.log('[QuickReply] Looking for attach button...');
+    console.log('[QuickReply] Current URL:', window.location.href);
+    
+    let attachButton = null;
+    for (const selector of attachSelectors) {
+      try {
+        const btn = document.querySelector(selector);
+        if (btn) {
+          console.log('[QuickReply] Found element with selector:', selector);
+          // Try to find the clickable parent
+          attachButton = btn.closest('button') || btn.closest('[role="button"]') || btn.closest('div[tabindex]') || btn.parentElement || btn;
+          console.log('[QuickReply] Using element:', attachButton.tagName, attachButton.className);
+          break;
+        }
+      } catch (e) {
+        console.log('[QuickReply] Selector error:', selector, e.message);
+      }
+    }
+    
+    // If still not found, try to find by looking at footer buttons
+    if (!attachButton) {
+      console.log('[QuickReply] Trying fallback: looking for footer area...');
+      
+      // Try multiple footer selectors
+      const footerSelectors = [
+        'footer',
+        '#main footer',
+        '[data-testid="conversation-compose-box"]',
+        '[data-testid="compose-box"]',
+        'div[class*="compose"]',
+        'div[class*="footer"]'
+      ];
+      
+      let footer = null;
+      for (const sel of footerSelectors) {
+        footer = document.querySelector(sel);
+        if (footer) {
+          console.log('[QuickReply] Found footer with selector:', sel);
+          break;
+        }
+      }
+      
+      if (footer) {
+        // Look for buttons or clickable elements
+        const clickables = footer.querySelectorAll('button, [role="button"], div[tabindex="0"]');
+        console.log('[QuickReply] Found', clickables.length, 'clickable elements in footer');
+        
+        // Log all clickable elements for debugging
+        clickables.forEach((el, i) => {
+          console.log('[QuickReply] Clickable', i, ':', el.tagName, el.className, el.getAttribute('aria-label') || '', el.getAttribute('data-testid') || '');
+        });
+        
+        // Usually the attach button is one of the first buttons
+        // Look for one with an icon or specific attributes
+        for (const el of clickables) {
+          const hasIcon = el.querySelector('span[data-icon]') || el.querySelector('svg');
+          const ariaLabel = el.getAttribute('aria-label') || '';
+          if (hasIcon && !ariaLabel.toLowerCase().includes('send') && !ariaLabel.toLowerCase().includes('发送')) {
+            attachButton = el;
+            console.log('[QuickReply] Using clickable element with icon as attach button');
+            break;
+          }
+        }
+        
+        // Last resort: use first clickable
+        if (!attachButton && clickables.length > 0) {
+          attachButton = clickables[0];
+          console.log('[QuickReply] Using first clickable element as attach button');
+        }
+      }
+    }
+    
+    // Debug: log all data-testid elements
+    if (!attachButton) {
+      console.log('[QuickReply] Debugging: listing all data-testid elements...');
+      const testIdElements = document.querySelectorAll('[data-testid]');
+      testIdElements.forEach(el => {
+        console.log('[QuickReply] data-testid:', el.getAttribute('data-testid'));
+      });
+      
+      console.log('[QuickReply] Debugging: listing all data-icon elements...');
+      const iconElements = document.querySelectorAll('[data-icon]');
+      iconElements.forEach(el => {
+        console.log('[QuickReply] data-icon:', el.getAttribute('data-icon'));
+      });
+    }
+    
+    if (!attachButton) {
+      console.error('[QuickReply] Attach button not found. Please make sure:');
+      console.error('[QuickReply] 1. You have opened a chat conversation');
+      console.error('[QuickReply] 2. WhatsApp Web is fully loaded');
+      console.error('[QuickReply] 3. The compose area is visible');
+      throw new Error('Attach button not found - please open a chat first');
+    }
+  `;
+}
+
+/**
  * Get or create controller for account
  * @param {string} accountId - Account ID
  * @returns {QuickReplyController}
@@ -183,32 +373,735 @@ function createWhatsAppWebInterface(accountId) {
     },
     
     sendImage: async (imagePath) => {
-      // TODO: Implement image sending
-      throw new Error('Image sending not yet implemented');
+      const view = viewManager.getView(accountId);
+      if (!view || !view.webContents) {
+        throw new Error('View not found for account');
+      }
+      
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Verify file exists
+      if (!fs.existsSync(imagePath)) {
+        throw new Error(`Image file not found: ${imagePath}`);
+      }
+      
+      // Check file size
+      const stats = fs.statSync(imagePath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`[QuickReply] Image file size: ${fileSizeMB.toFixed(2)} MB`);
+      
+      // Read file as base64
+      const fileBuffer = fs.readFileSync(imagePath);
+      const base64Data = fileBuffer.toString('base64');
+      const fileName = path.basename(imagePath);
+      const mimeType = getMimeType(imagePath);
+      
+      console.log(`[QuickReply] Sending image: ${fileName}, type: ${mimeType}`);
+      
+      const scriptResult = await view.webContents.executeJavaScript(`
+        (async function() {
+          try {
+            console.log('[QuickReply] Starting image send process...');
+            
+            // Convert base64 to File object
+            const base64Data = '${base64Data}';
+            const fileName = '${fileName}';
+            const mimeType = '${mimeType}';
+            
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const file = new File([blob], fileName, { type: mimeType });
+            
+            console.log('[QuickReply] File created:', file.name, file.size, 'bytes');
+            
+            ${getAttachButtonFinderScript()}
+            
+            // Click attach button to open menu
+            console.log('[QuickReply] Clicking attach button...');
+            attachButton.click();
+            
+            // Wait for menu to appear
+            await new Promise(resolve => setTimeout(resolve, 600));
+            
+            // Find and click "照片和视频" (Photos and Videos) option
+            // This is the second item in the menu based on the screenshot
+            console.log('[QuickReply] Looking for 照片和视频 option...');
+            
+            let photoVideoOption = null;
+            
+            // Method 1: Find by text content "照片和视频"
+            const allElements = document.querySelectorAll('div, span, li, button');
+            for (const el of allElements) {
+              const text = el.textContent?.trim();
+              if (text === '照片和视频' || text === 'Photos & videos' || text === 'Photos and videos') {
+                // Make sure this is a clickable element or find its parent
+                photoVideoOption = el.closest('[role="button"]') || el.closest('li') || el.closest('button') || el;
+                console.log('[QuickReply] Found 照片和视频 by exact text match');
+                break;
+              }
+            }
+            
+            // Method 2: Find by aria-label
+            if (!photoVideoOption) {
+              const ariaSelectors = [
+                '[aria-label="照片和视频"]',
+                '[aria-label*="照片"]',
+                '[aria-label*="Photos"]'
+              ];
+              for (const selector of ariaSelectors) {
+                const el = document.querySelector(selector);
+                if (el) {
+                  photoVideoOption = el;
+                  console.log('[QuickReply] Found by aria-label:', selector);
+                  break;
+                }
+              }
+            }
+            
+            // Method 3: Find menu items and select the one with photo icon
+            if (!photoVideoOption) {
+              // Look for the menu container
+              const menuItems = document.querySelectorAll('li[role="button"], div[role="button"]');
+              console.log('[QuickReply] Found', menuItems.length, 'menu items');
+              
+              for (const item of menuItems) {
+                const text = item.textContent || '';
+                // Check for photo/video related text, exclude sticker
+                if ((text.includes('照片') || text.includes('视频') || text.includes('Photo') || text.includes('Video')) &&
+                    !text.includes('贴图') && !text.includes('Sticker') && !text.includes('新建')) {
+                  photoVideoOption = item;
+                  console.log('[QuickReply] Found menu item with text:', text);
+                  break;
+                }
+              }
+            }
+            
+            if (!photoVideoOption) {
+              console.error('[QuickReply] 照片和视频 option not found!');
+              // List all visible text for debugging
+              const visibleTexts = [];
+              document.querySelectorAll('li, [role="button"]').forEach(el => {
+                if (el.textContent?.trim()) visibleTexts.push(el.textContent.trim().substring(0, 50));
+              });
+              console.log('[QuickReply] Visible menu items:', visibleTexts);
+              throw new Error('照片和视频 option not found in attach menu');
+            }
+            
+            // Click the Photos and Videos option
+            console.log('[QuickReply] Clicking 照片和视频 option...');
+            photoVideoOption.click();
+            
+            // Wait for file dialog or input to be ready
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Now find the file input that was activated
+            // After clicking 照片和视频, a file input should be ready
+            const allInputs = document.querySelectorAll('input[type="file"]');
+            console.log('[QuickReply] Found', allInputs.length, 'file inputs after clicking menu');
+            
+            let fileInput = null;
+            
+            // Find the input that accepts images and videos (not just webp for stickers)
+            for (const input of allInputs) {
+              const accept = input.accept || '';
+              console.log('[QuickReply] Checking input with accept:', accept);
+              
+              // The photo/video input should accept video formats
+              if (accept.includes('video/mp4') || accept.includes('video/3gpp')) {
+                fileInput = input;
+                console.log('[QuickReply] Selected photo/video input');
+                break;
+              }
+            }
+            
+            // Fallback: find input with image/* and video/*
+            if (!fileInput) {
+              for (const input of allInputs) {
+                const accept = input.accept || '';
+                if (accept.includes('image/*') && accept.includes('video/')) {
+                  fileInput = input;
+                  console.log('[QuickReply] Selected input with image/* and video/');
+                  break;
+                }
+              }
+            }
+            
+            if (!fileInput) {
+              throw new Error('Photo/Video file input not found after clicking menu option');
+            }
+            
+            // Set the file to the input
+            console.log('[QuickReply] Setting file to input...');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Trigger change event
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('[QuickReply] File input change event dispatched');
+            
+            // Wait for preview to load
+            console.log('[QuickReply] Waiting for preview to load...');
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Find and click send button
+            console.log('[QuickReply] Looking for send button...');
+            const sendSelectors = [
+              '[data-testid="send"]',
+              'span[data-icon="send"]',
+              'div[role="button"][aria-label*="Send"]',
+              'div[role="button"][aria-label*="发送"]',
+              'button[aria-label*="Send"]',
+              'button[aria-label*="发送"]'
+            ];
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            let sendButton = null;
+            for (const selector of sendSelectors) {
+              sendButton = document.querySelector(selector);
+              if (sendButton) {
+                sendButton = sendButton.closest('button') || sendButton.closest('[role="button"]') || sendButton;
+                console.log('[QuickReply] Found send button');
+                break;
+              }
+            }
+            
+            if (sendButton) {
+              sendButton.click();
+              console.log('[QuickReply] Send button clicked');
+              return { success: true, message: 'Image sent successfully' };
+            } else {
+              console.log('[QuickReply] Send button not found, image attached but not sent');
+              return { success: true, message: 'Image attached, please send manually' };
+            }
+          } catch (error) {
+            console.error('[QuickReply] Error in image send:', error);
+            return { success: false, error: error.message };
+          }
+        })();
+      `);
+      
+      console.log('[QuickReply] Image send script result:', scriptResult);
+      
+      if (scriptResult && !scriptResult.success) {
+        throw new Error(scriptResult.error || 'Failed to send image');
+      }
     },
     
     sendAudio: async (audioPath) => {
-      // TODO: Implement audio sending
-      throw new Error('Audio sending not yet implemented');
+      const view = viewManager.getView(accountId);
+      if (!view || !view.webContents) {
+        throw new Error('View not found for account');
+      }
+      
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Verify file exists
+      if (!fs.existsSync(audioPath)) {
+        throw new Error(`Audio file not found: ${audioPath}`);
+      }
+      
+      // Check file size
+      const stats = fs.statSync(audioPath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`[QuickReply] Audio file size: ${fileSizeMB.toFixed(2)} MB`);
+      
+      // Read file as base64
+      const fileBuffer = fs.readFileSync(audioPath);
+      const base64Data = fileBuffer.toString('base64');
+      const fileName = path.basename(audioPath);
+      const mimeType = getMimeType(audioPath);
+      
+      console.log(`[QuickReply] Sending audio: ${fileName}, type: ${mimeType}`);
+      
+      const scriptResult = await view.webContents.executeJavaScript(`
+        (async function() {
+          try {
+            console.log('[QuickReply] Starting audio send process...');
+            
+            // Convert base64 to File object
+            const base64Data = '${base64Data}';
+            const fileName = '${fileName}';
+            const mimeType = '${mimeType}';
+            
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const file = new File([blob], fileName, { type: mimeType });
+            
+            console.log('[QuickReply] File created:', file.name, file.size, 'bytes');
+            
+            ${getAttachButtonFinderScript()}
+            
+            // Click attach button
+            console.log('[QuickReply] Clicking attach button...');
+            attachButton.click();
+            
+            // Wait for menu to appear
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Find document input (audio files go through document option)
+            console.log('[QuickReply] Looking for file input...');
+            const allInputs = document.querySelectorAll('input[type="file"]');
+            console.log('[QuickReply] Found', allInputs.length, 'file inputs');
+            
+            allInputs.forEach((input, i) => {
+              console.log('[QuickReply] Input', i, '- accept:', input.accept);
+            });
+            
+            let fileInput = null;
+            for (const input of allInputs) {
+              // Prefer the document input (accepts all files)
+              if (input.accept === '*' || !input.accept || input.accept.includes('audio')) {
+                fileInput = input;
+                console.log('[QuickReply] Selected input with accept:', input.accept || '*');
+                break;
+              }
+            }
+            
+            if (!fileInput && allInputs.length > 0) {
+              fileInput = allInputs[allInputs.length - 1]; // Last input is usually document
+              console.log('[QuickReply] Using last file input');
+            }
+            
+            if (!fileInput) {
+              throw new Error('File input not found - attach menu may not have opened');
+            }
+            
+            // Create DataTransfer and set file
+            console.log('[QuickReply] Setting file to input...');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Trigger change event
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('[QuickReply] File input change event dispatched');
+            
+            // Wait for preview to load
+            console.log('[QuickReply] Waiting for preview to load...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Find and click send button
+            console.log('[QuickReply] Looking for send button...');
+            const sendSelectors = [
+              '[data-testid="send"]',
+              'span[data-icon="send"]',
+              'div[role="button"][aria-label*="Send"]',
+              'div[role="button"][aria-label*="发送"]',
+              'button[aria-label*="Send"]',
+              'button[aria-label*="发送"]'
+            ];
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            let sendButton = null;
+            for (const selector of sendSelectors) {
+              sendButton = document.querySelector(selector);
+              if (sendButton) {
+                sendButton = sendButton.closest('button') || sendButton.closest('[role="button"]') || sendButton;
+                console.log('[QuickReply] Found send button with selector:', selector);
+                break;
+              }
+            }
+            
+            if (sendButton) {
+              sendButton.click();
+              console.log('[QuickReply] Send button clicked');
+              return { success: true, message: 'Audio sent successfully' };
+            } else {
+              console.log('[QuickReply] Send button not found, audio attached but not sent');
+              return { success: true, message: 'Audio attached, please send manually' };
+            }
+          } catch (error) {
+            console.error('[QuickReply] Error in audio send:', error);
+            return { success: false, error: error.message };
+          }
+        })();
+      `);
+      
+      console.log('[QuickReply] Audio send script result:', scriptResult);
+      
+      if (scriptResult && !scriptResult.success) {
+        throw new Error(scriptResult.error || 'Failed to send audio');
+      }
     },
     
     sendVideo: async (videoPath) => {
-      // TODO: Implement video sending
-      throw new Error('Video sending not yet implemented');
+      const view = viewManager.getView(accountId);
+      if (!view || !view.webContents) {
+        throw new Error('View not found for account');
+      }
+      
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Verify file exists
+      if (!fs.existsSync(videoPath)) {
+        throw new Error(`Video file not found: ${videoPath}`);
+      }
+      
+      // Check file size (WhatsApp has a 64MB limit for videos)
+      const stats = fs.statSync(videoPath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`[QuickReply] Video file size: ${fileSizeMB.toFixed(2)} MB`);
+      
+      if (fileSizeMB > 64) {
+        throw new Error(`Video file too large: ${fileSizeMB.toFixed(2)} MB. Maximum size is 64MB.`);
+      }
+      
+      // Read file as base64
+      const fileBuffer = fs.readFileSync(videoPath);
+      const base64Data = fileBuffer.toString('base64');
+      const fileName = path.basename(videoPath);
+      const mimeType = getMimeType(videoPath);
+      
+      console.log(`[QuickReply] Sending video: ${fileName}, type: ${mimeType}, size: ${fileSizeMB.toFixed(2)} MB`);
+      
+      const scriptResult = await view.webContents.executeJavaScript(`
+        (async function() {
+          try {
+            console.log('[QuickReply] Starting video send process...');
+            
+            // Convert base64 to File object
+            const base64Data = '${base64Data}';
+            const fileName = '${fileName}';
+            const mimeType = '${mimeType}';
+            
+            console.log('[QuickReply] Creating file from base64, length:', base64Data.length);
+            
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const file = new File([blob], fileName, { type: mimeType });
+            
+            console.log('[QuickReply] File created:', file.name, file.size, 'bytes');
+            
+            ${getAttachButtonFinderScript()}
+            
+            // Click attach button to open menu
+            console.log('[QuickReply] Clicking attach button...');
+            attachButton.click();
+            
+            // Wait for menu to appear
+            await new Promise(resolve => setTimeout(resolve, 600));
+            
+            // Find and click "照片和视频" (Photos and Videos) option
+            console.log('[QuickReply] Looking for 照片和视频 option...');
+            
+            let photoVideoOption = null;
+            
+            // Method 1: Find by text content "照片和视频"
+            const allElements = document.querySelectorAll('div, span, li, button');
+            for (const el of allElements) {
+              const text = el.textContent?.trim();
+              if (text === '照片和视频' || text === 'Photos & videos' || text === 'Photos and videos') {
+                photoVideoOption = el.closest('[role="button"]') || el.closest('li') || el.closest('button') || el;
+                console.log('[QuickReply] Found 照片和视频 by exact text match');
+                break;
+              }
+            }
+            
+            // Method 2: Find menu items and select the one with photo/video text
+            if (!photoVideoOption) {
+              const menuItems = document.querySelectorAll('li[role="button"], div[role="button"]');
+              for (const item of menuItems) {
+                const text = item.textContent || '';
+                if ((text.includes('照片') || text.includes('视频') || text.includes('Photo') || text.includes('Video')) &&
+                    !text.includes('贴图') && !text.includes('Sticker') && !text.includes('新建')) {
+                  photoVideoOption = item;
+                  console.log('[QuickReply] Found menu item with text:', text);
+                  break;
+                }
+              }
+            }
+            
+            if (!photoVideoOption) {
+              throw new Error('照片和视频 option not found in attach menu');
+            }
+            
+            // Click the Photos and Videos option
+            console.log('[QuickReply] Clicking 照片和视频 option...');
+            photoVideoOption.click();
+            
+            // Wait for file input to be ready
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Find the file input
+            const allInputs = document.querySelectorAll('input[type="file"]');
+            console.log('[QuickReply] Found', allInputs.length, 'file inputs');
+            
+            let fileInput = null;
+            
+            // Find the input that accepts videos
+            for (const input of allInputs) {
+              const accept = input.accept || '';
+              if (accept.includes('video/mp4') || accept.includes('video/3gpp')) {
+                fileInput = input;
+                console.log('[QuickReply] Selected video input');
+                break;
+              }
+            }
+            
+            if (!fileInput) {
+              for (const input of allInputs) {
+                const accept = input.accept || '';
+                if (accept.includes('image/*') && accept.includes('video/')) {
+                  fileInput = input;
+                  break;
+                }
+              }
+            }
+            
+            if (!fileInput) {
+              throw new Error('Video file input not found');
+            }
+            
+            // Set the file to the input
+            console.log('[QuickReply] Setting file to input...');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Trigger change event
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('[QuickReply] File input change event dispatched');
+            
+            // Wait for preview to load (videos take longer)
+            console.log('[QuickReply] Waiting for preview to load...');
+            await new Promise(resolve => setTimeout(resolve, 2500));
+            
+            // Find and click send button
+            console.log('[QuickReply] Looking for send button...');
+            const sendSelectors = [
+              '[data-testid="send"]',
+              'span[data-icon="send"]',
+              'div[role="button"][aria-label*="Send"]',
+              'div[role="button"][aria-label*="发送"]',
+              'button[aria-label*="Send"]',
+              'button[aria-label*="发送"]'
+            ];
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            let sendButton = null;
+            for (const selector of sendSelectors) {
+              sendButton = document.querySelector(selector);
+              if (sendButton) {
+                sendButton = sendButton.closest('button') || sendButton.closest('[role="button"]') || sendButton;
+                break;
+              }
+            }
+            
+            if (sendButton) {
+              sendButton.click();
+              console.log('[QuickReply] Send button clicked');
+              return { success: true, message: 'Video sent successfully' };
+            } else {
+              return { success: true, message: 'Video attached, please send manually' };
+            }
+          } catch (error) {
+            console.error('[QuickReply] Error in video send:', error);
+            return { success: false, error: error.message };
+          }
+        })();
+      `);
+      
+      console.log('[QuickReply] Video send script result:', scriptResult);
+      
+      if (scriptResult && !scriptResult.success) {
+        throw new Error(scriptResult.error || 'Failed to send video');
+      }
     },
     
     sendContact: async (contactInfo) => {
-      // TODO: Implement contact sending
+      // Contact sending requires WhatsApp Web API integration
       throw new Error('Contact sending not yet implemented');
     },
     
     attachMedia: async (mediaPath) => {
-      // TODO: Implement media attachment
-      throw new Error('Media attachment not yet implemented');
+      const view = viewManager.getView(accountId);
+      if (!view || !view.webContents) {
+        throw new Error('View not found for account');
+      }
+      
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Verify file exists
+      if (!fs.existsSync(mediaPath)) {
+        throw new Error(`Media file not found: ${mediaPath}`);
+      }
+      
+      // Check file size
+      const stats = fs.statSync(mediaPath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`[QuickReply] Media file size: ${fileSizeMB.toFixed(2)} MB`);
+      
+      // Read file as base64
+      const fileBuffer = fs.readFileSync(mediaPath);
+      const base64Data = fileBuffer.toString('base64');
+      const fileName = path.basename(mediaPath);
+      const mimeType = getMimeType(mediaPath);
+      
+      console.log(`[QuickReply] Attaching media: ${fileName}, type: ${mimeType}`);
+      
+      const scriptResult = await view.webContents.executeJavaScript(`
+        (async function() {
+          try {
+            console.log('[QuickReply] Starting media attach process...');
+            
+            // Convert base64 to File object
+            const base64Data = '${base64Data}';
+            const fileName = '${fileName}';
+            const mimeType = '${mimeType}';
+            
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const file = new File([blob], fileName, { type: mimeType });
+            
+            console.log('[QuickReply] File created:', file.name, file.size, 'bytes');
+            
+            ${getAttachButtonFinderScript()}
+            
+            // Click attach button
+            console.log('[QuickReply] Clicking attach button...');
+            attachButton.click();
+            
+            // Wait for menu to appear
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // For image/video, click "Photos & Videos" option first
+            if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
+              console.log('[QuickReply] Looking for Photos & Videos option...');
+              
+              const photoVideoSelectors = [
+                '[data-testid="attach-image"]',
+                '[data-testid="mi-attach-media"]',
+                'span[data-icon="attach-image"]',
+                'span[data-icon="image"]',
+                'button[aria-label*="Photos"]',
+                'button[aria-label*="图片"]',
+                'div[aria-label*="Photos"]',
+                'li[data-testid="mi-attach-media"]'
+              ];
+              
+              let photoVideoOption = null;
+              for (const selector of photoVideoSelectors) {
+                const el = document.querySelector(selector);
+                if (el) {
+                  photoVideoOption = el.closest('button') || el.closest('[role="button"]') || el.closest('li') || el;
+                  console.log('[QuickReply] Found Photos & Videos option');
+                  break;
+                }
+              }
+              
+              if (photoVideoOption) {
+                photoVideoOption.click();
+                await new Promise(resolve => setTimeout(resolve, 300));
+              }
+            }
+            
+            // Find appropriate file input
+            console.log('[QuickReply] Looking for file input...');
+            const allInputs = document.querySelectorAll('input[type="file"]');
+            console.log('[QuickReply] Found', allInputs.length, 'file inputs');
+            
+            allInputs.forEach((input, i) => {
+              console.log('[QuickReply] Input', i, '- accept:', input.accept);
+            });
+            
+            let fileInput = null;
+            
+            if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
+              // Use image/video input - specifically look for one that accepts both
+              for (const input of allInputs) {
+                if (input.accept && input.accept.includes('image/*') && input.accept.includes('video/')) {
+                  fileInput = input;
+                  console.log('[QuickReply] Selected image+video input');
+                  break;
+                }
+              }
+              // Fallback to any image input
+              if (!fileInput) {
+                for (const input of allInputs) {
+                  if (input.accept && input.accept.includes('image/') && !input.accept.includes('webp')) {
+                    fileInput = input;
+                    console.log('[QuickReply] Selected image input');
+                    break;
+                  }
+                }
+              }
+            } else {
+              // Use document input for other files
+              for (const input of allInputs) {
+                if (input.accept === '*' || !input.accept) {
+                  fileInput = input;
+                  console.log('[QuickReply] Selected document input');
+                  break;
+                }
+              }
+            }
+            
+            if (!fileInput && allInputs.length > 0) {
+              fileInput = allInputs[0];
+              console.log('[QuickReply] Using first available file input');
+            }
+            
+            if (!fileInput) {
+              throw new Error('File input not found - attach menu may not have opened');
+            }
+            
+            // Create DataTransfer and set file
+            console.log('[QuickReply] Setting file to input...');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Trigger change event
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('[QuickReply] File input change event dispatched');
+            
+            // Don't auto-send for attachMedia - just attach and let user review
+            console.log('[QuickReply] Media attached, waiting for user to send');
+            return { success: true, message: 'Media attached successfully' };
+          } catch (error) {
+            console.error('[QuickReply] Error in media attach:', error);
+            return { success: false, error: error.message };
+          }
+        })();
+      `);
+      
+      console.log('[QuickReply] Media attach script result:', scriptResult);
+      
+      if (scriptResult && !scriptResult.success) {
+        throw new Error(scriptResult.error || 'Failed to attach media');
+      }
     },
     
     attachContact: async (contactInfo) => {
-      // TODO: Implement contact attachment
+      // Contact attachment requires WhatsApp Web API integration
       throw new Error('Contact attachment not yet implemented');
     },
     
