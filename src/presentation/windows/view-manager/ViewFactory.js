@@ -68,12 +68,9 @@ class ViewFactory {
 
     this.log('info', `Creating BrowserView for account ${accountId}`);
 
-    // Apply proxy configuration to session if provided
     if (config.proxy && config.proxy.enabled) {
       try {
-        // Sanitize host: remove protocol prefix if user accidentally included it
         let host = config.proxy.host.replace(/^https?:\/\//, '');
-
         const proxyRules = `${config.proxy.protocol}://${host}:${config.proxy.port}`;
 
         this.log('info', `Applying proxy for ${accountId}: ${proxyRules}`);
@@ -88,13 +85,11 @@ class ViewFactory {
         this.log('error', `Failed to apply proxy for ${accountId}:`, error);
       }
     } else {
-      // Proxy is disabled or not configured - ensure direct connection
-      // This clears any previously set proxy rules on the session
       try {
-        await accountSession.setProxy({ mode: 'direct' });
-        this.log('info', `Proxy disabled for ${accountId}, using direct connection`);
+        await accountSession.setProxy({ mode: 'system' });
+        this.log('info', `No explicit proxy for ${accountId}, using system proxy settings`);
       } catch (error) {
-        this.log('error', `Failed to clear proxy for ${accountId}:`, error);
+        this.log('error', `Failed to apply system proxy settings for ${accountId}:`, error);
       }
     }
 
