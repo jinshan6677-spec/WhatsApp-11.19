@@ -159,12 +159,17 @@ class ViewManager {
 
         if (environmentConfig) {
           this.log('info', `[ENV_DEBUG] Loaded config for ${accountId}`, {
+            tunnel: environmentConfig.tunnel ? {
+              enabled: environmentConfig.tunnel.enabled,
+              type: environmentConfig.tunnel.type,
+              host: environmentConfig.tunnel.host,
+              port: environmentConfig.tunnel.port
+            } : 'none',
             proxy: environmentConfig.proxy ? {
               enabled: environmentConfig.proxy.enabled,
               host: environmentConfig.proxy.host,
               port: environmentConfig.proxy.port
             } : 'none'
-            // Note: fingerprint日志已移除，作为专业指纹系统重构的一部分
           });
         } else {
           this.log('warn', `[ENV_DEBUG] No config found for ${accountId}`);
@@ -177,6 +182,7 @@ class ViewManager {
       const viewConfig = {
         ...config,
         userAgent: config.userAgent,
+        tunnel: environmentConfig?.tunnel,
         proxy: environmentConfig?.proxy
       };
 

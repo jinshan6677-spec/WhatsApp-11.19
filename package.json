@@ -60,6 +60,7 @@
     "node-machine-id": "^1.1.12",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "socks-proxy-agent": "^8.0.5",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

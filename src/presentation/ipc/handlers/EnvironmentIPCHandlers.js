@@ -17,7 +17,8 @@ const {
     EnvironmentConfigManager,
     ProxyManager,
     ProxyConfigStore,
-    ProxyValidator
+    ProxyValidator,
+    TunnelManager
 } = require('../../../environment');
 
 // Import fingerprint services
@@ -158,6 +159,25 @@ function register(dependencies) {
         }
     });
 
+    // Test tunnel connectivity
+    ipcMain.handle('env:test-tunnel', async (event, tunnelConfig) => {
+        try {
+            if (!tunnelConfig) {
+                return { success: false, error: 'Tunnel configuration is required' };
+            }
+
+            const result = await TunnelManager.testTunnel(tunnelConfig, 15000);
+
+            return result;
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:test-tunnel error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
     // Detect current network information
     ipcMain.handle('env:detect-network', async (event) => {
         try {
@@ -182,23 +202,68 @@ function register(dependencies) {
 
             const manager = getEnvConfigManager();
             const config = manager.getConfig(accountId);
+            const tunnelConfig = config.tunnel || {};
             const proxyConfig = config.proxy || {};
 
             let result;
             let isProxy = false;
+            let connectionType = 'direct';
 
-            if (proxyConfig.enabled) {
+            // Get session for this account
+            let session = null;
+            try {
+                const { getAppInstance } = require('../../../app/bootstrap');
+                const appBootstrap = getAppInstance();
+                console.log('[NetworkInfo] AppBootstrap:', !!appBootstrap);
+                
+                if (appBootstrap) {
+                    const sessionManager = appBootstrap.getManager ? appBootstrap.getManager('sessionManager') : appBootstrap.managers?.sessionManager;
+                    console.log('[NetworkInfo] SessionManager:', !!sessionManager);
+                    
+                    if (sessionManager) {
+                        session = sessionManager.getInstanceSession(accountId);
+                        console.log('[NetworkInfo] Session:', !!session);
+                        console.log('[NetworkInfo] Session has webContents:', !!(session && session.webContents));
+                    }
+                }
+            } catch (e) {
+                console.error('[NetworkInfo] Failed to get session:', e);
+            }
+
+            // Priority: Tunnel > Proxy > Direct
+            if (tunnelConfig.enabled) {
+                // If tunnel is enabled, get current network info through tunnel proxy
+                const tunnelType = (tunnelConfig.type || 'http').toLowerCase();
+                const tunnelProxyConfig = {
+                    protocol: tunnelType === 'socks5' ? 'socks5' : 'http',
+                    host: tunnelConfig.host,
+                    port: tunnelConfig.port,
+                    username: tunnelConfig.username,
+                    password: tunnelConfig.password
+                };
+                result = await ProxyValidator.testProxy(tunnelProxyConfig, 10000);
+                isProxy = true;
+                connectionType = 'tunnel';
+                console.log('[NetworkInfo] Account ' + accountId + ' using tunnel');
+            } else if (proxyConfig.enabled) {
                 // If proxy is enabled, test the proxy connection
                 result = await ProxyValidator.testProxy(proxyConfig, 10000);
                 isProxy = true;
+                connectionType = 'proxy';
+                console.log('[NetworkInfo] Account ' + accountId + ' using proxy');
             } else {
                 // If direct connection, get current network info
-                result = await ProxyValidator.getCurrentNetwork(10000);
+                result = await ProxyValidator.getCurrentNetwork(10000, session);
+                connectionType = 'direct';
+                console.log('[NetworkInfo] Account ' + accountId + ' using direct connection');
             }
 
             if (!result.success) {
-                return { success: false, error: result.error, isProxy };
+                console.error('[NetworkInfo] Failed to get network info for ' + accountId + ':', result.error);
+                return { success: false, error: result.error, isProxy, connectionType };
             }
+
+            console.log('[NetworkInfo] Account ' + accountId + ' IP: ' + result.ip + ', IsProxy: ' + isProxy);
 
             return {
                 success: true,
@@ -208,7 +273,13 @@ function register(dependencies) {
                 type: result.type,
                 timezone: result.timezone,
                 isProxy: isProxy,
-                proxyConfig: isProxy ? {
+                connectionType: connectionType,
+                tunnelConfig: tunnelConfig.enabled ? {
+                    type: tunnelConfig.type,
+                    host: tunnelConfig.host,
+                    port: tunnelConfig.port
+                } : null,
+                proxyConfig: proxyConfig.enabled ? {
                     host: proxyConfig.host,
                     protocol: proxyConfig.protocol,
                     username: proxyConfig.username // Do not return password
@@ -993,6 +1064,53 @@ function register(dependencies) {
             }
         } catch (error) {
             console.error('[EnvironmentIPCHandlers] env:parse-proxy-string error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Parse tunnel string (smart paste)
+    ipcMain.handle('env:parse-tunnel-string', async (event, tunnelString) => {
+        try {
+            if (!tunnelString) {
+                return { success: false, error: 'Tunnel string is required' };
+            }
+
+            // Parse tunnel string: host:port:username:password or host:port
+            const parts = tunnelString.split(':').map(p => p.trim());
+
+            if (parts.length < 2) {
+                return {
+                    success: false,
+                    error: 'Invalid tunnel string format. Expected: host:port or host:port:username:password'
+                };
+            }
+
+            const config = {
+                type: 'socks5',  // Default to SOCKS5
+                host: parts[0],
+                port: parts[1],
+                username: parts[2] || '',
+                password: parts[3] || ''
+            };
+
+            // Validate port
+            const portNum = parseInt(config.port, 10);
+            if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+                return {
+                    success: false,
+                    error: 'Invalid port number'
+                };
+            }
+
+            return {
+                success: true,
+                config: config
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:parse-tunnel-string error:', error);
             return {
                 success: false,
                 error: error.message

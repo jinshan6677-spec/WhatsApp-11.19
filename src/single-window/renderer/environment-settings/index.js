@@ -22,6 +22,10 @@
 
   function setupEventListeners() {
     const c = state.container;
+    const tunnelEnabled = c.querySelector('#tunnel-enabled');
+    const tunnelContent = c.querySelector('#tunnel-content');
+    tunnelEnabled.addEventListener('change', window.TunnelSettings.handleTunnelToggle);
+
     const proxyEnabled = c.querySelector('#proxy-enabled');
     const proxyContent = c.querySelector('#proxy-content');
     proxyEnabled.addEventListener('change', (e) => { proxyContent.classList.toggle('disabled', !e.target.checked); });
@@ -58,6 +62,11 @@
     c.querySelector('#test-proxy-btn').addEventListener('click', window.ProxySettings.testProxy);
     c.querySelector('#detect-network-btn').addEventListener('click', window.ProxySettings.detectNetwork);
     c.querySelector('#save-proxy-config-btn').addEventListener('click', window.ProxySettings.saveProxyConfig);
+
+    // Tunnel settings event listeners
+    c.querySelector('#toggle-tunnel-password').addEventListener('click', window.TunnelSettings.toggleTunnelPasswordVisibility);
+    c.querySelector('#parse-tunnel-btn').addEventListener('click', window.TunnelSettings.parseTunnelString);
+    c.querySelector('#test-tunnel-btn').addEventListener('click', window.TunnelSettings.testTunnel);
     c.querySelector('#generate-fingerprint-btn').addEventListener('click', window.FingerprintSettings.generateFingerprint);
     c.querySelector('#test-fingerprint-btn').addEventListener('click', window.FingerprintSettings.testFingerprint);
     c.querySelector('#preview-fingerprint-btn').addEventListener('click', window.FingerprintSettings.previewFingerprint);
@@ -88,6 +97,7 @@
     if (!accountId) return;
     await window.ProxySettings.loadAccountConfig(accountId);
     await window.ProxySettings.loadProxyConfigs();
+    await window.TunnelSettings.loadTunnelConfig();
     await window.FingerprintSettings.loadFingerprintConfig(accountId);
     await window.FingerprintSettings.loadFingerprintTemplates();
   }
@@ -107,16 +117,24 @@
       if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '应用并保存'; }
       return;
     }
+    const tunnelConfig = window.TunnelSettings.collectTunnelFormData();
     const proxyConfig = window.ProxySettings.collectProxyFormData();
+
+    // Merge tunnel and proxy configs
+    const mergedConfig = {
+      ...tunnelConfig,
+      ...proxyConfig
+    };
+
     try {
-      const proxyResult = await window.electronAPI.saveEnvironmentConfig(state.currentAccountId, proxyConfig);
+      const proxyResult = await window.electronAPI.saveEnvironmentConfig(state.currentAccountId, mergedConfig);
       if (!proxyResult.success) {
-        window.FingerprintSettings.showFingerprintError('保存代理配置失败: ' + (proxyResult.error || '未知错误'));
+        window.FingerprintSettings.showFingerprintError('保存配置失败: ' + (proxyResult.error || '未知错误'));
         if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '应用并保存'; }
         return;
       }
     } catch (error) {
-      window.FingerprintSettings.showFingerprintError('保存代理配置失败: ' + error.message);
+      window.FingerprintSettings.showFingerprintError('保存配置失败: ' + error.message);
       if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '应用并保存'; }
       return;
     }
