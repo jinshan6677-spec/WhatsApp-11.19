@@ -43,8 +43,9 @@ class CustomAPIAdapter extends AITranslationAdapter {
    */
   async testConnection() {
     try {
+      const systemPrompt = 'You are a translation assistant.';
       const testPrompt = 'Translate "Hello" to Chinese.';
-      await this.callAIAPI(testPrompt);
+      await this.callAIAPI(systemPrompt, testPrompt);
       return true;
     } catch (error) {
       console.error(`[${this.name}] Connection test failed:`, error.message);

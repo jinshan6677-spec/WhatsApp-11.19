@@ -347,9 +347,16 @@ async function renderAccountListIncremental(newAccountIds) {
   const newAccountIdsSet = new Set(newAccountIds);
 
   sortedAccounts.forEach((account) => {
-    // For existing accounts with cached IP info, skip IP fetch
+    // Check if account has tunnel enabled (from cached IP info or new fetch needed)
+    // For tunnel accounts, always fetch fresh IP to ensure we get the tunnel IP
     const hasCachedIP = !newAccountIdsSet.has(account.id) && account.lastIPInfo;
-    const accountItem = render.createAccountItem(account, { skipIPFetch: hasCachedIP });
+    const isTunnelAccount = account.lastIPInfo && account.lastIPInfo.connectionType === 'tunnel';
+    
+    // For tunnel accounts or new accounts, we need to fetch fresh IP
+    // For non-tunnel accounts with cached IP, we can use the cache
+    const skipIPFetch = hasCachedIP && !isTunnelAccount;
+    
+    const accountItem = render.createAccountItem(account, { skipIPFetch: skipIPFetch });
 
     // For existing accounts, render cached IP info
     if (hasCachedIP && typeof window !== 'undefined' && window.SidebarIPInfo) {

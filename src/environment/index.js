@@ -18,11 +18,13 @@ const ProxyManager = require('./ProxyManager');
 const ProxyConfigStore = require('./ProxyConfigStore');
 const ProxyValidator = require('./ProxyValidator');
 const CookieManager = require('./CookieManager');
+const TunnelManager = require('./TunnelManager');
 
 module.exports = {
     EnvironmentConfigManager,
     ProxyManager,
     ProxyConfigStore,
     ProxyValidator,
-    CookieManager
+    CookieManager,
+    TunnelManager
 };

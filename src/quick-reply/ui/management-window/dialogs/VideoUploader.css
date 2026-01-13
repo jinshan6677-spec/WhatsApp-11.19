@@ -1,0 +1,254 @@
+/**
+ * VideoUploader Dialog Styles
+ * 
+ * Styles for the video uploader dialog component.
+ * Requirements: 5.5, 6.3
+ */
+
+.video-uploader-modal {
+  max-width: 600px;
+}
+
+.video-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Error Banner */
+.video-uploader-error-banner {
+  padding: 12px;
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Field */
+.video-uploader-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-uploader-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.video-uploader-label .required {
+  color: #ff4d4f;
+}
+
+/* Input */
+.video-uploader-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.video-uploader-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.video-uploader-input.has-error {
+  border-color: #ff4d4f;
+}
+
+/* Select */
+.video-uploader-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.video-uploader-select:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Dropzone */
+.video-uploader-dropzone {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-uploader-dropzone:hover {
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.video-uploader-dropzone.has-error {
+  border-color: #ff4d4f;
+}
+
+/* Placeholder */
+.video-uploader-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-uploader-icon {
+  font-size: 48px;
+}
+
+.video-uploader-text {
+  font-size: 14px;
+  color: #333;
+}
+
+.video-uploader-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* Preview */
+.video-uploader-preview {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.video-player-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-player {
+  width: 100%;
+  max-width: 500px;
+  max-height: 300px;
+  border-radius: 4px;
+  background-color: #000;
+}
+
+.video-info {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #666;
+}
+
+.video-duration {
+  color: #666;
+}
+
+.video-uploader-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #ff4d4f;
+  color: #fff;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.video-uploader-remove-btn:hover {
+  background-color: #ff7875;
+}
+
+/* Hidden file input */
+.video-uploader-file-input {
+  display: none;
+}
+
+/* File info */
+.video-uploader-file-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+}
+
+.video-uploader-file-info .file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}
+
+.video-uploader-file-info .file-size {
+  color: #8c8c8c;
+}
+
+/* Error message */
+.video-uploader-error {
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+/* Footer */
+.video-uploader-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .video-uploader-modal {
+    max-width: 100%;
+    margin: 16px;
+  }
+  
+  .video-uploader-dropzone {
+    min-height: 150px;
+    padding: 16px;
+  }
+  
+  .video-player {
+    max-height: 200px;
+  }
+  
+  .video-uploader-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .video-uploader-footer button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,98 @@
+/**
+ * SearchBox Styles for Management Window
+ * 
+ * Requirements: 7.1
+ */
+
+.mw-search-box-container {
+  width: 100%;
+}
+
+.mw-search-box-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mw-search-box-wrapper:focus-within {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.mw-search-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px 0 12px;
+  color: #bfbfbf;
+}
+
+.mw-search-input-field {
+  flex: 1;
+  padding: 8px 8px 8px 0;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+  color: #333;
+}
+
+.mw-search-input-field::placeholder {
+  color: #bfbfbf;
+}
+
+.mw-search-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin-right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bfbfbf;
+  border-radius: 50%;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.mw-search-clear-btn:hover {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.mw-search-clear-btn:active {
+  background-color: #e0e0e0;
+}
+
+/* No results message */
+.mw-search-no-results {
+  padding: 24px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.mw-search-no-results-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.mw-search-no-results-text {
+  margin-bottom: 4px;
+}
+
+.mw-search-no-results-hint {
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+/* Search result highlight */
+.mw-search-highlight {
+  background-color: #ffe58f;
+  padding: 0 2px;
+  border-radius: 2px;
+}

@@ -41,9 +41,10 @@ class AITranslationAdapter extends TranslationAdapter {
       const target = this.normalizeLanguageCode(targetLang);
 
       const style = options.style || '通用';
-      const prompt = this.buildPrompt(text, source, target, style);
+      const systemPrompt = this.buildSystemPrompt(source, target, style);
+      const userPrompt = this.buildUserPrompt(text);
 
-      const translatedText = await this.callAIAPI(prompt, style, options.agent);
+      const translatedText = await this.callAIAPI(systemPrompt, userPrompt, style, options.agent);
 
       return {
         translatedText: translatedText.trim(),
@@ -57,14 +58,13 @@ class AITranslationAdapter extends TranslationAdapter {
   }
 
   /**
-   * 构建翻译提示词
-   * @param {string} text - 文本
+   * 构建系统提示词
    * @param {string} sourceLang - 源语言
    * @param {string} targetLang - 目标语言
    * @param {string} style - 翻译风格
-   * @returns {string} 提示词
+   * @returns {string} 系统提示词
    */
-  buildPrompt(text, sourceLang, targetLang, style) {
+  buildSystemPrompt(sourceLang, targetLang, style) {
     const stylePrompts = {
       '通用': {
         instruction: '你是一位专业的翻译专家。请将以下文本翻译成{targetLang}，准确传达原意，保持自然流畅。',
@@ -123,14 +123,10 @@ class AITranslationAdapter extends TranslationAdapter {
     }
 
     prompt += `
-
-原文：
-${text}
-
 翻译要求：
 1. 【核心】忠实传达原文的完整意思、语气和情感色彩
 2. 【风格】在忠实原文的基础上，充分体现上述风格特征
-3. 【输出】只输出翻译结果，不要包含任何解释、注释或额外内容
+3. 【输出】只输出翻译结果，不要包含任何解释、注释或额外内容，不要重复原文
 4. 【格式】完整保留原文中的 Markdown 格式（**粗体**、*斜体*、\`代码\`、[链接]、列表等）
 5. 【Emoji】如果原文有 Emoji 表情符号，必须保留；如果原文没有，绝不添加
 6. 【纯净】不要添加原文中没有的任何符号、表情、标点或装饰性内容
@@ -138,6 +134,15 @@ ${text}
 8. 【混合语言】对于混合语言文本，只翻译需要翻译的部分，保持其他部分不变`;
 
     return prompt;
+  }
+
+  /**
+   * 构建用户提示词
+   * @param {string} text - 文本
+   * @returns {string} 用户提示词
+   */
+  buildUserPrompt(text) {
+    return `原文：\n${text}`;
   }
 
   /**
@@ -165,11 +170,12 @@ ${text}
 
   /**
    * 调用 AI API
-   * @param {string} prompt - 提示词
+   * @param {string} systemPrompt - 系统提示词
+   * @param {string} userPrompt - 用户提示词
    * @param {string} style - 翻译风格（用于调整 temperature）
    * @returns {Promise<string>} 翻译结果
    */
-  async callAIAPI(prompt, style = '通用', agent) {
+  async callAIAPI(systemPrompt, userPrompt, style = '通用', agent) {
     const url = new URL(this.apiEndpoint);
 
     // 根据风格调整 temperature：需要创造性的风格使用更高的值
@@ -194,11 +200,11 @@ ${text}
       messages: [
         {
           role: 'system',
-          content: '你是一位专业的翻译专家。请严格遵循风格指示，只输出翻译结果，不要包含任何解释、说明或额外内容。'
+          content: systemPrompt
         },
         {
           role: 'user',
-          content: prompt
+          content: userPrompt
         }
       ],
       max_tokens: this.maxTokens,

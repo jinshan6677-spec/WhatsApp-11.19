@@ -1,0 +1,171 @@
+/**
+ * Toolbar Styles
+ * 
+ * Styles for the management window toolbar component.
+ * Blue link style matching the screenshot design.
+ * Requirements: 2.4, 5.1, 17.1, 17.5
+ */
+
+.management-toolbar {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.toolbar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Blue link style button */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: #1890ff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  border-radius: 4px;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.toolbar-btn-link {
+  /* Blue link style as per screenshot */
+  color: #1890ff;
+  background: transparent;
+  border: none;
+  font-weight: 400;
+}
+
+.toolbar-btn-link:hover:not(:disabled) {
+  color: #40a9ff;
+  background-color: rgba(24, 144, 255, 0.08);
+  text-decoration: underline;
+}
+
+/* Requirement 17.1: Button click effect - pressed state */
+.toolbar-btn-link:active:not(:disabled),
+.toolbar-btn-link.pressed:not(:disabled) {
+  color: #096dd9;
+  background-color: rgba(24, 144, 255, 0.15);
+  transform: scale(0.97);
+}
+
+.toolbar-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.toolbar-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.3);
+}
+
+.toolbar-btn:disabled {
+  color: #bfbfbf;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toolbar-btn:disabled:hover {
+  background: none;
+  text-decoration: none;
+  transform: none;
+}
+
+/* Requirement 17.5: Loading state */
+.toolbar-btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.toolbar-btn-icon {
+  margin-right: 6px;
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.toolbar-btn:hover:not(:disabled) .toolbar-btn-icon {
+  transform: scale(1.1);
+}
+
+.toolbar-btn-text {
+  font-size: 14px;
+}
+
+/* Loading spinner for toolbar buttons */
+.toolbar-btn-spinner {
+  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-btn-spinner .spinner-icon {
+  width: 16px;
+  height: 16px;
+  animation: toolbar-spin 1s linear infinite;
+}
+
+@keyframes toolbar-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hint message when no group selected */
+.toolbar-hint {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #8c8c8c;
+  background-color: #fafafa;
+  border-radius: 4px;
+  border: 1px dashed #d9d9d9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .management-toolbar {
+    padding: 10px 12px;
+  }
+  
+  .toolbar-buttons {
+    gap: 4px;
+  }
+  
+  .toolbar-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  .toolbar-btn-icon {
+    margin-right: 4px;
+    font-size: 14px;
+  }
+  
+  .toolbar-btn-text {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 600px) {
+  .toolbar-btn-text {
+    display: none;
+  }
+  
+  .toolbar-btn-icon {
+    margin-right: 0;
+  }
+}

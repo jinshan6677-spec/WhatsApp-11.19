@@ -1,0 +1,352 @@
+import React, { useState, useCallback, useRef } from 'react';
+import PropTypes from 'prop-types';
+import Modal from '../../common/Modal';
+import Button from '../../common/Button';
+import { validateTemplateLabel, validateMediaFile, validateTextContent } from '../../../utils/validation';
+import { VISIBILITY_TYPES } from '../../../constants/visibilityTypes';
+import { TEMPLATE_TYPES } from '../../../constants/templateTypes';
+import LIMITS from '../../../constants/limits';
+import './ImageTextEditor.css';
+
+/**
+ * ImageTextEditor Dialog Component
+ * 
+ * Modal dialog for creating and editing image+text (mixed) templates.
+ * Supports both image upload and text input simultaneously.
+ * 
+ * Requirements: 5.6
+ * - Supports image selection and preview
+ * - Supports text input
+ * - Image validation: JPG, PNG, GIF formats, max 5MB
+ * 
+ * @param {Object} props - Component props
+ * @param {boolean} props.visible - Whether the dialog is visible
+ * @param {Function} props.onClose - Close handler
+ * @param {Function} props.onSave - Save handler (receives template data)
+ * @param {Object} props.initialData - Initial data for editing (optional)
+ * @param {string} props.groupId - Target group ID for new templates
+ */
+export default function ImageTextEditor({
+  visible = false,
+  onClose,
+  onSave,
+  initialData = null,
+  groupId
+}) {
+  const isEditing = !!initialData?.id;
+  const fileInputRef = useRef(null);
+  
+  // Form state
+  const [label, setLabel] = useState(initialData?.label || '');
+  const [visibility, setVisibility] = useState(
+    initialData?.visibility || VISIBILITY_TYPES.PERSONAL
+  );
+  const [textContent, setTextContent] = useState(initialData?.content?.text || '');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(initialData?.content?.mediaPath || null);
+  const [errors, setErrors] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Supported formats
+  const SUPPORTED_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_SIZE_MB = Math.floor(LIMITS.IMAGE_MAX_SIZE / (1024 * 1024));
+
+  // Reset form when dialog opens/closes
+  const resetForm = useCallback(() => {
+    setLabel(initialData?.label || '');
+    setVisibility(initialData?.visibility || VISIBILITY_TYPES.PERSONAL);
+    setTextContent(initialData?.content?.text || '');
+    setImageFile(null);
+    setImagePreview(initialData?.content?.mediaPath || null);
+    setErrors({});
+    setIsSaving(false);
+  }, [initialData]);
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors = {};
+
+    try {
+      validateTemplateLabel(label);
+    } catch (error) {
+      newErrors.label = error.message;
+    }
+
+    // Validate text content
+    try {
+      if (!textContent.trim()) {
+        newErrors.textContent = '文本内容不能为空';
+      } else {
+        validateTextContent(textContent);
+      }
+    } catch (error) {
+      newErrors.textContent = error.message;
+    }
+
+    // Validate image file
+    if (!isEditing && !imageFile) {
+      newErrors.imageFile = '请选择图片文件';
+    } else if (imageFile) {
+      try {
+        validateMediaFile(imageFile, TEMPLATE_TYPES.IMAGE);
+      } catch (error) {
+        newErrors.imageFile = error.message;
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Clear previous errors
+    setErrors(prev => ({ ...prev, imageFile: null }));
+
+    // Validate file type
+    if (!SUPPORTED_FORMATS.includes(file.type.toLowerCase())) {
+      setErrors(prev => ({
+        ...prev,
+        imageFile: `不支持的图片格式。支持的格式：JPG, PNG, GIF, WEBP`
+      }));
+      return;
+    }
+
+    // Validate file size
+    if (file.size > LIMITS.IMAGE_MAX_SIZE) {
+      setErrors(prev => ({
+        ...prev,
+        imageFile: `图片大小超过限制（最大 ${MAX_SIZE_MB}MB）`
+      }));
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  // Handle drag and drop
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect({ target: { files: [file] } });
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  // Handle save
+  const handleSave = async () => {
+    if (!validateForm()) return;
+
+    setIsSaving(true);
+
+    try {
+      const templateData = {
+        id: initialData?.id,
+        groupId: groupId || initialData?.groupId,
+        type: TEMPLATE_TYPES.MIXED, // 'mixed' for image+text
+        label: label.trim(),
+        visibility,
+        content: {
+          text: textContent,
+          mediaPath: imageFile ? URL.createObjectURL(imageFile) : imagePreview,
+          mediaSize: imageFile?.size,
+          mediaType: imageFile?.type
+        },
+        // Include the actual file for upload handling
+        _file: imageFile
+      };
+
+      if (onSave) {
+        await onSave(templateData);
+      }
+
+      resetForm();
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Failed to save image+text template:', error);
+      setErrors({ general: error.message || '保存失败，请重试' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle close
+  const handleClose = () => {
+    resetForm();
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  // Handle remove image
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const footer = (
+    <div className="imagetext-editor-footer">
+      <Button variant="ghost" onClick={handleClose} disabled={isSaving}>
+        取消
+      </Button>
+      <Button variant="primary" onClick={handleSave} loading={isSaving}>
+        {isEditing ? '保存' : '创建'}
+      </Button>
+    </div>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      onClose={handleClose}
+      title={isEditing ? '编辑图文' : '添加图文'}
+      footer={footer}
+      width="600px"
+      className="imagetext-editor-modal"
+    >
+      <div className="imagetext-editor">
+        {errors.general && (
+          <div className="imagetext-editor-error-banner">{errors.general}</div>
+        )}
+
+        <div className="imagetext-editor-field">
+          <label className="imagetext-editor-label">
+            模板标签 <span className="required">*</span>
+          </label>
+          <input
+            type="text"
+            className={`imagetext-editor-input ${errors.label ? 'has-error' : ''}`}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="请输入模板标签（最多50个字符）"
+            maxLength={50}
+          />
+          {errors.label && (
+            <span className="imagetext-editor-error">{errors.label}</span>
+          )}
+        </div>
+
+        <div className="imagetext-editor-field">
+          <label className="imagetext-editor-label">
+            可见性 <span className="required">*</span>
+          </label>
+          <select
+            className="imagetext-editor-select"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value)}
+          >
+            <option value={VISIBILITY_TYPES.PERSONAL}>个人</option>
+            <option value={VISIBILITY_TYPES.PUBLIC}>公共</option>
+          </select>
+        </div>
+
+        <div className="imagetext-editor-content-row">
+          {/* Image Section */}
+          <div className="imagetext-editor-field imagetext-editor-image-section">
+            <label className="imagetext-editor-label">
+              图片 <span className="required">*</span>
+            </label>
+            
+            <div 
+              className={`imagetext-editor-dropzone ${errors.imageFile ? 'has-error' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {imagePreview ? (
+                <div className="imagetext-editor-preview">
+                  <img src={imagePreview} alt="Preview" />
+                  <button 
+                    className="imagetext-editor-remove-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveImage();
+                    }}
+                    title="移除图片"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div className="imagetext-editor-placeholder">
+                  <span className="imagetext-editor-icon">🖼️</span>
+                  <span className="imagetext-editor-text">
+                    点击选择图片
+                  </span>
+                  <span className="imagetext-editor-hint">
+                    最大 {MAX_SIZE_MB}MB
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              onChange={handleFileSelect}
+              className="imagetext-editor-file-input"
+            />
+            
+            {errors.imageFile && (
+              <span className="imagetext-editor-error">{errors.imageFile}</span>
+            )}
+          </div>
+
+          {/* Text Section */}
+          <div className="imagetext-editor-field imagetext-editor-text-section">
+            <label className="imagetext-editor-label">
+              文本内容 <span className="required">*</span>
+            </label>
+            <textarea
+              className={`imagetext-editor-textarea ${errors.textContent ? 'has-error' : ''}`}
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              placeholder="请输入文本内容..."
+              rows={8}
+            />
+            {errors.textContent && (
+              <span className="imagetext-editor-error">{errors.textContent}</span>
+            )}
+            <div className="imagetext-editor-char-count">
+              {textContent.length} / 4096 字符
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+ImageTextEditor.propTypes = {
+  visible: PropTypes.bool,
+  onClose: PropTypes.func,
+  onSave: PropTypes.func,
+  initialData: PropTypes.shape({
+    id: PropTypes.string,
+    groupId: PropTypes.string,
+    label: PropTypes.string,
+    visibility: PropTypes.string,
+    content: PropTypes.shape({
+      text: PropTypes.string,
+      mediaPath: PropTypes.string
+    })
+  }),
+  groupId: PropTypes.string
+};

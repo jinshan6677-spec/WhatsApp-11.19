@@ -1,0 +1,267 @@
+/**
+ * Drag and Drop Styles
+ * 
+ * Common styles for drag and drop functionality
+ * Requirements: 21.5, 17.4
+ */
+
+/* Dragging state */
+.dragging {
+  opacity: 0.5;
+  cursor: grabbing !important;
+  background-color: rgba(0, 123, 255, 0.1);
+  border: 2px dashed #007bff;
+  transform: scale(0.98);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+/* Drop target indicator */
+.drop-target {
+  position: relative;
+}
+
+.drop-target.drop-before::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: #007bff;
+  border-radius: 2px;
+  z-index: 10;
+}
+
+.drop-target.drop-after::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: #007bff;
+  border-radius: 2px;
+  z-index: 10;
+}
+
+/* Drag over state */
+.drag-over {
+  background-color: rgba(0, 123, 255, 0.05);
+  border-color: #007bff;
+}
+
+/* Invalid drop target */
+.drop-invalid {
+  cursor: not-allowed !important;
+  background-color: rgba(220, 53, 69, 0.05);
+  border-color: #dc3545;
+}
+
+.drop-invalid::after {
+  content: '⛔';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  font-size: 20px;
+  opacity: 0.5;
+}
+
+/* Draggable cursor */
+[draggable="true"] {
+  cursor: grab;
+  user-select: none;
+}
+
+[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Drag preview ghost image */
+.drag-ghost {
+  opacity: 0.8;
+  background-color: white;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Animation for drop */
+@keyframes drop-animation {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.drop-animation {
+  animation: drop-animation 0.3s ease-in-out;
+}
+
+/* Drag handle */
+.drag-handle {
+  cursor: grab;
+  padding: 4px;
+  color: #6c757d;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Drag placeholder */
+.drag-placeholder {
+  height: 40px;
+  background-color: rgba(0, 123, 255, 0.1);
+  border: 2px dashed #007bff;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+
+/* ============================================
+   Enhanced Drag Preview Styles
+   Requirements: 17.4
+   ============================================ */
+
+/* Drag preview container */
+.qr-drag-preview {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Drag source highlight */
+.drag-source {
+  position: relative;
+}
+
+.drag-source::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid #1890ff;
+  border-radius: 6px;
+  pointer-events: none;
+  animation: drag-source-pulse 1s ease-in-out infinite;
+}
+
+@keyframes drag-source-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Drop zone highlight */
+.drop-zone-active {
+  background-color: rgba(24, 144, 255, 0.08);
+  border: 2px dashed #1890ff;
+  border-radius: 4px;
+}
+
+/* Drop zone hover */
+.drop-zone-hover {
+  background-color: rgba(24, 144, 255, 0.15);
+  border-color: #40a9ff;
+}
+
+/* Drag feedback animation */
+@keyframes drag-feedback {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.drag-feedback {
+  animation: drag-feedback 0.3s ease;
+}
+
+/* Multi-select drag indicator */
+.multi-drag-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #1890ff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Drag ghost element */
+.drag-ghost-element {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0.9;
+  transform: rotate(2deg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth drop transition */
+.drop-transition {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.drop-transition.dropping {
+  transform: scale(0.95);
+  opacity: 0.8;
+}
+
+/* Drop success animation */
+@keyframes drop-success {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(82, 196, 26, 0.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.drop-success {
+  animation: drop-success 0.3s ease;
+}
+
+/* Drag cursor styles */
+.cursor-grabbing * {
+  cursor: grabbing !important;
+}
+
+.cursor-not-allowed * {
+  cursor: not-allowed !important;
+}

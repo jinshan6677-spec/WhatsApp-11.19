@@ -1,0 +1,47 @@
+/* Platform Selector Container */
+.platform-selector {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Platform Item */
+.platform-selector-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.platform-selector-item:hover {
+  background-color: #f0f0f0;
+}
+
+.platform-selector-item.active {
+  background-color: #e8f5e9;
+}
+
+/* Platform Icon */
+.platform-selector-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Platform Name */
+.platform-selector-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #212529;
+}
+
+.platform-selector-item.active .platform-selector-name {
+  color: #25D366;
+}

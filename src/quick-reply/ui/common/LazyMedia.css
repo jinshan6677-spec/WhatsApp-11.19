@@ -1,0 +1,230 @@
+/**
+ * LazyMedia Styles
+ */
+
+/* LazyImage */
+.lazy-image {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.lazy-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease;
+}
+
+.lazy-image-loading {
+  opacity: 0.5;
+}
+
+.lazy-image-loaded {
+  opacity: 1;
+}
+
+.lazy-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+}
+
+.lazy-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #999;
+  gap: 8px;
+}
+
+.lazy-image-error svg {
+  width: 48px;
+  height: 48px;
+}
+
+.lazy-image-error span {
+  font-size: 14px;
+}
+
+/* LazyVideo */
+.lazy-video {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.lazy-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lazy-video-placeholder {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+.lazy-video-placeholder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.7;
+}
+
+.lazy-video-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #999;
+  gap: 8px;
+}
+
+.lazy-video-error svg {
+  width: 48px;
+  height: 48px;
+}
+
+/* LazyAudio */
+.lazy-audio {
+  position: relative;
+  width: 100%;
+}
+
+.lazy-audio audio {
+  width: 100%;
+}
+
+.lazy-audio-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.lazy-audio-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: #999;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.lazy-audio-error svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Spinner */
+.lazy-image-spinner,
+.lazy-video-spinner,
+.lazy-audio-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* LazyMediaThumbnail */
+.lazy-media-thumbnail {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.lazy-thumbnail-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+}
+
+.lazy-thumbnail-placeholder svg {
+  width: 48px;
+  height: 48px;
+  color: #ccc;
+}
+
+.lazy-thumbnail-video {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.lazy-thumbnail-play-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.lazy-thumbnail-video:hover .lazy-thumbnail-play-icon {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.lazy-thumbnail-play-icon svg {
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+}
+
+.lazy-thumbnail-audio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.lazy-thumbnail-audio svg {
+  width: 48px;
+  height: 48px;
+  color: #666;
+}

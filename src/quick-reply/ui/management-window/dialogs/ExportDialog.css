@@ -1,0 +1,117 @@
+/**
+ * ExportDialog Styles
+ * 
+ * Styles for the export dialog component.
+ * Requirements: 9.2, 9.3, 9.4
+ */
+
+.export-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.export-dialog-error {
+  padding: 12px;
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  color: #ff4d4f;
+  font-size: 14px;
+}
+
+.export-dialog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-dialog-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.export-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-dialog-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-dialog-option:hover:not(.disabled) {
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.export-dialog-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.export-dialog-option input[type="radio"] {
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.export-dialog-option.disabled input[type="radio"] {
+  cursor: not-allowed;
+}
+
+.export-dialog-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  color: #333;
+}
+
+.export-dialog-option-count,
+.export-dialog-option-name {
+  color: #666;
+  font-size: 12px;
+}
+
+.export-dialog-option-desc {
+  color: #999;
+  font-size: 12px;
+}
+
+.export-dialog-description {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.export-dialog-description-icon {
+  font-size: 16px;
+}
+
+.export-dialog-description-text {
+  font-size: 13px;
+  color: #666;
+}
+
+.export-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Modal specific styles */
+.export-dialog-modal .qr-modal-body {
+  padding: 20px 24px;
+}

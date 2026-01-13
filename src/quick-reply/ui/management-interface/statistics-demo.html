@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistics Report Demo - Quick Reply</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+    }
+
+    .demo-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .demo-header {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .demo-header h1 {
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .demo-header p {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .demo-section {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .demo-section h2 {
+      margin-bottom: 16px;
+      color: #333;
+      font-size: 18px;
+      border-bottom: 2px solid #1890ff;
+      padding-bottom: 8px;
+    }
+
+    .demo-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .demo-controls button {
+      padding: 10px 20px;
+      background: #1890ff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+
+    .demo-controls button:hover {
+      background: #40a9ff;
+    }
+
+    .demo-controls button.secondary {
+      background: #fff;
+      color: #1890ff;
+      border: 1px solid #1890ff;
+    }
+
+    .demo-controls button.secondary:hover {
+      background: #e6f7ff;
+    }
+
+    /* Include StatisticsReport styles */
+  </style>
+  <link rel="stylesheet" href="StatisticsReport.css">
+  <link rel="stylesheet" href="TemplateUsageStats.css">
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <h1>📊 使用统计功能演示</h1>
+      <p>演示快捷回复模板的使用统计报告和详情显示功能</p>
+    </div>
+
+    <div class="demo-section">
+      <h2>控制面板</h2>
+      <div class="demo-controls">
+        <button onclick="showFullReport()">显示完整统计报告</button>
+        <button onclick="showTopTemplates()">显示Top 10模板</button>
+        <button onclick="showUnusedTemplates()">显示未使用模板</button>
+        <button onclick="showTemplateDetails()" class="secondary">显示模板详情</button>
+        <button onclick="generateMockData()" class="secondary">生成模拟数据</button>
+      </div>
+    </div>
+
+    <div id="report-container"></div>
+    <div id="details-container"></div>
+  </div>
+
+  <script>
+    // Mock data
+    const mockReport = {
+      totalTemplates: 25,
+      totalUsageCount: 150,
+      averageUsageCount: '6.00',
+      mostUsedTemplate: {
+        id: 't1',
+        label: '早安问候',
+        type: 'text',
+        usageCount: 45,
+        usageRate: '30.00',
+        lastUsedAt: Date.now() - 3600000,
+        createdAt: Date.now() - 86400000 * 30
+      },
+      leastUsedTemplate: {
+        id: 't25',
+        label: '产品介绍视频',
+        type: 'video',
+        usageCount: 0,
+        usageRate: '0.00',
+        lastUsedAt: null,
+        createdAt: Date.now() - 86400000 * 5
+      },
+      unusedTemplates: 5,
+      templates: [
+        {
+          id: 't1',
+          groupId: 'g1',
+          type: 'text',
+          label: '早安问候',
+          usageCount: 45,
+          usageRate: '30.00',
+          lastUsedAt: Date.now() - 3600000,
+          createdAt: Date.now() - 86400000 * 30
+        },
+        {
+          id: 't2',
+          groupId: 'g1',
+          type: 'text',
+          label: '晚安问候',
+          usageCount: 32,
+          usageRate: '21.33',
+          lastUsedAt: Date.now() - 7200000,
+          createdAt: Date.now() - 86400000 * 28
+        },
+        {
+          id: 't3',
+          groupId: 'g2',
+          type: 'image',
+          label: '产品图片',
+          usageCount: 28,
+          usageRate: '18.67',
+          lastUsedAt: Date.now() - 10800000,
+          createdAt: Date.now() - 86400000 * 25
+        },
+        {
+          id: 't4',
+          groupId: 'g2',
+          type: 'mixed',
+          label: '促销活动',
+          usageCount: 20,
+          usageRate: '13.33',
+          lastUsedAt: Date.now() - 14400000,
+          createdAt: Date.now() - 86400000 * 20
+        },
+        {
+          id: 't5',
+          groupId: 'g3',
+          type: 'text',
+          label: '售后服务',
+          usageCount: 15,
+          usageRate: '10.00',
+          lastUsedAt: Date.now() - 18000000,
+          createdAt: Date.now() - 86400000 * 15
+        },
+        {
+          id: 't6',
+          groupId: 'g3',
+          type: 'text',
+          label: '退换货政策',
+          usageCount: 10,
+          usageRate: '6.67',
+          lastUsedAt: Date.now() - 21600000,
+          createdAt: Date.now() - 86400000 * 10
+        }
+      ],
+      generatedAt: Date.now()
+    };
+
+    const mockTemplate = {
+      id: 't1',
+      groupId: 'g1',
+      type: 'text',
+      label: '早安问候',
+      content: { text: '早上好！有什么可以帮助您的吗？' },
+      usageCount: 45,
+      lastUsedAt: Date.now() - 3600000,
+      createdAt: Date.now() - 86400000 * 30
+    };
+
+    function formatDate(timestamp) {
+      if (!timestamp) return '从未使用';
+      const date = new Date(timestamp);
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function formatRelativeTime(timestamp) {
+      if (!timestamp) return null;
+      
+      const now = Date.now();
+      const diff = now - timestamp;
+      
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      if (days > 0) return `${days}天前`;
+      if (hours > 0) return `${hours}小时前`;
+      if (minutes > 0) return `${minutes}分钟前`;
+      return '刚刚';
+    }
+
+    function showFullReport() {
+      const container = document.getElementById('report-container');
+      container.innerHTML = renderStatisticsReport(mockReport, 'all');
+    }
+
+    function showTopTemplates() {
+      const container = document.getElementById('report-container');
+      const topReport = {
+        ...mockReport,
+        templates: mockReport.templates.slice(0, 10)
+      };
+      container.innerHTML = renderStatisticsReport(topReport, 'top');
+    }
+
+    function showUnusedTemplates() {
+      const container = document.getElementById('report-container');
+      const unusedReport = {
+        ...mockReport,
+        templates: mockReport.templates.filter(t => t.usageCount === 0)
+      };
+      container.innerHTML = renderStatisticsReport(unusedReport, 'unused');
+    }
+
+    function showTemplateDetails() {
+      const container = document.getElementById('details-container');
+      container.innerHTML = renderTemplateUsageStats(mockTemplate);
+    }
+
+    function generateMockData() {
+      alert('模拟数据已生成！\n\n总模板数: ' + mockReport.totalTemplates + '\n总使用次数: ' + mockReport.totalUsageCount);
+    }
+
+    function renderStatisticsReport(report, filter) {
+      return `
+        <div class="demo-section">
+          <div class="statistics-report">
+            <div class="statistics-header">
+              <h2>使用统计报告</h2>
+              <div class="statistics-actions">
+                <button onclick="showFullReport()" class="btn-refresh">刷新</button>
+              </div>
+            </div>
+
+            <div class="statistics-summary">
+              <div class="summary-card">
+                <div class="summary-label">总模板数</div>
+                <div class="summary-value">${report.totalTemplates}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">总使用次数</div>
+                <div class="summary-value">${report.totalUsageCount}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">平均使用次数</div>
+                <div class="summary-value">${report.averageUsageCount}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">未使用模板</div>
+                <div class="summary-value">${report.unusedTemplates}</div>
+              </div>
+            </div>
+
+            ${report.mostUsedTemplate ? `
+              <div class="statistics-highlights">
+                <div class="highlight-card">
+                  <h3>最常用模板</h3>
+                  <div class="highlight-content">
+                    <div class="highlight-label">${report.mostUsedTemplate.label}</div>
+                    <div class="highlight-stats">
+                      使用次数: ${report.mostUsedTemplate.usageCount} (${report.mostUsedTemplate.usageRate}%)
+                    </div>
+                    <div class="highlight-time">
+                      最后使用: ${formatDate(report.mostUsedTemplate.lastUsedAt)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            <div class="statistics-filters">
+              <button class="${filter === 'all' ? 'active' : ''}" onclick="showFullReport()">
+                全部模板
+              </button>
+              <button class="${filter === 'top' ? 'active' : ''}" onclick="showTopTemplates()">
+                最常用 (Top 10)
+              </button>
+              <button class="${filter === 'unused' ? 'active' : ''}" onclick="showUnusedTemplates()">
+                未使用
+              </button>
+            </div>
+
+            <div class="statistics-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>排名</th>
+                    <th>模板标签</th>
+                    <th>类型</th>
+                    <th>使用次数</th>
+                    <th>使用率</th>
+                    <th>最后使用时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${report.templates.length === 0 ? `
+                    <tr>
+                      <td colspan="7" class="no-data">暂无数据</td>
+                    </tr>
+                  ` : report.templates.map((template, index) => `
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td class="template-label">${template.label}</td>
+                      <td>${template.type}</td>
+                      <td>${template.usageCount}</td>
+                      <td>${template.usageRate}%</td>
+                      <td>${formatDate(template.lastUsedAt)}</td>
+                      <td>
+                        <button class="btn-view" onclick="alert('查看模板: ${template.label}')">
+                          查看详情
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="statistics-footer">
+              <p>报告生成时间: ${formatDate(report.generatedAt)}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTemplateUsageStats(template) {
+      return `
+        <div class="demo-section">
+          <h2>模板详情 - ${template.label}</h2>
+          <div class="template-usage-stats">
+            <h3>使用统计</h3>
+            
+            <div class="stats-grid">
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <div class="stat-label">使用次数</div>
+                  <div class="stat-value">${template.usageCount}</div>
+                </div>
+              </div>
+
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <div class="stat-label">最后使用</div>
+                  <div class="stat-value-small">
+                    ${formatDate(template.lastUsedAt)}
+                    ${template.lastUsedAt ? `
+                      <span class="stat-relative">
+                        (${formatRelativeTime(template.lastUsedAt)})
+                      </span>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <div class="stat-label">创建时间</div>
+                  <div class="stat-value-small">${formatDate(template.createdAt)}</div>
+                </div>
+              </div>
+            </div>
+
+            ${template.usageCount === 0 ? `
+              <div class="usage-notice">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="12" cy="16" r="1" fill="currentColor"/>
+                </svg>
+                <span>此模板尚未被使用</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // Initialize with full report
+    showFullReport();
+    showTemplateDetails();
+  </script>
+</body>
+</html>

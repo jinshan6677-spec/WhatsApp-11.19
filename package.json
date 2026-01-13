@@ -58,13 +58,15 @@
     "lru-cache": "^10.0.0",
     "node-fetch": "^2.7.0",
     "node-machine-id": "^1.1.12",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "socks-proxy-agent": "^8.0.5",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
     "css": "^3.0.0",
     "electron": "^39.2.5",
     "electron-builder": "^26.0.12",
-    "electron-icon-maker": "^0.0.5",
     "eslint": "^8.56.0",
     "fast-check": "^4.3.0",
     "jest": "^29.7.0",

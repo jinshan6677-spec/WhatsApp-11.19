@@ -1,0 +1,82 @@
+/* Tab Bar Container */
+.tab-bar {
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #ffffff;
+}
+
+/* Tab List */
+.tab-bar-list {
+  display: flex;
+  padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.tab-bar-list::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Tab Item */
+.tab-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tab-bar-item:hover {
+  color: #212529;
+  background-color: #f8f9fa;
+}
+
+.tab-bar-item.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  font-weight: 500;
+}
+
+/* Tab Icon */
+.tab-bar-item-icon {
+  font-size: 16px;
+}
+
+/* Tab Label */
+.tab-bar-item-label {
+  font-size: 14px;
+}
+
+/* Tab Count */
+.tab-bar-item-count {
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .tab-bar-list {
+    padding: 0 8px;
+  }
+
+  .tab-bar-item {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .tab-bar-item-icon {
+    font-size: 14px;
+  }
+
+  .tab-bar-item-label {
+    font-size: 13px;
+  }
+}

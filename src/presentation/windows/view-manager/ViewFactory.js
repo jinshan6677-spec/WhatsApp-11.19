@@ -68,33 +68,52 @@ class ViewFactory {
 
     this.log('info', `Creating BrowserView for account ${accountId}`);
 
-    // Apply proxy configuration to session if provided
-    if (config.proxy && config.proxy.enabled) {
+    // Apply network configuration in priority order: tunnel > proxy > direct
+    // Priority 1: Apply tunnel configuration (SOCKS5/HTTP for encrypted connections)
+    if (config.tunnel && config.tunnel.enabled) {
+      try {
+        const { TunnelManager } = require('../../../environment');
+        this.log('info', `[Tunnel] Applying tunnel configuration for ${accountId}...`);
+        const success = await TunnelManager.applyTunnelToSession(accountSession, config.tunnel);
+
+        if (success) {
+          this.log('info', `[Tunnel] ✓ Tunnel applied successfully for ${accountId}: ${config.tunnel.type}://${config.tunnel.host}:${config.tunnel.port}`);
+          // Add a small delay to ensure proxy configuration takes effect
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } else {
+          this.log('error', `[Tunnel] ✗ Failed to apply tunnel for ${accountId}`);
+        }
+      } catch (error) {
+        this.log('error', `[Tunnel] ✗ Error applying tunnel for ${accountId}:`, error);
+      }
+    }
+    // Priority 2: Apply proxy configuration (HTTP/HTTPS proxy)
+    else if (config.proxy && config.proxy.enabled) {
       try {
         // Sanitize host: remove protocol prefix if user accidentally included it
         let host = config.proxy.host.replace(/^https?:\/\//, '');
 
         const proxyRules = `${config.proxy.protocol}://${host}:${config.proxy.port}`;
 
-        this.log('info', `Applying proxy for ${accountId}: ${proxyRules}`);
+        this.log('info', `[Proxy] Applying proxy for ${accountId}: ${proxyRules}`);
 
         await accountSession.setProxy({
           proxyRules,
           proxyBypassRules: '<local>'
         });
 
-        this.log('info', `Proxy applied successfully for ${accountId}`);
+        this.log('info', `[Proxy] Proxy applied successfully for ${accountId}`);
       } catch (error) {
-        this.log('error', `Failed to apply proxy for ${accountId}:`, error);
+        this.log('error', `[Proxy] Failed to apply proxy for ${accountId}:`, error);
       }
-    } else {
-      // Proxy is disabled or not configured - ensure direct connection
-      // This clears any previously set proxy rules on the session
+    }
+    // Priority 3: Use direct connection (no tunnel, no proxy)
+    else {
       try {
         await accountSession.setProxy({ mode: 'direct' });
-        this.log('info', `Proxy disabled for ${accountId}, using direct connection`);
+        this.log('info', `[Network] Direct connection for ${accountId}`);
       } catch (error) {
-        this.log('error', `Failed to clear proxy for ${accountId}:`, error);
+        this.log('error', `[Network] Failed to set direct connection for ${accountId}:`, error);
       }
     }
 
@@ -194,6 +213,21 @@ class ViewFactory {
       });
     } catch (_) { }
 
+    // Handle tunnel authentication (if tunnel requires auth)
+    if (
+      config.tunnel &&
+      config.tunnel.enabled &&
+      config.tunnel.username &&
+      config.tunnel.password
+    ) {
+      view.webContents.on('login', (event, request, authInfo, callback) => {
+        event.preventDefault();
+        this.log('info', `[Tunnel] Providing tunnel credentials for ${accountId}`);
+        callback(config.tunnel.username, config.tunnel.password);
+      });
+    }
+
+    // Handle proxy authentication (if proxy requires auth)
     if (
       config.proxy &&
       config.proxy.enabled &&
@@ -202,7 +236,7 @@ class ViewFactory {
     ) {
       view.webContents.on('login', (event, request, authInfo, callback) => {
         event.preventDefault();
-        this.log('info', `Providing proxy credentials for ${accountId}`);
+        this.log('info', `[Proxy] Providing proxy credentials for ${accountId}`);
         callback(config.proxy.username, config.proxy.password);
       });
     }

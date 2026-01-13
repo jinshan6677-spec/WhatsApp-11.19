@@ -20,6 +20,14 @@ const { encryptFields, decryptFields } = require('../utils/encryption');
 // Default environment configuration
 // Note: fingerprint配置已移除，将在新指纹系统中实现
 const DEFAULT_CONFIG = {
+    tunnel: {
+        enabled: false,
+        type: 'socks5',  // socks5, http
+        host: '127.0.0.1',
+        port: 1080,
+        username: '',
+        password: ''
+    },
     proxy: {
         enabled: false,
         configName: '',
@@ -62,6 +70,9 @@ class EnvironmentConfigManager {
         }
 
         // Decrypt sensitive fields
+        if (config.tunnel && config.tunnel.password) {
+            config.tunnel = decryptFields(config.tunnel, ENCRYPTED_FIELDS);
+        }
         if (config.proxy && config.proxy.password) {
             config.proxy = decryptFields(config.proxy, ENCRYPTED_FIELDS);
         }
@@ -93,6 +104,9 @@ class EnvironmentConfigManager {
             const configToSave = JSON.parse(JSON.stringify(config));
 
             // Encrypt sensitive fields
+            if (configToSave.tunnel && configToSave.tunnel.password) {
+                configToSave.tunnel = encryptFields(configToSave.tunnel, ENCRYPTED_FIELDS);
+            }
             if (configToSave.proxy && configToSave.proxy.password) {
                 configToSave.proxy = encryptFields(configToSave.proxy, ENCRYPTED_FIELDS);
             }
@@ -171,6 +185,7 @@ class EnvironmentConfigManager {
         const defaults = this._getDefaultConfig();
 
         return {
+            tunnel: { ...defaults.tunnel, ...(config.tunnel || {}) },
             proxy: { ...defaults.proxy, ...(config.proxy || {}) }
             // Note: fingerprint合并已移除，将在新指纹系统中实现
         };
@@ -183,6 +198,24 @@ class EnvironmentConfigManager {
      * @private
      */
     _validateConfig(config) {
+        // 隧道配置验证（可选，因为隧道可能未启用）
+        if (config.tunnel && typeof config.tunnel !== 'object') {
+            throw new Error('Invalid tunnel configuration');
+        }
+
+        // Validate tunnel fields
+        if (config.tunnel && config.tunnel.enabled) {
+            if (config.tunnel.type && !['socks5', 'http'].includes(config.tunnel.type)) {
+                throw new Error('Invalid tunnel type. Must be socks5 or http');
+            }
+            if (!config.tunnel.host || !config.tunnel.host.trim()) {
+                throw new Error('Tunnel host is required when tunnel is enabled');
+            }
+            if (!config.tunnel.port) {
+                throw new Error('Tunnel port is required when tunnel is enabled');
+            }
+        }
+
         // 代理配置验证（可选，因为代理可能未启用）
         if (config.proxy && typeof config.proxy !== 'object') {
             throw new Error('Invalid proxy configuration');

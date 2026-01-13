@@ -136,6 +136,12 @@
       environmentPanelBody.style.display = targetPanel === 'environment' ? 'flex' : 'none';
     }
 
+    // 隐藏快捷回复面板（当切换到其他面板时）
+    const quickReplyPanelBody = document.getElementById('quick-reply-panel-body');
+    if (quickReplyPanelBody) {
+      quickReplyPanelBody.style.display = targetPanel === 'quick-reply' ? 'block' : 'none';
+    }
+
     // 切换面板模式类，用于调整宽度
     if (targetPanel === 'environment') {
       panel.classList.add('env-mode');
@@ -298,8 +304,27 @@
     switchPanel('environment');
   }
 
+  /**
+   * Set current active panel (called from other modules like quick-reply-panel.js)
+   * @param {string} panelName - Panel name ('translate', 'environment', 'quick-reply')
+   */
+  function setActivePanel(panelName) {
+    currentActivePanel = panelName;
+  }
+
+  /**
+   * Get current active panel
+   * @returns {string} Current active panel name
+   */
+  function getActivePanel() {
+    return currentActivePanel;
+  }
+
   // Export methods for external access
   window.TranslatePanelLayout = {
-    openEnvironmentPanel
+    openEnvironmentPanel,
+    setActivePanel,
+    getActivePanel,
+    switchPanel
   };
 })();

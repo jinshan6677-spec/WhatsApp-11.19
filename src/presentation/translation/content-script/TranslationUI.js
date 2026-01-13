@@ -51,7 +51,7 @@ class TranslationUI {
       messageNode.querySelector('.selectable-text') ||
       messageNode;
 
-    if (messageContent.parentNode) {
+    if (messageContent !== messageNode && messageContent.parentNode) {
       messageContent.parentNode.appendChild(translationDiv);
     } else {
       messageNode.appendChild(translationDiv);
@@ -74,10 +74,13 @@ class TranslationUI {
 
     const messageContent = messageNode.querySelector('.copyable-text') ||
       messageNode.querySelector('[data-testid="msg-text"]') ||
+      messageNode.querySelector('.selectable-text') ||
       messageNode;
 
-    if (messageContent.parentNode) {
+    if (messageContent !== messageNode && messageContent.parentNode) {
       messageContent.parentNode.appendChild(errorDiv);
+    } else {
+      messageNode.appendChild(errorDiv);
     }
   }
 

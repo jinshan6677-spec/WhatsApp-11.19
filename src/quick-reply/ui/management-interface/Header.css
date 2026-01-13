@@ -1,0 +1,89 @@
+/* Header Container */
+.management-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #ffffff;
+}
+
+/* Left Section */
+.management-header-left {
+  flex: 1;
+}
+
+.management-header-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #212529;
+  line-height: 1.2;
+}
+
+.management-header-description {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+/* Right Section */
+.management-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.management-header-button {
+  white-space: nowrap;
+}
+
+/* Close Button */
+.management-header-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 28px;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  margin-left: 8px;
+}
+
+.management-header-close:hover {
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+.management-header-close:active {
+  background-color: #e9ecef;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .management-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .management-header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .management-header-title {
+    font-size: 20px;
+  }
+
+  .management-header-description {
+    font-size: 13px;
+  }
+}

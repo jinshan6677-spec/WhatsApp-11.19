@@ -1,0 +1,211 @@
+/**
+ * SendStatusFeedback Styles
+ * Requirements: 14.1-14.7
+ */
+
+.send-status-feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  animation: statusFadeIn 0.3s ease;
+}
+
+@keyframes statusFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Status icon container */
+.send-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+/* Loading spinner */
+.send-status-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success checkmark */
+.send-status-checkmark {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  animation: checkmarkScale 0.3s ease;
+}
+
+@keyframes checkmarkScale {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Error icon */
+.send-status-error-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  animation: errorShake 0.4s ease;
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* Cancelled icon */
+.send-status-cancelled-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Status text */
+.send-status-text {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Cancel button */
+.send-status-cancel {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: inherit;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-left: 4px;
+}
+
+.send-status-cancel:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.send-status-cancel:active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Retry button */
+.send-status-retry {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  color: #dc3545;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+}
+
+.send-status-retry:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.send-status-retry:active {
+  transform: translateY(0);
+}
+
+/* Sending state */
+.send-status-sending {
+  background-color: #007bff;
+  color: #ffffff;
+}
+
+/* Translating state */
+.send-status-translating {
+  background-color: #6f42c1;
+  color: #ffffff;
+}
+
+/* Translated state */
+.send-status-translated {
+  background-color: #17a2b8;
+  color: #ffffff;
+}
+
+/* Success state */
+.send-status-success {
+  background-color: #28a745;
+  color: #ffffff;
+}
+
+/* Error state */
+.send-status-error {
+  background-color: #dc3545;
+  color: #ffffff;
+}
+
+/* Cancelled state */
+.send-status-cancelled {
+  background-color: #6c757d;
+  color: #ffffff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .send-status-feedback {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .send-status-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .send-status-spinner {
+    width: 14px;
+    height: 14px;
+  }
+
+  .send-status-checkmark,
+  .send-status-error-icon,
+  .send-status-cancelled-icon {
+    width: 16px;
+    height: 16px;
+  }
+}

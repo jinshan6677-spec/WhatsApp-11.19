@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch Operations Demo - Quick Reply</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: #1976d2;
+      color: white;
+      padding: 20px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    /* Batch Operations Toolbar */
+    .batch-operations {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background-color: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    .batch-operations-count {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1976d2;
+    }
+
+    .batch-operations-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #1976d2;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1565c0;
+    }
+
+    .btn-danger {
+      background: #d32f2f;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c62828;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: #666;
+      border: 1px solid #ddd;
+    }
+
+    .btn-ghost:hover {
+      background: #f5f5f5;
+    }
+
+    /* Template List */
+    .template-list {
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+
+    .template-list-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .template-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f5f5f5;
+      transition: background 0.2s;
+    }
+
+    .template-item:hover {
+      background: #fafafa;
+    }
+
+    .template-item.selected {
+      background: #e3f2fd;
+    }
+
+    .template-item:last-child {
+      border-bottom: none;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .template-type {
+      padding: 4px 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .template-label {
+      flex: 1;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .template-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      padding: 4px 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      transition: color 0.2s;
+    }
+
+    .icon-btn:hover {
+      color: #1976d2;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 400px;
+      max-width: 500px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    .modal-body {
+      margin-bottom: 20px;
+    }
+
+    .group-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+
+    .group-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f5f5f5;
+      transition: background 0.2s;
+    }
+
+    .group-item:hover {
+      background: #f5f5f5;
+    }
+
+    .group-item.selected {
+      background: #e3f2fd;
+    }
+
+    .group-item:last-child {
+      border-bottom: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding-top: 16px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .info-box {
+      padding: 12px;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #856404;
+    }
+
+    .success-box {
+      padding: 12px;
+      background: #d4edda;
+      border: 1px solid #28a745;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #155724;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📦 Batch Operations Demo</h1>
+      <p>Quick Reply - Batch Operations Feature Demonstration</p>
+    </div>
+
+    <div class="content">
+      <div class="info-box">
+        ℹ️ This demo shows the batch operations functionality. Select multiple templates using checkboxes to see batch operations in action.
+      </div>
+
+      <div class="section">
+        <h2>Template List with Batch Operations</h2>
+
+        <!-- Batch Operations Toolbar (hidden by default) -->
+        <div class="batch-operations" id="batchToolbar" style="display: none;">
+          <div class="batch-operations-count" id="selectedCount">
+            已选中 0 个模板
+          </div>
+          <div class="batch-operations-actions">
+            <button class="btn btn-ghost" onclick="showMoveDialog()">移动到分组</button>
+            <button class="btn btn-danger" onclick="batchDelete()">删除</button>
+            <button class="btn btn-ghost" onclick="clearSelection()">取消选择</button>
+          </div>
+        </div>
+
+        <!-- Template List -->
+        <div class="template-list">
+          <div class="template-list-header">
+            <input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()">
+            <span style="flex: 1; font-weight: 500;">全选</span>
+            <button class="btn btn-primary" onclick="alert('添加新模板')">+ 添加模板</button>
+          </div>
+
+          <div class="template-item" data-id="1">
+            <input type="checkbox" class="checkbox template-checkbox" onchange="updateSelection()">
+            <span class="template-type">文本</span>
+            <span class="template-label">早安问候</span>
+            <div class="template-actions">
+              <button class="icon-btn" onclick="alert('编辑模板')">✏️</button>
+              <button class="icon-btn" onclick="alert('删除模板')">🗑️</button>
+            </div>
+          </div>
+
+          <div class="template-item" data-id="2">
+            <input type="checkbox" class="checkbox template-checkbox" onchange="updateSelection()">
+            <span class="template-type">文本</span>
+            <span class="template-label">晚安问候</span>
+            <div class="template-actions">
+              <button class="icon-btn" onclick="alert('编辑模板')">✏️</button>
+              <button class="icon-btn" onclick="alert('删除模板')">🗑️</button>
+            </div>
+          </div>
+
+          <div class="template-item" data-id="3">
+            <input type="checkbox" class="checkbox template-checkbox" onchange="updateSelection()">
+            <span class="template-type">图片</span>
+            <span class="template-label">产品图片</span>
+            <div class="template-actions">
+              <button class="icon-btn" onclick="alert('编辑模板')">✏️</button>
+              <button class="icon-btn" onclick="alert('删除模板')">🗑️</button>
+            </div>
+          </div>
+
+          <div class="template-item" data-id="4">
+            <input type="checkbox" class="checkbox template-checkbox" onchange="updateSelection()">
+            <span class="template-type">图文</span>
+            <span class="template-label">促销活动</span>
+            <div class="template-actions">
+              <button class="icon-btn" onclick="alert('编辑模板')">✏️</button>
+              <button class="icon-btn" onclick="alert('删除模板')">🗑️</button>
+            </div>
+          </div>
+
+          <div class="template-item" data-id="5">
+            <input type="checkbox" class="checkbox template-checkbox" onchange="updateSelection()">
+            <span class="template-type">视频</span>
+            <span class="template-label">产品演示</span>
+            <div class="template-actions">
+              <button class="icon-btn" onclick="alert('编辑模板')">✏️</button>
+              <button class="icon-btn" onclick="alert('删除模板')">🗑️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Features Demonstrated</h2>
+        <ul style="list-style: none; padding: 0;">
+          <li style="padding: 8px 0;">✅ Batch selection with checkboxes</li>
+          <li style="padding: 8px 0;">✅ Select all / Clear selection</li>
+          <li style="padding: 8px 0;">✅ Batch delete with confirmation</li>
+          <li style="padding: 8px 0;">✅ Batch move to group</li>
+          <li style="padding: 8px 0;">✅ Selected count display</li>
+          <li style="padding: 8px 0;">✅ Visual feedback for selected items</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move to Group Modal -->
+  <div class="modal-overlay" id="moveModal">
+    <div class="modal">
+      <div class="modal-header">移动到分组</div>
+      <div class="modal-body">
+        <p style="margin-bottom: 16px; color: #666;">选择目标分组以移动 <span id="moveCount">0</span> 个模板</p>
+        <div class="group-list">
+          <div class="group-item" onclick="selectGroup(this)">
+            <input type="radio" name="targetGroup">
+            <span>常用问候</span>
+          </div>
+          <div class="group-item" onclick="selectGroup(this)">
+            <input type="radio" name="targetGroup">
+            <span>产品介绍</span>
+          </div>
+          <div class="group-item" onclick="selectGroup(this)">
+            <input type="radio" name="targetGroup">
+            <span>售后服务</span>
+          </div>
+          <div class="group-item" onclick="selectGroup(this)">
+            <input type="radio" name="targetGroup">
+            <span>促销活动</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeMoveDialog()">取消</button>
+        <button class="btn btn-primary" onclick="confirmMove()">确认移动</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateSelection() {
+      const checkboxes = document.querySelectorAll('.template-checkbox');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked);
+      const count = checked.length;
+
+      // Update toolbar visibility
+      const toolbar = document.getElementById('batchToolbar');
+      const countText = document.getElementById('selectedCount');
+      
+      if (count > 0) {
+        toolbar.style.display = 'flex';
+        countText.textContent = `已选中 ${count} 个模板`;
+      } else {
+        toolbar.style.display = 'none';
+      }
+
+      // Update select all checkbox
+      const selectAll = document.getElementById('selectAll');
+      selectAll.checked = count === checkboxes.length;
+      selectAll.indeterminate = count > 0 && count < checkboxes.length;
+
+      // Highlight selected items
+      document.querySelectorAll('.template-item').forEach((item, index) => {
+        if (checkboxes[index].checked) {
+          item.classList.add('selected');
+        } else {
+          item.classList.remove('selected');
+        }
+      });
+    }
+
+    function toggleSelectAll() {
+      const selectAll = document.getElementById('selectAll');
+      const checkboxes = document.querySelectorAll('.template-checkbox');
+      
+      checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+      });
+      
+      updateSelection();
+    }
+
+    function clearSelection() {
+      const checkboxes = document.querySelectorAll('.template-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = false;
+      });
+      document.getElementById('selectAll').checked = false;
+      updateSelection();
+    }
+
+    function batchDelete() {
+      const checkboxes = document.querySelectorAll('.template-checkbox');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked);
+      
+      if (confirm(`确定要删除选中的 ${checked.length} 个模板吗？`)) {
+        // Simulate deletion
+        checked.forEach(cb => {
+          cb.closest('.template-item').remove();
+        });
+        updateSelection();
+        
+        // Show success message
+        const successBox = document.createElement('div');
+        successBox.className = 'success-box';
+        successBox.textContent = `✅ 成功删除 ${checked.length} 个模板`;
+        document.querySelector('.content').insertBefore(
+          successBox,
+          document.querySelector('.section')
+        );
+        
+        setTimeout(() => successBox.remove(), 3000);
+      }
+    }
+
+    function showMoveDialog() {
+      const checkboxes = document.querySelectorAll('.template-checkbox');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked);
+      
+      document.getElementById('moveCount').textContent = checked.length;
+      document.getElementById('moveModal').classList.add('active');
+    }
+
+    function closeMoveDialog() {
+      document.getElementById('moveModal').classList.remove('active');
+      // Clear selection
+      document.querySelectorAll('.group-item').forEach(item => {
+        item.classList.remove('selected');
+        item.querySelector('input').checked = false;
+      });
+    }
+
+    function selectGroup(element) {
+      document.querySelectorAll('.group-item').forEach(item => {
+        item.classList.remove('selected');
+        item.querySelector('input').checked = false;
+      });
+      element.classList.add('selected');
+      element.querySelector('input').checked = true;
+    }
+
+    function confirmMove() {
+      const selected = document.querySelector('.group-item.selected');
+      if (!selected) {
+        alert('请选择目标分组');
+        return;
+      }
+
+      const groupName = selected.querySelector('span').textContent;
+      const checkboxes = document.querySelectorAll('.template-checkbox');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked);
+      
+      // Simulate move
+      closeMoveDialog();
+      clearSelection();
+      
+      // Show success message
+      const successBox = document.createElement('div');
+      successBox.className = 'success-box';
+      successBox.textContent = `✅ 成功移动 ${checked.length} 个模板到「${groupName}」`;
+      document.querySelector('.content').insertBefore(
+        successBox,
+        document.querySelector('.section')
+      );
+      
+      setTimeout(() => successBox.remove(), 3000);
+    }
+  </script>
+</body>
+</html>

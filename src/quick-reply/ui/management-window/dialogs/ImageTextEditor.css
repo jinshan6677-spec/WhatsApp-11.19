@@ -1,0 +1,260 @@
+/**
+ * ImageTextEditor Dialog Styles
+ * 
+ * Styles for the image+text editor dialog component.
+ * Requirements: 5.6
+ */
+
+.imagetext-editor-modal {
+  max-width: 600px;
+}
+
+.imagetext-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Error Banner */
+.imagetext-editor-error-banner {
+  padding: 12px;
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Field */
+.imagetext-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.imagetext-editor-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.imagetext-editor-label .required {
+  color: #ff4d4f;
+}
+
+/* Input */
+.imagetext-editor-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.imagetext-editor-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.imagetext-editor-input.has-error {
+  border-color: #ff4d4f;
+}
+
+/* Select */
+.imagetext-editor-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.imagetext-editor-select:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Content Row - Side by side layout */
+.imagetext-editor-content-row {
+  display: flex;
+  gap: 16px;
+}
+
+.imagetext-editor-image-section {
+  flex: 0 0 200px;
+}
+
+.imagetext-editor-text-section {
+  flex: 1;
+}
+
+/* Dropzone */
+.imagetext-editor-dropzone {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.imagetext-editor-dropzone:hover {
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.imagetext-editor-dropzone.has-error {
+  border-color: #ff4d4f;
+}
+
+/* Placeholder */
+.imagetext-editor-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.imagetext-editor-icon {
+  font-size: 36px;
+}
+
+.imagetext-editor-text {
+  font-size: 13px;
+  color: #333;
+}
+
+.imagetext-editor-hint {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* Preview */
+.imagetext-editor-preview {
+  position: relative;
+  max-width: 100%;
+  max-height: 180px;
+}
+
+.imagetext-editor-preview img {
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.imagetext-editor-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #ff4d4f;
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.imagetext-editor-remove-btn:hover {
+  background-color: #ff7875;
+}
+
+/* Hidden file input */
+.imagetext-editor-file-input {
+  display: none;
+}
+
+/* Textarea */
+.imagetext-editor-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  resize: vertical;
+  min-height: 150px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.imagetext-editor-textarea:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.imagetext-editor-textarea.has-error {
+  border-color: #ff4d4f;
+}
+
+/* Character count */
+.imagetext-editor-char-count {
+  font-size: 12px;
+  color: #8c8c8c;
+  text-align: right;
+}
+
+/* Error message */
+.imagetext-editor-error {
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+/* Footer */
+.imagetext-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .imagetext-editor-modal {
+    max-width: 100%;
+    margin: 16px;
+  }
+  
+  .imagetext-editor-content-row {
+    flex-direction: column;
+  }
+  
+  .imagetext-editor-image-section {
+    flex: none;
+  }
+  
+  .imagetext-editor-dropzone {
+    min-height: 120px;
+    padding: 12px;
+  }
+  
+  .imagetext-editor-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .imagetext-editor-footer button {
+    width: 100%;
+  }
+}

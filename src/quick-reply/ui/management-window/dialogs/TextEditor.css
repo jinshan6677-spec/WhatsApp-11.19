@@ -1,0 +1,155 @@
+/**
+ * TextEditor Dialog Styles
+ * 
+ * Styles for the text editor dialog component.
+ * Requirements: 5.2
+ */
+
+.text-editor-modal {
+  max-width: 500px;
+}
+
+.text-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Error Banner */
+.text-editor-error-banner {
+  padding: 12px;
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Field */
+.text-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.text-editor-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.text-editor-label .required {
+  color: #ff4d4f;
+}
+
+/* Input */
+.text-editor-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.text-editor-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.text-editor-input.has-error {
+  border-color: #ff4d4f;
+}
+
+.text-editor-input.has-error:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* Select */
+.text-editor-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.text-editor-select:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Textarea */
+.text-editor-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: none;
+  resize: vertical;
+  min-height: 150px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.text-editor-textarea:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.text-editor-textarea.has-error {
+  border-color: #ff4d4f;
+}
+
+.text-editor-textarea.has-error:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* Character count */
+.text-editor-char-count {
+  font-size: 12px;
+  color: #8c8c8c;
+  text-align: right;
+}
+
+/* Error message */
+.text-editor-error {
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+/* Footer */
+.text-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .text-editor-modal {
+    max-width: 100%;
+    margin: 16px;
+  }
+  
+  .text-editor-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .text-editor-footer button {
+    width: 100%;
+  }
+}

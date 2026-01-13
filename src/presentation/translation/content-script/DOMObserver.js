@@ -50,7 +50,7 @@ class DOMObserver {
             if (node.classList && (node.classList.contains('message-in') || node.classList.contains('message-out'))) {
               console.log('[Translation] New message detected:', node);
               if (node.classList.contains('message-out') && this.inputBoxTranslator && this.inputBoxTranslator.handleMessageSent) {
-                try { this.inputBoxTranslator.handleMessageSent(); } catch (_) {}
+                try { this.inputBoxTranslator.handleMessageSent(); } catch (_) { }
               }
               if (!node.querySelector('.wa-translation-result')) {
                 this.messageTranslator.handleNewMessage(node);
@@ -68,12 +68,20 @@ class DOMObserver {
               console.log(`[Translation] Found ${messages.length} messages in added node`);
               messages.forEach(msg => {
                 if (msg.classList && msg.classList.contains('message-out') && this.inputBoxTranslator && this.inputBoxTranslator.handleMessageSent) {
-                  try { this.inputBoxTranslator.handleMessageSent(); } catch (_) {}
+                  try { this.inputBoxTranslator.handleMessageSent(); } catch (_) { }
                 }
                 if (!msg.querySelector('.wa-translation-result')) {
                   this.messageTranslator.handleNewMessage(msg);
                 }
               });
+            }
+          }
+
+          // Check if added node is INSIDE a message
+          if (node.closest) {
+            const parentMessage = node.closest('.message-in, .message-out');
+            if (parentMessage) {
+              this.messageTranslator.handleNewMessage(parentMessage);
             }
           }
         });
