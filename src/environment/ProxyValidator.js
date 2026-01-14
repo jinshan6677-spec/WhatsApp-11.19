@@ -11,13 +11,6 @@
 
 const axios = require('axios');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-let SocksProxyAgentClass = null;
-try {
-    const socksModule = require('socks-proxy-agent');
-    SocksProxyAgentClass = socksModule.SocksProxyAgent || socksModule;
-} catch (e) {
-    // socks-proxy-agent not available, SOCKS5 proxy won't be supported
-}
 
 /**
  * Proxy Validator
@@ -44,32 +37,16 @@ class ProxyValidator {
         try {
             // Build proxy URL
             const { protocol, host, port, username, password } = proxyConfig;
-            const proxyProtocol = (protocol || 'http').toLowerCase();
 
-            let agent;
             let proxyUrl;
-            
-            if (proxyProtocol === 'socks5') {
-                // SOCKS5 proxy
-                if (!SocksProxyAgentClass) {
-                    throw new Error('socks-proxy-agent package not available for SOCKS5 support');
-                }
-                proxyUrl = `socks5://${host}:${port}`;
-                if (username && password) {
-                    proxyUrl = `socks5://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
-                }
-                agent = new SocksProxyAgentClass(proxyUrl);
-                console.log('[ProxyValidator] Using SOCKS5 proxy:', proxyUrl.replace(/:[^:]*@/, ':****@'));
+            if (username && password) {
+                proxyUrl = `${protocol || 'http'}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
             } else {
-                // HTTP/HTTPS proxy
-                if (username && password) {
-                    proxyUrl = `${proxyProtocol}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
-                } else {
-                    proxyUrl = `${proxyProtocol}://${host}:${port}`;
-                }
-                agent = new HttpsProxyAgent(proxyUrl);
-                console.log('[ProxyValidator] Using HTTP proxy:', proxyUrl.replace(/:[^:]*@/, ':****@'));
+                proxyUrl = `${protocol || 'http'}://${host}:${port}`;
             }
+
+            // Create proxy agent
+            const agent = new HttpsProxyAgent(proxyUrl);
 
             // Try multiple providers
             const providers = [
@@ -168,10 +145,9 @@ class ProxyValidator {
     /**
      * Detect current network information (without proxy)
      * @param {number} [timeout=10000] - Request timeout in milliseconds
-     * @param {Electron.Session} [session] - Optional session to use for proxy
      * @returns {Promise<Object>} Network information
      */
-    static async getCurrentNetwork(timeout = 10000, session = null) {
+    static async getCurrentNetwork(timeout = 10000) {
         try {
             // Try multiple providers (Chinese-friendly first)
             const providers = [
@@ -231,76 +207,33 @@ class ProxyValidator {
             let lastError;
             for (const provider of providers) {
                 try {
-                    let response;
-                    
-                    // If session is provided, use it to make the request (will use session's proxy)
-                    if (session && session.webContents) {
-                        console.log('[ProxyValidator] Using session for IP detection');
-                        const script = '(async () => {' +
-'  try {' +
-'    const response = await fetch("' + provider.url + '");' +
-'    const data = await response.json();' +
-'    return data;' +
-'  } catch (error) {' +
-'    throw error;' +
-'  }' +
-'})()';
-                        
-                        const data = await session.webContents.executeJavaScript(script);
-                        console.log('[ProxyValidator] Session IP result:', data);
-                        
-                        if (data) {
-                            const adaptedData = provider.adapter(data);
-                            console.log('[ProxyValidator] Adapted IP:', adaptedData.ip);
-                            return {
-                                success: true,
-                                ip: adaptedData.ip || 'Unknown',
-                                location: {
-                                    country: adaptedData.location.country || 'Unknown',
-                                    countryCode: adaptedData.location.countryCode || '',
-                                    city: adaptedData.location.city || 'Unknown',
-                                    region: adaptedData.location.region || '',
-                                    latitude: adaptedData.location.latitude || null,
-                                    longitude: adaptedData.location.longitude || null
-                                },
-                                timezone: adaptedData.timezone || 'UTC',
-                                language: this._getLanguageFromCountry(adaptedData.location.countryCode),
-                                isp: adaptedData.isp || 'Unknown',
-                                type: adaptedData.type || 'Unknown'
-                            };
+                    const response = await axios.get(provider.url, {
+                        timeout: timeout,
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                         }
-                    } else {
-                        // Fallback to axios (direct connection)
-                        console.log('[ProxyValidator] Using axios (direct connection)');
-                        response = await axios.get(provider.url, {
-                            timeout: timeout,
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                            }
-                        });
+                    });
 
-                        const data = provider.adapter(response.data);
-                        console.log('[ProxyValidator] Axios IP result:', data.ip);
+                    const data = provider.adapter(response.data);
 
-                        return {
-                            success: true,
-                            ip: data.ip || 'Unknown',
-                            location: {
-                                country: data.location.country || 'Unknown',
-                                countryCode: data.location.countryCode || '',
-                                city: data.location.city || 'Unknown',
-                                region: data.location.region || '',
-                                latitude: data.location.latitude || null,
-                                longitude: data.location.longitude || null
-                            },
-                            timezone: data.timezone || 'UTC',
-                            language: this._getLanguageFromCountry(data.location.countryCode),
-                            isp: data.isp || 'Unknown',
-                            type: data.type || 'Unknown'
-                        };
-                    }
+                    return {
+                        success: true,
+                        ip: data.ip || 'Unknown',
+                        location: {
+                            country: data.location.country || 'Unknown',
+                            countryCode: data.location.countryCode || '',
+                            city: data.location.city || 'Unknown',
+                            region: data.location.region || '',
+                            latitude: data.location.latitude || null,
+                            longitude: data.location.longitude || null
+                        },
+                        timezone: data.timezone || 'UTC',
+                        language: this._getLanguageFromCountry(data.location.countryCode),
+                        isp: data.isp || 'Unknown',
+                        type: data.type || 'Unknown'
+                    };
                 } catch (err) {
-                    console.warn('[ProxyValidator] Provider ' + provider.url + ' failed:', err.message);
+                    console.warn(`[ProxyValidator] Provider ${provider.url} failed:`, err.message);
                     lastError = err;
                     continue;
                 }

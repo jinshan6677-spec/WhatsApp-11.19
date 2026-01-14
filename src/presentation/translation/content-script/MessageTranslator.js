@@ -42,14 +42,7 @@ class MessageTranslator {
         }
       }
 
-      // Extract message text
-      // Extract message text
-      const textElement = messageNode.querySelector('.copyable-text span') ||
-        messageNode.querySelector('.copyable-text') ||
-        messageNode.querySelector('.selectable-text[dir="ltr"], .selectable-text[dir="rtl"]') ||
-        messageNode.querySelector('.selectable-text') ||
-        messageNode.querySelector('[data-testid="conversation-text"]') ||
-        messageNode.querySelector('[data-testid="msg-text"]');
+      const textElement = this.getMessageTextElement(messageNode);
       if (!textElement || !textElement.textContent.trim()) {
         console.log('[Translation] No text found in message, skipping');
         return;
@@ -165,6 +158,18 @@ class MessageTranslator {
   }
 
   /**
+   * Helper: Get message text element using multiple selectors
+   */
+  getMessageTextElement(messageNode) {
+    if (!messageNode) return null;
+    return messageNode.querySelector('.copyable-text span') ||
+      messageNode.querySelector('.copyable-text') ||
+      messageNode.querySelector('.selectable-text[dir="ltr"], .selectable-text[dir="rtl"]') ||
+      messageNode.querySelector('.selectable-text') ||
+      messageNode.querySelector('[data-testid="conversation-text"]');
+  }
+
+  /**
    * Start periodic check for new messages
    */
   startPeriodicCheck() {
@@ -179,7 +184,7 @@ class MessageTranslator {
           // Skip already translated or marked as skipped messages
           if (!msg.querySelector('.wa-translation-result') &&
             !msg.hasAttribute('data-translation-skipped')) {
-            const textElement = msg.querySelector('.selectable-text');
+            const textElement = this.getMessageTextElement(msg);
             if (textElement && textElement.textContent.trim()) {
               this.handleNewMessage(msg);
               newCount++;

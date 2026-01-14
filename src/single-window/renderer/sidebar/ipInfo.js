@@ -101,30 +101,14 @@ async function fetchAndRenderIPInfo(account, item) {
       account.lastIPInfo = result;
       account.lastIPInfoTimestamp = Date.now();
     } else {
-      // Handle specific error codes
-      let errorMsg = result.error || '获取失败';
-      let fullError = result.error || '';
-
-      if (fullError.includes('407') || fullError.includes('authentication')) {
-        errorMsg = '代理认证失败';
-        fullError = '代理需要认证，请检查用户名和密码';
-      } else if (fullError.includes('timeout') || fullError.includes('TIMED_OUT')) {
-        errorMsg = '连接超时';
-        fullError = '无法连接到代理服务器，请检查代理配置';
-      } else if (fullError.includes('ECONNREFUSED') || fullError.includes('connection refused')) {
-        errorMsg = '代理不可用';
-        fullError = '代理服务器拒绝连接，请确认代理正在运行';
-      }
-
-      renderIPError(ipContainer, errorMsg, fullError, account);
+      renderIPError(ipContainer, result.error, result.message, account);
     }
   } catch (error) {
     console.error(`[Sidebar] Failed to fetch IP info for account ${account.id}:`, error);
     // Show actual error message for debugging
-    let errorMsg = error.message || '获取失败';
-    if (error.message && error.message.includes('No handler')) {
-      errorMsg = '需重启应用';
-    }
+    const errorMsg = error.message && error.message.includes('No handler')
+      ? '需重启应用'
+      : (error.message || '获取失败');
     renderIPError(ipContainer, errorMsg, error.message, account);
   }
 }
@@ -142,22 +126,11 @@ function renderIPDetails(container, info, account) {
   const row = document.createElement('div');
   row.className = 'ip-row compact';
 
-  // Icon based on connection type
+  // Icon instead of Tag
   const iconSpan = document.createElement('span');
   iconSpan.className = `ip-icon ${info.isProxy ? 'proxy' : 'local'}`;
-  
-  // Different icons for different connection types
-  if (info.connectionType === 'tunnel') {
-    iconSpan.textContent = '🚇'; // Subway icon for tunnel
-    iconSpan.title = '加密隧道连接';
-  } else if (info.connectionType === 'proxy') {
-    iconSpan.textContent = '✈️'; // Plane icon for proxy
-    iconSpan.title = 'HTTP/HTTPS代理连接';
-  } else {
-    iconSpan.textContent = '🏠'; // House icon for direct
-    iconSpan.title = '直连';
-  }
-  
+  // Use simple visual indicators: Plane for proxy, House for local
+  iconSpan.textContent = info.isProxy ? '✈️' : '🏠';
   row.appendChild(iconSpan);
 
   // IP Address (Masked by default)
@@ -200,12 +173,8 @@ function renderIPDetails(container, info, account) {
     const city = info.location.city ? `, ${info.location.city}` : '';
     const fullLocation = `${country}${city}`;
 
-    // Add connection type to title
-    const connectionTypeText = info.connectionType === 'tunnel' ? '加密隧道' : 
-                              info.connectionType === 'proxy' ? 'HTTP代理' : '直连';
-
-    // Update IP title to include location and connection type
-    ipSpan.title = `点击切换显示完整IP\n连接方式: ${connectionTypeText}\n位置: ${fullLocation}`;
+    // Update IP title to include location
+    ipSpan.title = `点击切换显示完整IP\n位置: ${fullLocation}`;
   }
 
   container.appendChild(row);
@@ -261,20 +230,7 @@ function createEnvInfoIcon(account) {
     const ua = await getAccountUA(account.id);
     const localIP = await getLocalPublicIP(false);
     const proxyInfo = await getProxyIPInfo(account);
-    
-    // Determine connection type and IP
-    let connectionType = '直连';
-    let currentIP = localIP || '获取中...';
-    
-    if (proxyInfo && proxyInfo.success) {
-      if (proxyInfo.connectionType === 'tunnel') {
-        connectionType = '加密隧道';
-        currentIP = proxyInfo.ip || '获取中...';
-      } else if (proxyInfo.connectionType === 'proxy') {
-        connectionType = 'HTTP代理';
-        currentIP = proxyInfo.ip || '获取中...';
-      }
-    }
+    const proxyIP = proxyInfo && proxyInfo.isProxy ? (proxyInfo.ip || '') : '直连';
 
     // Parse simplified UA
     let simpleUA = '默认';
@@ -289,7 +245,7 @@ function createEnvInfoIcon(account) {
       simpleUA = `${os} / ${browser}`;
     }
 
-    const tip = `连接方式: ${connectionType}\n当前 IP: ${currentIP}\n本机 IP: ${localIP || '获取中...'}\n运行环境: ${simpleUA}\n\n完整 UA:\n${ua}`;
+    const tip = `代理 IP：${proxyIP}\n本机 IP：${localIP || '获取中...'}\n运行环境：${simpleUA}\n\n完整 UA：\n${ua}`;
 
     if (btn.dataset.originalTitle) {
       btn.dataset.originalTitle = tip;
@@ -381,24 +337,6 @@ async function getProxyIPInfo(account) {
   if (typeof window === 'undefined' || !window.electronAPI) return null;
   
   const now = Date.now();
-  
-  // Check if account has tunnel configuration
-  let hasTunnel = false;
-  try {
-    const envConfig = await window.electronAPI.getEnvironmentConfig(account.id);
-    if (envConfig && envConfig.success && envConfig.config && envConfig.config.tunnel && envConfig.config.tunnel.enabled) {
-      hasTunnel = true;
-      console.log('[Sidebar] Account ' + account.id + ' has tunnel enabled, forcing IP refresh');
-      // Clear cache for tunnel accounts to ensure we get the current tunnel IP
-      delete account.lastIPInfo;
-      delete account.lastIPInfoTimestamp;
-    }
-  } catch (e) {
-    console.error('[Sidebar] Failed to check tunnel config:', e);
-  }
-  
-  // Cache check - for tunnel accounts, always fetch fresh IP to ensure we get the tunnel IP
-  // Previously had condition (!hasTunnel), but tunnel accounts need fresh data
   if (account.lastIPInfo && account.lastIPInfoTimestamp && now - account.lastIPInfoTimestamp < 60000) {
     return account.lastIPInfo;
   }

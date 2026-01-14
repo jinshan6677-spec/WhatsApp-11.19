@@ -11,67 +11,7 @@
       '<div class="env-panel-body">\n' +
       '  <section class="env-section">\n' +
       '    <h3 class="env-section-title">\n' +
-      '      <span>加密隧道设置</span>\n' +
-      '      <label class="env-toggle">\n' +
-      '        <input type="checkbox" id="tunnel-enabled">\n' +
-      '        <span class="env-toggle-slider"></span>\n' +
-      '      </label>\n' +
-      '    </h3>\n' +
-      '    <div class="env-section-content" id="tunnel-content">\n' +
-      '      <div class="env-info-box">\n' +
-      '        <p><strong>💡 什么是加密隧道？</strong></p>\n' +
-      '        <p>加密隧道（如V2Ray、Clash等）可以将您的网络流量加密并路由到海外服务器，突破防火墙限制。</p>\n' +
-      '        <p><strong>使用场景：</strong></p>\n' +
-      '        <ul>\n' +
-      '          <li>在中国使用WhatsApp</li>\n' +
-      '          <li>保护网络隐私</li>\n' +
-      '          <li>绕过网络审查</li>\n' +
-      '        </ul>\n' +
-      '        <p><strong>配置说明：</strong></p>\n' +
-      '        <p>如果您使用V2RayN/Clash等软件，请配置为SOCKS5代理模式，通常地址为 <code>127.0.0.1:1080</code></p>\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>隧道类型</label>\n' +
-      '        <select id="tunnel-type">\n' +
-      '          <option value="socks5">SOCKS5 (推荐，V2Ray/Clash)</option>\n' +
-      '          <option value="http">HTTP</option>\n' +
-      '        </select>\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>隧道地址</label>\n' +
-      '        <input type="text" id="tunnel-host" placeholder="例如: 127.0.0.1">\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>隧道端口</label>\n' +
-      '        <input type="number" id="tunnel-port" placeholder="1080" min="1" max="65535">\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>用户名（可选）</label>\n' +
-      '        <input type="text" id="tunnel-username" placeholder="如果隧道需要认证">\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>密码（可选）</label>\n' +
-      '        <div class="env-input-group">\n' +
-      '          <input type="password" id="tunnel-password" placeholder="如果隧道需要认证">\n' +
-      '          <button class="env-btn-icon" id="toggle-tunnel-password" title="显示/隐藏密码">👁️</button>\n' +
-      '        </div>\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>智能粘贴（可选）</label>\n' +
-      '        <div class="env-input-group">\n' +
-      '          <textarea id="tunnel-smart-paste" rows="2" placeholder="例如: 127.0.0.1:1080:user:pass"></textarea>\n' +
-      '          <button class="env-btn-secondary" id="parse-tunnel-btn">解析并填充</button>\n' +
-      '        </div>\n' +
-      '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <button class="env-btn-primary" id="test-tunnel-btn">测试隧道连接</button>\n' +
-      '      </div>\n' +
-      '      <div class="env-result-box hidden" id="tunnel-result"></div>\n' +
-      '    </div>\n' +
-      '  </section>\n' +
-      '  <section class="env-section">\n' +
-      '    <h3 class="env-section-title">\n' +
-      '      <span>HTTP/HTTPS代理设置</span>\n' +
+      '      <span>代理设置</span>\n' +
       '      <label class="env-toggle">\n' +
       '        <input type="checkbox" id="proxy-enabled">\n' +
       '        <span class="env-toggle-slider"></span>\n' +
