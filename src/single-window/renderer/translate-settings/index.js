@@ -75,9 +75,53 @@
       if (groqSttModelEl) groqSttModelEl.value = this.config.advanced.groqModel || 'whisper-large-v3';
       if (groqTextModelEl) groqTextModelEl.value = this.config.advanced.groqTextModel || 'llama-3.1-70b-versatile';
       if (groqTextModelFallbackEl) groqTextModelFallbackEl.value = this.config.advanced.groqTextModelFallback || 'llama-3.1-8b-instant';
+      // Update proxy settings (Requirements 3.4)
+      const proxyConfig = this.config.proxy || { mode: 'auto', useLocalProxy: true };
+      const proxyModeEl = this.panel.querySelector('#translationProxyMode');
+      const useLocalProxyEl = this.panel.querySelector('#translationUseLocalProxy');
+      if (proxyModeEl) proxyModeEl.value = proxyConfig.mode || 'auto';
+      if (useLocalProxyEl) useLocalProxyEl.checked = proxyConfig.useLocalProxy !== false;
+      // Update proxy status display
+      this.updateTranslationProxyStatus();
       window.TranslateSettingsFriends.updateFriendConfigVisibility(this);
       this.updateTranslationStyleVisibility();
       await this.updateAPIConfigVisibility();
+    }
+    updateTranslationProxyStatus(){
+      const statusEl = this.panel.querySelector('#translationProxyStatus');
+      const indicatorEl = this.panel.querySelector('#translationProxyIndicator');
+      const statusTextEl = this.panel.querySelector('#translationProxyStatusText');
+      if (!statusEl || !indicatorEl || !statusTextEl) return;
+      const proxyMode = this.panel.querySelector('#translationProxyMode').value;
+      const useLocalProxy = this.panel.querySelector('#translationUseLocalProxy').checked;
+      if (proxyMode === 'never') {
+        statusEl.style.display = 'none';
+        return;
+      }
+      statusEl.style.display = 'flex';
+      if (useLocalProxy) {
+        // Check if local proxy is configured via environment settings
+        if (window.electronAPI && window.electronAPI.getLocalProxyConfig) {
+          window.electronAPI.getLocalProxyConfig().then(config => {
+            if (config && config.port) {
+              indicatorEl.className = 'env-status-indicator connected';
+              statusTextEl.textContent = '使用本地代理 :' + config.port;
+            } else {
+              indicatorEl.className = 'env-status-indicator disconnected';
+              statusTextEl.textContent = '未配置本地代理';
+            }
+          }).catch(() => {
+            indicatorEl.className = 'env-status-indicator disconnected';
+            statusTextEl.textContent = '无法获取代理状态';
+          });
+        } else {
+          indicatorEl.className = 'env-status-indicator connecting';
+          statusTextEl.textContent = '将使用环境设置中的代理';
+        }
+      } else {
+        indicatorEl.className = 'env-status-indicator disconnected';
+        statusTextEl.textContent = '未启用本地代理';
+      }
     }
     updateTranslationStyleVisibility(){
       const styleItem = this.panel.querySelector('#translationStyle')?.closest('.setting-item');
@@ -136,6 +180,11 @@
             groqModel: this.panel.querySelector('#groqSttModel').value || 'whisper-large-v3',
             groqTextModel: this.panel.querySelector('#groqTextModel').value || 'llama-3.1-70b-versatile',
             groqTextModelFallback: this.panel.querySelector('#groqTextModelFallback').value || 'llama-3.1-8b-instant'
+          },
+          // Translation proxy settings (Requirements 3.4)
+          proxy: {
+            mode: this.panel.querySelector('#translationProxyMode').value || 'auto',
+            useLocalProxy: this.panel.querySelector('#translationUseLocalProxy').checked
           },
           friendConfigs: this.config.friendConfigs || {}
         };

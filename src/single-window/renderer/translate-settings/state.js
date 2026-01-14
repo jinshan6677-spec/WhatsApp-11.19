@@ -26,6 +26,11 @@
       groqTextModel: 'llama-3.1-70b-versatile',
       groqTextModelFallback: 'llama-3.1-8b-instant'
     },
+    // Translation proxy settings (Requirements 3.4)
+    proxy: {
+      mode: 'auto',  // 'always' | 'auto' | 'never'
+      useLocalProxy: true  // Whether to use local proxy settings from environment
+    },
     friendConfigs: {}
   };
 

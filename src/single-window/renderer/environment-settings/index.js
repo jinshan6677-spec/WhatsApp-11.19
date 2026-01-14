@@ -8,6 +8,11 @@
     state.container = host;
     window.EnvSettingsRender.render(host);
     setupEventListeners();
+    
+    // Initialize local proxy settings
+    if (window.LocalProxySettings) {
+      window.LocalProxySettings.init();
+    }
 
     try {
       const res = await window.electronAPI?.getActiveAccount?.();
@@ -22,10 +27,6 @@
 
   function setupEventListeners() {
     const c = state.container;
-    const tunnelEnabled = c.querySelector('#tunnel-enabled');
-    const tunnelContent = c.querySelector('#tunnel-content');
-    tunnelEnabled.addEventListener('change', window.TunnelSettings.handleTunnelToggle);
-
     const proxyEnabled = c.querySelector('#proxy-enabled');
     const proxyContent = c.querySelector('#proxy-content');
     proxyEnabled.addEventListener('change', (e) => { proxyContent.classList.toggle('disabled', !e.target.checked); });
@@ -62,11 +63,6 @@
     c.querySelector('#test-proxy-btn').addEventListener('click', window.ProxySettings.testProxy);
     c.querySelector('#detect-network-btn').addEventListener('click', window.ProxySettings.detectNetwork);
     c.querySelector('#save-proxy-config-btn').addEventListener('click', window.ProxySettings.saveProxyConfig);
-
-    // Tunnel settings event listeners
-    c.querySelector('#toggle-tunnel-password').addEventListener('click', window.TunnelSettings.toggleTunnelPasswordVisibility);
-    c.querySelector('#parse-tunnel-btn').addEventListener('click', window.TunnelSettings.parseTunnelString);
-    c.querySelector('#test-tunnel-btn').addEventListener('click', window.TunnelSettings.testTunnel);
     c.querySelector('#generate-fingerprint-btn').addEventListener('click', window.FingerprintSettings.generateFingerprint);
     c.querySelector('#test-fingerprint-btn').addEventListener('click', window.FingerprintSettings.testFingerprint);
     c.querySelector('#preview-fingerprint-btn').addEventListener('click', window.FingerprintSettings.previewFingerprint);
@@ -97,9 +93,32 @@
     if (!accountId) return;
     await window.ProxySettings.loadAccountConfig(accountId);
     await window.ProxySettings.loadProxyConfigs();
-    await window.TunnelSettings.loadTunnelConfig();
     await window.FingerprintSettings.loadFingerprintConfig(accountId);
     await window.FingerprintSettings.loadFingerprintTemplates();
+    
+    // Load local proxy config if exists
+    if (state.currentConfig && state.currentConfig.localProxy && state.currentConfig.localProxy.enabled) {
+      if (window.LocalProxySettings) {
+        window.LocalProxySettings.setProxyMode('local');
+        window.LocalProxySettings.populateLocalProxyForm(state.currentConfig);
+      }
+    }
+    
+    // Load health status
+    if (window.electronAPI && window.electronAPI.getHealthStatus) {
+      try {
+        const healthResult = await window.electronAPI.getHealthStatus(accountId);
+        if (healthResult.success && healthResult.isRunning) {
+          window.LocalProxySettings.updateConnectionStatus(
+            healthResult.status.status,
+            healthResult.status.latency,
+            healthResult.status.error
+          );
+        }
+      } catch (e) {
+        console.error('[EnvironmentPanel] Failed to get health status:', e);
+      }
+    }
   }
 
   async function applyConfig() {
@@ -117,24 +136,43 @@
       if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '应用并保存'; }
       return;
     }
-    const tunnelConfig = window.TunnelSettings.collectTunnelFormData();
-    const proxyConfig = window.ProxySettings.collectProxyFormData();
-
-    // Merge tunnel and proxy configs
-    const mergedConfig = {
-      ...tunnelConfig,
-      ...proxyConfig
-    };
-
+    
+    // Collect proxy config based on current mode
+    let proxyConfig;
+    if (window.LocalProxySettings && window.LocalProxySettings.getProxyMode() === 'local') {
+      proxyConfig = window.LocalProxySettings.collectProxyFormData();
+    } else {
+      proxyConfig = window.ProxySettings.collectProxyFormData();
+    }
+    
     try {
-      const proxyResult = await window.electronAPI.saveEnvironmentConfig(state.currentAccountId, mergedConfig);
+      const proxyResult = await window.electronAPI.saveEnvironmentConfig(state.currentAccountId, proxyConfig);
       if (!proxyResult.success) {
-        window.FingerprintSettings.showFingerprintError('保存配置失败: ' + (proxyResult.error || '未知错误'));
+        window.FingerprintSettings.showFingerprintError('保存代理配置失败: ' + (proxyResult.error || '未知错误'));
         if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '应用并保存'; }
         return;
       }
+      
+      // Start health monitoring for local proxy mode
+      if (proxyConfig.localProxy && proxyConfig.localProxy.enabled) {
+        const localProxy = proxyConfig.localProxy;
+        if (localProxy && localProxy.host && localProxy.port) {
+          try {
+            await window.electronAPI.startHealthMonitor(state.currentAccountId, localProxy);
+          } catch (e) {
+            console.error('[EnvironmentPanel] Failed to start health monitor:', e);
+          }
+        }
+      } else {
+        // Stop health monitoring if not using local proxy
+        try {
+          await window.electronAPI.stopHealthMonitor(state.currentAccountId);
+        } catch (e) {
+          // Ignore errors when stopping
+        }
+      }
     } catch (error) {
-      window.FingerprintSettings.showFingerprintError('保存配置失败: ' + error.message);
+      window.FingerprintSettings.showFingerprintError('保存代理配置失败: ' + error.message);
       if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '应用并保存'; }
       return;
     }

@@ -78,55 +78,147 @@
       '      </label>\n' +
       '    </h3>\n' +
       '    <div class="env-section-content" id="proxy-content">\n' +
+      '      <!-- 代理模式选择 -->\n' +
       '      <div class="env-form-group">\n' +
-      '        <label>选择代理配置</label>\n' +
-      '        <div class="env-input-group">\n' +
-      '          <select id="proxy-select">\n' +
-      '            <option value="">-- 新建代理配置 --</option>\n' +
-      '          </select>\n' +
-      '          <button class="env-btn-icon" id="refresh-proxy-list" title="刷新列表">🔄</button>\n' +
-      '          <button class="env-btn-icon" id="delete-proxy-btn" title="删除配置" style="display: none; color: #ff4d4f;">🗑️</button>\n' +
+      '        <label>代理模式</label>\n' +
+      '        <div class="env-proxy-mode-tabs">\n' +
+      '          <button class="env-proxy-mode-tab active" data-mode="direct">直连代理</button>\n' +
+      '          <button class="env-proxy-mode-tab" data-mode="local">本地代理</button>\n' +
       '        </div>\n' +
       '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>协议</label>\n' +
-      '        <select id="proxy-protocol">\n' +
-      '          <option value="http">HTTP</option>\n' +
-      '          <option value="https">HTTPS</option>\n' +
-      '        </select>\n' +
+      '      <!-- 连接状态指示器 -->\n' +
+      '      <div class="env-connection-status hidden" id="connection-status">\n' +
+      '        <span class="env-status-indicator" id="status-indicator"></span>\n' +
+      '        <span class="env-status-text" id="status-text">未连接</span>\n' +
+      '        <span class="env-status-latency hidden" id="status-latency"></span>\n' +
       '      </div>\n' +
-      '      <div class="env-form-row">\n' +
+      '      <!-- 直连代理配置 -->\n' +
+      '      <div class="env-proxy-mode-content" id="direct-proxy-content">\n' +
       '        <div class="env-form-group">\n' +
-      '          <label>主机</label>\n' +
-      '          <input type="text" id="proxy-host" placeholder="例如: 192.168.1.1">\n' +
-      '        </div>\n' +
-      '        <div class="env-form-group" style="width: 120px;">\n' +
-      '          <label>端口</label>\n' +
-      '          <input type="number" id="proxy-port" placeholder="8080" min="1" max="65535">\n' +
-      '        </div>\n' +
-      '      </div>\n' +
-      '      <div class="env-form-row">\n' +
-      '        <div class="env-form-group">\n' +
-      '          <label>用户名（可选）</label>\n' +
-      '          <input type="text" id="proxy-username" placeholder="用户名">\n' +
-      '        </div>\n' +
-      '        <div class="env-form-group">\n' +
-      '          <label>密码（可选）</label>\n' +
-      '          <div class="env-password-group">\n' +
-      '            <input type="password" id="proxy-password" placeholder="密码">\n' +
-      '            <button class="env-btn-icon" id="toggle-password" title="显示/隐藏密码">👁</button>\n' +
+      '          <label>选择代理配置</label>\n' +
+      '          <div class="env-input-group">\n' +
+      '            <select id="proxy-select">\n' +
+      '              <option value="">-- 新建代理配置 --</option>\n' +
+      '            </select>\n' +
+      '            <button class="env-btn-icon" id="refresh-proxy-list" title="刷新列表">🔄</button>\n' +
+      '            <button class="env-btn-icon" id="delete-proxy-btn" title="删除配置" style="display: none; color: #ff4d4f;">🗑️</button>\n' +
       '          </div>\n' +
       '        </div>\n' +
+      '        <div class="env-form-group">\n' +
+      '          <label>协议</label>\n' +
+      '          <select id="proxy-protocol">\n' +
+      '            <option value="http">HTTP</option>\n' +
+      '            <option value="https">HTTPS</option>\n' +
+      '          </select>\n' +
+      '        </div>\n' +
+      '        <div class="env-form-row">\n' +
+      '          <div class="env-form-group">\n' +
+      '            <label>主机</label>\n' +
+      '            <input type="text" id="proxy-host" placeholder="例如: 192.168.1.1">\n' +
+      '          </div>\n' +
+      '          <div class="env-form-group" style="width: 120px;">\n' +
+      '            <label>端口</label>\n' +
+      '            <input type="number" id="proxy-port" placeholder="8080" min="1" max="65535">\n' +
+      '          </div>\n' +
+      '        </div>\n' +
+      '        <div class="env-form-row">\n' +
+      '          <div class="env-form-group">\n' +
+      '            <label>用户名（可选）</label>\n' +
+      '            <input type="text" id="proxy-username" placeholder="用户名">\n' +
+      '          </div>\n' +
+      '          <div class="env-form-group">\n' +
+      '            <label>密码（可选）</label>\n' +
+      '            <div class="env-password-group">\n' +
+      '              <input type="password" id="proxy-password" placeholder="密码">\n' +
+      '              <button class="env-btn-icon" id="toggle-password" title="显示/隐藏密码">👁</button>\n' +
+      '            </div>\n' +
+      '          </div>\n' +
+      '        </div>\n' +
+      '        <div class="env-form-group">\n' +
+      '          <label>智能填写（粘贴格式: IP:端口:用户名:密码）</label>\n' +
+      '          <textarea id="proxy-smart-paste" rows="2" placeholder="例如: 192.168.1.1:8080:user:pass"></textarea>\n' +
+      '          <button class="env-btn-secondary" id="parse-proxy-btn">解析并填充</button>\n' +
+      '        </div>\n' +
+      '        <div class="env-button-group">\n' +
+      '          <button class="env-btn-primary" id="test-proxy-btn">检测代理服务</button>\n' +
+      '          <button class="env-btn-secondary" id="detect-network-btn">检测当前网络</button>\n' +
+      '          <button class="env-btn-secondary" id="save-proxy-config-btn">保存为配置</button>\n' +
+      '        </div>\n' +
       '      </div>\n' +
-      '      <div class="env-form-group">\n' +
-      '        <label>智能填写（粘贴格式: IP:端口:用户名:密码）</label>\n' +
-      '        <textarea id="proxy-smart-paste" rows="2" placeholder="例如: 192.168.1.1:8080:user:pass"></textarea>\n' +
-      '        <button class="env-btn-secondary" id="parse-proxy-btn">解析并填充</button>\n' +
-      '      </div>\n' +
-      '      <div class="env-button-group">\n' +
-      '        <button class="env-btn-primary" id="test-proxy-btn">检测代理服务</button>\n' +
-      '        <button class="env-btn-secondary" id="detect-network-btn">检测当前网络</button>\n' +
-      '        <button class="env-btn-secondary" id="save-proxy-config-btn">保存为配置</button>\n' +
+      '      <!-- 本地代理配置 -->\n' +
+      '      <div class="env-proxy-mode-content hidden" id="local-proxy-content">\n' +
+      '        <div class="env-info-box">\n' +
+      '          <span class="env-info-icon">💡</span>\n' +
+      '          <span>本地代理模式适用于已安装代理客户端（如 Clash、V2rayN）的用户，通过本地 HTTP 端口访问网络。</span>\n' +
+      '        </div>\n' +
+      '        <div class="env-form-group">\n' +
+      '          <label>代理客户端预设</label>\n' +
+      '          <select id="local-proxy-preset">\n' +
+      '            <option value="">-- 选择预设 --</option>\n' +
+      '            <option value="clash">Clash (端口 7890)</option>\n' +
+      '            <option value="v2rayn">V2rayN (端口 10808)</option>\n' +
+      '            <option value="shadowsocks">Shadowsocks (端口 1080)</option>\n' +
+      '            <option value="custom">自定义端口</option>\n' +
+      '          </select>\n' +
+      '        </div>\n' +
+      '        <div class="env-form-row">\n' +
+      '          <div class="env-form-group">\n' +
+      '            <label>本地主机</label>\n' +
+      '            <input type="text" id="local-proxy-host" value="127.0.0.1" readonly>\n' +
+      '          </div>\n' +
+      '          <div class="env-form-group" style="width: 120px;">\n' +
+      '            <label>端口</label>\n' +
+      '            <input type="number" id="local-proxy-port" placeholder="7890" min="1" max="65535">\n' +
+      '          </div>\n' +
+      '        </div>\n' +
+      '        <!-- 链式代理配置（可选） -->\n' +
+      '        <div class="env-collapsible">\n' +
+      '          <div class="env-collapsible-header">\n' +
+      '            <span>🔗 链式代理（可选，用于多账号独立 IP）</span>\n' +
+      '            <span class="env-collapsible-icon">▼</span>\n' +
+      '          </div>\n' +
+      '          <div class="env-collapsible-content">\n' +
+      '            <div class="env-form-group">\n' +
+      '              <label class="env-checkbox-label">\n' +
+      '                <input type="checkbox" id="chained-proxy-enabled">\n' +
+      '                <span>启用链式代理</span>\n' +
+      '              </label>\n' +
+      '            </div>\n' +
+      '            <div id="chained-proxy-fields" class="disabled">\n' +
+      '              <div class="env-form-group">\n' +
+      '                <label>协议</label>\n' +
+      '                <select id="chained-proxy-protocol">\n' +
+      '                  <option value="http">HTTP</option>\n' +
+      '                  <option value="https">HTTPS</option>\n' +
+      '                </select>\n' +
+      '              </div>\n' +
+      '              <div class="env-form-row">\n' +
+      '                <div class="env-form-group">\n' +
+      '                  <label>主机</label>\n' +
+      '                  <input type="text" id="chained-proxy-host" placeholder="例如: proxy.example.com">\n' +
+      '                </div>\n' +
+      '                <div class="env-form-group" style="width: 120px;">\n' +
+      '                  <label>端口</label>\n' +
+      '                  <input type="number" id="chained-proxy-port" placeholder="8080" min="1" max="65535">\n' +
+      '                </div>\n' +
+      '              </div>\n' +
+      '              <div class="env-form-row">\n' +
+      '                <div class="env-form-group">\n' +
+      '                  <label>用户名（可选）</label>\n' +
+      '                  <input type="text" id="chained-proxy-username" placeholder="用户名">\n' +
+      '                </div>\n' +
+      '                <div class="env-form-group">\n' +
+      '                  <label>密码（可选）</label>\n' +
+      '                  <input type="password" id="chained-proxy-password" placeholder="密码">\n' +
+      '                </div>\n' +
+      '              </div>\n' +
+      '            </div>\n' +
+      '          </div>\n' +
+      '        </div>\n' +
+      '        <div class="env-button-group">\n' +
+      '          <button class="env-btn-primary" id="test-local-proxy-btn">测试连接</button>\n' +
+      '          <button class="env-btn-secondary" id="diagnose-proxy-btn">诊断问题</button>\n' +
+      '        </div>\n' +
       '      </div>\n' +
       '      <div class="env-result-box hidden" id="proxy-result"></div>\n' +
       '    </div>\n' +

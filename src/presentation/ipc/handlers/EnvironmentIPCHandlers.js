@@ -17,9 +17,16 @@ const {
     EnvironmentConfigManager,
     ProxyManager,
     ProxyConfigStore,
-    ProxyValidator,
-    TunnelManager
+    ProxyValidator
 } = require('../../../environment');
+
+// Import local proxy modules
+const LocalProxyManager = require('../../../environment/LocalProxyManager');
+const ProxyChainManager = require('../../../environment/ProxyChainManager');
+const ProxyHealthMonitor = require('../../../environment/ProxyHealthMonitor');
+
+// Health monitor instances per account
+const healthMonitors = new Map();
 
 // Import fingerprint services
 const {
@@ -124,6 +131,13 @@ function register(dependencies) {
                 return { success: false, error: 'Configuration is required' };
             }
 
+            console.log('[EnvironmentIPCHandlers] env:save-config called for', accountId);
+            console.log('[EnvironmentIPCHandlers] Config received:', JSON.stringify({
+                proxy: config.proxy ? { enabled: config.proxy.enabled, mode: config.proxy.mode } : 'none',
+                localProxy: config.localProxy ? { enabled: config.localProxy.enabled, host: config.localProxy.host, port: config.localProxy.port, protocol: config.localProxy.protocol } : 'none',
+                chainedProxy: config.chainedProxy ? { enabled: config.chainedProxy.enabled } : 'none'
+            }));
+
             const manager = getEnvConfigManager();
             manager.saveConfig(accountId, config);
 
@@ -159,25 +173,6 @@ function register(dependencies) {
         }
     });
 
-    // Test tunnel connectivity
-    ipcMain.handle('env:test-tunnel', async (event, tunnelConfig) => {
-        try {
-            if (!tunnelConfig) {
-                return { success: false, error: 'Tunnel configuration is required' };
-            }
-
-            const result = await TunnelManager.testTunnel(tunnelConfig, 15000);
-
-            return result;
-        } catch (error) {
-            console.error('[EnvironmentIPCHandlers] env:test-tunnel error:', error);
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    });
-
     // Detect current network information
     ipcMain.handle('env:detect-network', async (event) => {
         try {
@@ -202,68 +197,23 @@ function register(dependencies) {
 
             const manager = getEnvConfigManager();
             const config = manager.getConfig(accountId);
-            const tunnelConfig = config.tunnel || {};
             const proxyConfig = config.proxy || {};
 
             let result;
             let isProxy = false;
-            let connectionType = 'direct';
 
-            // Get session for this account
-            let session = null;
-            try {
-                const { getAppInstance } = require('../../../app/bootstrap');
-                const appBootstrap = getAppInstance();
-                console.log('[NetworkInfo] AppBootstrap:', !!appBootstrap);
-                
-                if (appBootstrap) {
-                    const sessionManager = appBootstrap.getManager ? appBootstrap.getManager('sessionManager') : appBootstrap.managers?.sessionManager;
-                    console.log('[NetworkInfo] SessionManager:', !!sessionManager);
-                    
-                    if (sessionManager) {
-                        session = sessionManager.getInstanceSession(accountId);
-                        console.log('[NetworkInfo] Session:', !!session);
-                        console.log('[NetworkInfo] Session has webContents:', !!(session && session.webContents));
-                    }
-                }
-            } catch (e) {
-                console.error('[NetworkInfo] Failed to get session:', e);
-            }
-
-            // Priority: Tunnel > Proxy > Direct
-            if (tunnelConfig.enabled) {
-                // If tunnel is enabled, get current network info through tunnel proxy
-                const tunnelType = (tunnelConfig.type || 'http').toLowerCase();
-                const tunnelProxyConfig = {
-                    protocol: tunnelType === 'socks5' ? 'socks5' : 'http',
-                    host: tunnelConfig.host,
-                    port: tunnelConfig.port,
-                    username: tunnelConfig.username,
-                    password: tunnelConfig.password
-                };
-                result = await ProxyValidator.testProxy(tunnelProxyConfig, 10000);
-                isProxy = true;
-                connectionType = 'tunnel';
-                console.log('[NetworkInfo] Account ' + accountId + ' using tunnel');
-            } else if (proxyConfig.enabled) {
+            if (proxyConfig.enabled) {
                 // If proxy is enabled, test the proxy connection
                 result = await ProxyValidator.testProxy(proxyConfig, 10000);
                 isProxy = true;
-                connectionType = 'proxy';
-                console.log('[NetworkInfo] Account ' + accountId + ' using proxy');
             } else {
                 // If direct connection, get current network info
-                result = await ProxyValidator.getCurrentNetwork(10000, session);
-                connectionType = 'direct';
-                console.log('[NetworkInfo] Account ' + accountId + ' using direct connection');
+                result = await ProxyValidator.getCurrentNetwork(10000);
             }
 
             if (!result.success) {
-                console.error('[NetworkInfo] Failed to get network info for ' + accountId + ':', result.error);
-                return { success: false, error: result.error, isProxy, connectionType };
+                return { success: false, error: result.error, isProxy };
             }
-
-            console.log('[NetworkInfo] Account ' + accountId + ' IP: ' + result.ip + ', IsProxy: ' + isProxy);
 
             return {
                 success: true,
@@ -273,13 +223,7 @@ function register(dependencies) {
                 type: result.type,
                 timezone: result.timezone,
                 isProxy: isProxy,
-                connectionType: connectionType,
-                tunnelConfig: tunnelConfig.enabled ? {
-                    type: tunnelConfig.type,
-                    host: tunnelConfig.host,
-                    port: tunnelConfig.port
-                } : null,
-                proxyConfig: proxyConfig.enabled ? {
+                proxyConfig: isProxy ? {
                     host: proxyConfig.host,
                     protocol: proxyConfig.protocol,
                     username: proxyConfig.username // Do not return password
@@ -1071,46 +1015,274 @@ function register(dependencies) {
         }
     });
 
-    // Parse tunnel string (smart paste)
-    ipcMain.handle('env:parse-tunnel-string', async (event, tunnelString) => {
+    // ==================== Local Proxy Handlers ====================
+
+    // Get local proxy presets
+    ipcMain.handle('env:local-proxy:get-presets', async (event) => {
         try {
-            if (!tunnelString) {
-                return { success: false, error: 'Tunnel string is required' };
-            }
-
-            // Parse tunnel string: host:port:username:password or host:port
-            const parts = tunnelString.split(':').map(p => p.trim());
-
-            if (parts.length < 2) {
-                return {
-                    success: false,
-                    error: 'Invalid tunnel string format. Expected: host:port or host:port:username:password'
-                };
-            }
-
-            const config = {
-                type: 'socks5',  // Default to SOCKS5
-                host: parts[0],
-                port: parts[1],
-                username: parts[2] || '',
-                password: parts[3] || ''
+            const presets = LocalProxyManager.getAllPresets();
+            return {
+                success: true,
+                presets: presets
             };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:local-proxy:get-presets error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
 
-            // Validate port
-            const portNum = parseInt(config.port, 10);
-            if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+    // Get a specific preset
+    ipcMain.handle('env:local-proxy:get-preset', async (event, presetId) => {
+        try {
+            const preset = LocalProxyManager.getPreset(presetId);
+            if (!preset) {
                 return {
                     success: false,
-                    error: 'Invalid port number'
+                    error: 'Preset not found'
                 };
+            }
+            return {
+                success: true,
+                preset: preset
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:local-proxy:get-preset error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Validate local proxy configuration
+    ipcMain.handle('env:local-proxy:validate', async (event, host, port) => {
+        try {
+            const result = LocalProxyManager.validateLocalProxy(host, port);
+            return {
+                success: true,
+                ...result
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:local-proxy:validate error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Test local proxy connectivity
+    ipcMain.handle('env:local-proxy:test', async (event, config) => {
+        try {
+            if (!config || !config.host || !config.port) {
+                return {
+                    success: false,
+                    error: '代理配置无效'
+                };
+            }
+            const result = await LocalProxyManager.testLocalProxy(config);
+            return result;
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:local-proxy:test error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Diagnose proxy chain
+    ipcMain.handle('env:proxy-chain:diagnose', async (event, localProxy, chainedProxy) => {
+        try {
+            if (!localProxy) {
+                return {
+                    success: false,
+                    error: '本地代理配置无效'
+                };
+            }
+            const result = await ProxyChainManager.diagnoseProxyChain(localProxy, chainedProxy);
+            return {
+                success: true,
+                ...result
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:proxy-chain:diagnose error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Start health monitoring for an account
+    ipcMain.handle('env:health-monitor:start', async (event, accountId, proxyConfig) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+            if (!proxyConfig || !proxyConfig.host || !proxyConfig.port) {
+                return { success: false, error: 'Valid proxy configuration is required' };
+            }
+
+            // Stop existing monitor if any
+            if (healthMonitors.has(accountId)) {
+                healthMonitors.get(accountId).stop();
+            }
+
+            // Create new monitor
+            const monitor = new ProxyHealthMonitor({
+                checkInterval: 60000,
+                onStatusChange: (statusInfo) => {
+                    // Send status change to renderer
+                    event.sender.send('env:health-monitor:status-changed', {
+                        accountId,
+                        ...statusInfo
+                    });
+                }
+            });
+
+            monitor.start(proxyConfig);
+            healthMonitors.set(accountId, monitor);
+
+            return {
+                success: true,
+                message: 'Health monitoring started'
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:health-monitor:start error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Stop health monitoring for an account
+    ipcMain.handle('env:health-monitor:stop', async (event, accountId) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            if (healthMonitors.has(accountId)) {
+                healthMonitors.get(accountId).stop();
+                healthMonitors.delete(accountId);
             }
 
             return {
                 success: true,
-                config: config
+                message: 'Health monitoring stopped'
             };
         } catch (error) {
-            console.error('[EnvironmentIPCHandlers] env:parse-tunnel-string error:', error);
+            console.error('[EnvironmentIPCHandlers] env:health-monitor:stop error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Get current health status
+    ipcMain.handle('env:health-monitor:get-status', async (event, accountId) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            if (!healthMonitors.has(accountId)) {
+                return {
+                    success: true,
+                    status: {
+                        status: 'disconnected',
+                        lastCheck: null,
+                        latency: null,
+                        error: null
+                    },
+                    isRunning: false
+                };
+            }
+
+            const monitor = healthMonitors.get(accountId);
+            return {
+                success: true,
+                status: monitor.getStatus(),
+                isRunning: monitor.isRunning()
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:health-monitor:get-status error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Manual health check
+    ipcMain.handle('env:health-monitor:check-now', async (event, accountId) => {
+        try {
+            if (!accountId) {
+                return { success: false, error: 'Account ID is required' };
+            }
+
+            if (!healthMonitors.has(accountId)) {
+                return {
+                    success: false,
+                    error: 'Health monitor not running for this account'
+                };
+            }
+
+            const monitor = healthMonitors.get(accountId);
+            const result = await monitor.checkNow();
+            return {
+                success: true,
+                ...result
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:health-monitor:check-now error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Get local proxy config for translation service (Requirements 3.1, 3.4)
+    ipcMain.handle('env:local-proxy:get-config', async (event, accountId) => {
+        try {
+            // Try to get from account-specific environment config first
+            if (accountId) {
+                const manager = getEnvConfigManager();
+                const config = manager.getConfig(accountId);
+                if (config && config.proxy && config.proxy.localProxy && config.proxy.localProxy.port) {
+                    return {
+                        success: true,
+                        config: config.proxy.localProxy
+                    };
+                }
+            }
+
+            // Fallback to default Clash preset
+            const preset = LocalProxyManager.getPreset('clash');
+            if (preset) {
+                return {
+                    success: true,
+                    config: {
+                        host: preset.host,
+                        port: preset.port,
+                        protocol: preset.protocol
+                    }
+                };
+            }
+
+            return {
+                success: false,
+                error: 'No local proxy configuration found'
+            };
+        } catch (error) {
+            console.error('[EnvironmentIPCHandlers] env:local-proxy:get-config error:', error);
             return {
                 success: false,
                 error: error.message
@@ -1160,6 +1332,24 @@ function unregister() {
     ipcMain.removeHandler('fingerprint:preview');
     ipcMain.removeHandler('fingerprint:getScript');
     ipcMain.removeHandler('fingerprint:loadAll');
+
+    // Local proxy handlers
+    ipcMain.removeHandler('env:local-proxy:get-presets');
+    ipcMain.removeHandler('env:local-proxy:get-preset');
+    ipcMain.removeHandler('env:local-proxy:validate');
+    ipcMain.removeHandler('env:local-proxy:test');
+    ipcMain.removeHandler('env:local-proxy:get-config');
+    ipcMain.removeHandler('env:proxy-chain:diagnose');
+    ipcMain.removeHandler('env:health-monitor:start');
+    ipcMain.removeHandler('env:health-monitor:stop');
+    ipcMain.removeHandler('env:health-monitor:get-status');
+    ipcMain.removeHandler('env:health-monitor:check-now');
+
+    // Stop all health monitors
+    for (const [accountId, monitor] of healthMonitors) {
+        monitor.stop();
+    }
+    healthMonitors.clear();
 
     console.log('[EnvironmentIPCHandlers] Handlers unregistered successfully');
 }

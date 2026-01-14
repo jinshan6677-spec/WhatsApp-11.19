@@ -649,3 +649,288 @@ input:checked+.env-toggle-slider:before {
     background: transparent;
     padding: 0;
 }
+
+
+/* ==================== Local Proxy UI Styles ==================== */
+
+/* Proxy Mode Tabs */
+.env-proxy-mode-tabs {
+    display: flex;
+    gap: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f8fafc;
+}
+
+.env-proxy-mode-tab {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-right: 1px solid #e2e8f0;
+}
+
+.env-proxy-mode-tab:last-child {
+    border-right: none;
+}
+
+.env-proxy-mode-tab:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.env-proxy-mode-tab.active {
+    background: #25d366;
+    color: white;
+}
+
+/* Proxy Mode Content */
+.env-proxy-mode-content {
+    margin-top: 16px;
+}
+
+.env-proxy-mode-content.hidden {
+    display: none;
+}
+
+/* Connection Status Indicator */
+.env-connection-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.env-connection-status.hidden {
+    display: none;
+}
+
+.env-status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #94a3b8;
+    transition: background 0.3s;
+}
+
+.env-status-indicator.connected {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.env-status-indicator.connecting {
+    background: #eab308;
+    animation: pulse 1.5s infinite;
+}
+
+.env-status-indicator.disconnected {
+    background: #94a3b8;
+}
+
+.env-status-indicator.error {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.env-status-text {
+    font-size: 13px;
+    color: #475569;
+    flex: 1;
+}
+
+.env-status-latency {
+    font-size: 12px;
+    color: #64748b;
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.env-status-latency.hidden {
+    display: none;
+}
+
+.env-status-latency.good {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.env-status-latency.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.env-status-latency.slow {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Mode Display */
+.env-mode-icon {
+    margin-right: 4px;
+}
+
+/* Info Box */
+.env-info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: #e0f2fe;
+    border: 1px solid #7dd3fc;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: #0369a1;
+    line-height: 1.5;
+}
+
+.env-info-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+/* Checkbox Label */
+.env-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #475569;
+}
+
+.env-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #25d366;
+}
+
+/* Disabled fields */
+#chained-proxy-fields.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Error Messages */
+.env-error-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #991b1b;
+    line-height: 1.5;
+}
+
+.env-error-message .env-error-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.env-error-message .env-error-text {
+    flex: 1;
+}
+
+.env-error-message .env-error-hint {
+    font-size: 12px;
+    color: #b91c1c;
+    margin-top: 4px;
+}
+
+/* Success Messages */
+.env-success-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #166534;
+    line-height: 1.5;
+}
+
+/* Readonly input styling */
+input[readonly] {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+/* Diagnose result styling */
+.env-diagnose-result {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.env-diagnose-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.env-diagnose-item:last-child {
+    border-bottom: none;
+}
+
+.env-diagnose-icon {
+    font-size: 16px;
+}
+
+.env-diagnose-icon.success {
+    color: #22c55e;
+}
+
+.env-diagnose-icon.error {
+    color: #ef4444;
+}
+
+.env-diagnose-label {
+    flex: 1;
+    font-size: 13px;
+    color: #475569;
+}
+
+.env-diagnose-status {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.env-diagnose-status.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.env-diagnose-status.error {
+    background: #fee2e2;
+    color: #991b1b;
+}

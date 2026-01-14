@@ -1,11 +1,25 @@
 /**
  * Google 翻译适配器
  * 使用免费的 Google Translate API
+ * 支持通过代理访问（Requirements 3.1, 3.3）
  */
 
 const TranslationAdapter = require('./TranslationAdapter');
 const https = require('https');
 const querystring = require('querystring');
+
+// Lazy load TranslationProxyAdapter to avoid circular dependencies
+let TranslationProxyAdapter = null;
+function getTranslationProxyAdapter() {
+  if (!TranslationProxyAdapter) {
+    try {
+      TranslationProxyAdapter = require('../../environment/TranslationProxyAdapter');
+    } catch (e) {
+      console.warn('[GoogleTranslateAdapter] TranslationProxyAdapter not available:', e.message);
+    }
+  }
+  return TranslationProxyAdapter;
+}
 
 class GoogleTranslateAdapter extends TranslationAdapter {
   constructor(config = {}) {
@@ -17,6 +31,7 @@ class GoogleTranslateAdapter extends TranslationAdapter {
     
     this.baseUrl = 'translate.googleapis.com';
     this.maxRetries = 3;
+    this.retryCount = 0;
   }
 
   /**
@@ -45,7 +60,16 @@ class GoogleTranslateAdapter extends TranslationAdapter {
         };
       }
 
-      const result = await this.callGoogleTranslateAPI(text, source, target, options.agent);
+      // Get proxy agent if needed (Requirements 3.1, 3.3)
+      let agent = options.agent;
+      if (!agent) {
+        agent = await this.getProxyAgentIfNeeded(options);
+      }
+
+      const result = await this.callGoogleTranslateAPI(text, source, target, agent);
+
+      // Reset retry count on success
+      this.retryCount = 0;
 
       return {
         translatedText: result.translatedText,
@@ -54,8 +78,78 @@ class GoogleTranslateAdapter extends TranslationAdapter {
       };
 
     } catch (error) {
+      // Implement retry with proxy on network failure (Requirements 3.3)
+      if (this.shouldRetryWithProxy(error) && this.retryCount < this.maxRetries) {
+        this.retryCount++;
+        console.log(`[GoogleTranslateAdapter] Retrying with proxy (attempt ${this.retryCount}/${this.maxRetries})`);
+        
+        const proxyAgent = await this.forceGetProxyAgent();
+        if (proxyAgent) {
+          return this.translate(text, sourceLang, targetLang, { ...options, agent: proxyAgent });
+        }
+      }
+      
+      this.retryCount = 0;
       throw this.handleError(error);
     }
+  }
+
+  /**
+   * Get proxy agent if needed based on configuration
+   * @param {Object} options - Translation options
+   * @returns {Promise<Object|null>} Proxy agent or null
+   */
+  async getProxyAgentIfNeeded(options) {
+    const ProxyAdapter = getTranslationProxyAdapter();
+    if (!ProxyAdapter) return null;
+
+    try {
+      // Check if we should use proxy based on mode
+      const shouldUse = await ProxyAdapter.shouldUseProxy();
+      if (shouldUse) {
+        return await ProxyAdapter.getProxyAgent();
+      }
+    } catch (error) {
+      console.warn('[GoogleTranslateAdapter] Failed to get proxy agent:', error.message);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Force get proxy agent for retry
+   * @returns {Promise<Object|null>} Proxy agent or null
+   */
+  async forceGetProxyAgent() {
+    const ProxyAdapter = getTranslationProxyAdapter();
+    if (!ProxyAdapter) return null;
+
+    try {
+      const config = ProxyAdapter.getProxyConfig();
+      if (config) {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        const LocalProxyManager = require('../../environment/LocalProxyManager');
+        const proxyUrl = LocalProxyManager.buildProxyUrl(config);
+        return new HttpsProxyAgent(proxyUrl);
+      }
+    } catch (error) {
+      console.warn('[GoogleTranslateAdapter] Failed to force get proxy agent:', error.message);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Check if we should retry with proxy
+   * @param {Error} error - The error that occurred
+   * @returns {boolean} Whether to retry with proxy
+   */
+  shouldRetryWithProxy(error) {
+    // Network errors that might indicate blocking
+    const retryableCodes = ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNABORTED', 'ENOTFOUND', 'ENETUNREACH', 'ECONNRESET'];
+    return retryableCodes.includes(error.code) || 
+           error.message.includes('timeout') ||
+           error.message.includes('Network error');
   }
 
   /**
@@ -148,7 +242,8 @@ class GoogleTranslateAdapter extends TranslationAdapter {
    */
   async detectLanguage(text) {
     try {
-      const result = await this.callGoogleTranslateAPI(text, 'auto', 'en');
+      const agent = await this.getProxyAgentIfNeeded({});
+      const result = await this.callGoogleTranslateAPI(text, 'auto', 'en', agent);
       return result.detectedSourceLanguage || 'auto';
     } catch (error) {
       console.warn('Language detection failed, using fallback:', error.message);

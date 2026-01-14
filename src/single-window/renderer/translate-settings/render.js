@@ -289,6 +289,46 @@
                 <button id="testApiBtn" class="env-btn-primary">测试连接</button>
               </div>
             </div>
+            <div class="env-collapsible" id="translationProxySection">
+              <div class="env-collapsible-header">
+                <span>翻译服务代理</span>
+                <span class="env-collapsible-icon">▼</span>
+              </div>
+              <div class="env-collapsible-content">
+                <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
+                  配置翻译服务是否通过代理访问（适用于 Google 翻译等被封锁的服务）
+                </p>
+                <div class="env-form-group">
+                  <label>代理模式</label>
+                  <div class="env-input-group">
+                    <select id="translationProxyMode">
+                      <option value="auto">🤖 自动检测（推荐）</option>
+                      <option value="always">🔒 始终使用代理</option>
+                      <option value="never">🚫 从不使用代理</option>
+                    </select>
+                  </div>
+                  <p style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                    自动检测：系统会检测翻译服务是否被封锁，如被封锁则自动使用代理
+                  </p>
+                </div>
+                <div class="env-form-group">
+                  <label class="env-section-title" style="padding: 0; background: none; border: none; margin-bottom: 6px;">
+                    <span>使用本地代理设置</span>
+                    <label class="env-toggle">
+                      <input type="checkbox" id="translationUseLocalProxy" checked>
+                      <span class="env-toggle-slider"></span>
+                    </label>
+                  </label>
+                  <p style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                    启用后将使用环境设置中配置的本地代理
+                  </p>
+                </div>
+                <div id="translationProxyStatus" class="env-proxy-status" style="display: none;">
+                  <span class="env-status-indicator disconnected" id="translationProxyIndicator"></span>
+                  <span id="translationProxyStatusText">未配置代理</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
         <section class="env-section" id="friendConfigSection" style="display: none;">
@@ -415,7 +455,8 @@
       '#blockChinese', '#friendIndependent', '#realtimeTranslation', '#reverseTranslation',
       '#voiceTranslation',
       '#groqApiKey', '#groqSttModel', '#groqTextModel', '#groqTextModelFallback',
-      '#apiKey', '#apiEndpoint', '#apiModel'
+      '#apiKey', '#apiEndpoint', '#apiModel',
+      '#translationProxyMode', '#translationUseLocalProxy'
     ];
     autoSaveInputs.forEach(selector => {
       const el = panel.querySelector(selector);

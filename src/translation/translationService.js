@@ -13,6 +13,19 @@ const {
 } = require('./index');
 const StatsManager = require('./managers/StatsManager');
 
+// Lazy load TranslationProxyAdapter to avoid circular dependencies
+let TranslationProxyAdapter = null;
+function getTranslationProxyAdapter() {
+  if (!TranslationProxyAdapter) {
+    try {
+      TranslationProxyAdapter = require('../environment/TranslationProxyAdapter');
+    } catch (e) {
+      console.warn('[TranslationService] TranslationProxyAdapter not available:', e.message);
+    }
+  }
+  return TranslationProxyAdapter;
+}
+
 class TranslationService {
   constructor() {
     this.configManager = null;
@@ -244,6 +257,122 @@ class TranslationService {
    */
   saveConfig(accountId, config) {
     this.configManager.saveConfig(accountId, config);
+    
+    // Configure translation proxy based on saved config (Requirements 3.4)
+    this.configureTranslationProxy(config, accountId);
+  }
+
+  /**
+   * Configure translation proxy based on account config
+   * @param {Object} config - Account configuration
+   * @param {string} [accountId] - Account ID for loading environment config
+   */
+  configureTranslationProxy(config, accountId = null) {
+    const ProxyAdapter = getTranslationProxyAdapter();
+    if (!ProxyAdapter) {
+      console.log('[TranslationService] TranslationProxyAdapter not available, skipping proxy configuration');
+      return;
+    }
+
+    try {
+      const proxyConfig = config.proxy || { mode: 'auto', useLocalProxy: true };
+      const mode = proxyConfig.mode || 'auto';
+      
+      if (proxyConfig.useLocalProxy) {
+        // Try to get local proxy config from environment settings
+        this.getLocalProxyConfigAndConfigure(mode, accountId);
+      } else {
+        // Configure with mode only, no proxy config
+        ProxyAdapter.configure(null, mode);
+        console.log(`[TranslationService] Translation proxy configured with mode: ${mode} (no local proxy)`);
+      }
+    } catch (error) {
+      console.error('[TranslationService] Failed to configure translation proxy:', error);
+    }
+  }
+
+  /**
+   * Get local proxy config and configure TranslationProxyAdapter
+   * @param {string} mode - Proxy mode
+   * @param {string} [accountId] - Account ID for loading environment config
+   */
+  async getLocalProxyConfigAndConfigure(mode, accountId = null) {
+    const ProxyAdapter = getTranslationProxyAdapter();
+    if (!ProxyAdapter) return;
+
+    try {
+      // Try to get local proxy config from EnvironmentConfigManager first
+      let localProxyConfig = null;
+      
+      if (accountId) {
+        try {
+          const EnvironmentConfigManager = require('../environment/EnvironmentConfigManager');
+          const envManager = new EnvironmentConfigManager();
+          const envConfig = envManager.getConfig(accountId);
+          
+          if (envConfig && envConfig.localProxy && envConfig.localProxy.enabled && envConfig.localProxy.port) {
+            localProxyConfig = {
+              host: envConfig.localProxy.host || '127.0.0.1',
+              port: envConfig.localProxy.port,
+              protocol: envConfig.localProxy.protocol || 'http'
+            };
+            console.log(`[TranslationService] Got local proxy config from EnvironmentConfigManager for account ${accountId}:`, localProxyConfig);
+          }
+        } catch (e) {
+          console.log('[TranslationService] EnvironmentConfigManager not available:', e.message);
+        }
+      }
+
+      // Fallback: Try to get from ProxyManager
+      if (!localProxyConfig) {
+        try {
+          const ProxyManager = require('../environment/ProxyManager');
+          const envConfig = ProxyManager.getConfig();
+          if (envConfig && envConfig.localProxy && envConfig.localProxy.port) {
+            localProxyConfig = {
+              host: envConfig.localProxy.host || '127.0.0.1',
+              port: envConfig.localProxy.port,
+              protocol: envConfig.localProxy.protocol || 'http'
+            };
+          }
+        } catch (e) {
+          console.log('[TranslationService] ProxyManager not available, trying LocalProxyManager');
+        }
+      }
+
+      // Fallback: Try to get default preset (Clash)
+      if (!localProxyConfig) {
+        try {
+          const LocalProxyManager = require('../environment/LocalProxyManager');
+          // Try to get default preset (Clash)
+          const preset = LocalProxyManager.getPreset('clash');
+          if (preset) {
+            localProxyConfig = {
+              host: preset.host,
+              port: preset.port,
+              protocol: preset.protocol
+            };
+          }
+        } catch (e) {
+          console.log('[TranslationService] LocalProxyManager not available');
+        }
+      }
+
+      if (localProxyConfig) {
+        const result = ProxyAdapter.configure(localProxyConfig, mode);
+        if (result.success) {
+          console.log(`[TranslationService] Translation proxy configured with mode: ${mode}, proxy: ${localProxyConfig.host}:${localProxyConfig.port}`);
+        } else {
+          console.warn(`[TranslationService] Failed to configure translation proxy: ${result.error}`);
+        }
+      } else {
+        // Configure with mode only
+        ProxyAdapter.configure(null, mode);
+        console.log(`[TranslationService] Translation proxy configured with mode: ${mode} (no local proxy available)`);
+      }
+    } catch (error) {
+      console.error('[TranslationService] Error configuring translation proxy:', error);
+    }
   }
 
   /**

@@ -8,11 +8,16 @@
  * Requirements:
  * - 24.1: Inject account's fingerprint configuration when creating BrowserView
  * - 32.3: Apply fingerprint configuration through existing ViewFactory injection point
+ * - 1.4: Route all WhatsApp traffic through local proxy port
+ * - 2.4: Support per-account chained proxy configuration
  */
 
 const { BrowserView } = require('electron');
 const path = require('path');
 const { FingerprintInjector } = require('../../../infrastructure/fingerprint');
+const ProxyManager = require('../../../environment/ProxyManager');
+const LocalProxyManager = require('../../../environment/LocalProxyManager');
+const ProxyChainManager = require('../../../environment/ProxyChainManager');
 
 /**
  * ViewFactory class
@@ -49,6 +54,168 @@ class ViewFactory {
   }
 
   /**
+   * Apply proxy configuration to session
+   * Supports both traditional proxy and local proxy with optional chained proxy
+   * 
+   * @private
+   * @param {string} accountId - Account identifier
+   * @param {Electron.Session} accountSession - Account session
+   * @param {Object} config - View configuration
+   * @param {Object} [config.proxy] - Traditional proxy configuration
+   * @param {Object} [config.localProxy] - Local proxy configuration
+   * @param {Object} [config.chainedProxy] - Chained proxy configuration
+   * @returns {Promise<void>}
+   * 
+   * **Validates: Requirements 1.4, 2.4**
+   */
+  async _applyProxyConfiguration(accountId, accountSession, config) {
+    this.log('info', `[PROXY_DEBUG] _applyProxyConfiguration called for ${accountId}`);
+    this.log('info', `[PROXY_DEBUG] config.localProxy:`, JSON.stringify(config.localProxy || null));
+    this.log('info', `[PROXY_DEBUG] config.proxy:`, JSON.stringify(config.proxy || null));
+    this.log('info', `[PROXY_DEBUG] config.chainedProxy:`, JSON.stringify(config.chainedProxy || null));
+
+    // Check if local proxy is configured (takes priority over traditional proxy)
+    if (config.localProxy && config.localProxy.enabled) {
+      this.log('info', `[PROXY_DEBUG] Using local proxy for ${accountId}`);
+      await this._applyLocalProxy(accountId, accountSession, config.localProxy, config.chainedProxy);
+      return;
+    }
+
+    // Fall back to traditional proxy configuration
+    if (config.proxy && config.proxy.enabled) {
+      this.log('info', `[PROXY_DEBUG] Using traditional proxy for ${accountId}`);
+      await this._applyTraditionalProxy(accountId, accountSession, config.proxy);
+      return;
+    }
+
+    // No proxy configured - ensure direct connection
+    this.log('info', `[PROXY_DEBUG] No proxy enabled for ${accountId}, using direct connection`);
+    try {
+      await accountSession.setProxy({ mode: 'direct' });
+      this.log('info', `Proxy disabled for ${accountId}, using direct connection`);
+    } catch (error) {
+      this.log('error', `Failed to clear proxy for ${accountId}:`, error);
+    }
+  }
+
+  /**
+   * Apply local proxy configuration with optional chained proxy
+   * 
+   * @private
+   * @param {string} accountId - Account identifier
+   * @param {Electron.Session} accountSession - Account session
+   * @param {Object} localProxyConfig - Local proxy configuration
+   * @param {Object} [chainedProxyConfig] - Optional chained proxy configuration
+   * @returns {Promise<void>}
+   * 
+   * **Validates: Requirements 1.4, 2.4**
+   */
+  async _applyLocalProxy(accountId, accountSession, localProxyConfig, chainedProxyConfig = null) {
+    try {
+      // Validate local proxy configuration
+      const validation = LocalProxyManager.validateLocalProxy(
+        localProxyConfig.host,
+        localProxyConfig.port
+      );
+
+      if (!validation.valid) {
+        this.log('error', `Invalid local proxy config for ${accountId}: ${validation.errors.join(', ')}`);
+        return;
+      }
+
+      // Determine if we have a chained proxy
+      const hasChainedProxy = chainedProxyConfig && 
+        chainedProxyConfig.enabled && 
+        chainedProxyConfig.host && 
+        chainedProxyConfig.port;
+
+      // Build proxy rules in Electron format
+      const host = localProxyConfig.host;
+      const port = localProxyConfig.port;
+      const protocol = localProxyConfig.protocol || 'http';
+      
+      // Electron proxy rules format:
+      // - For SOCKS5: "socks5://host:port"
+      // - For HTTP: "http://host:port" (handles both HTTP and HTTPS traffic via CONNECT)
+      let proxyRules;
+      if (protocol === 'socks5' || protocol === 'socks4') {
+        proxyRules = `${protocol}://${host}:${port}`;
+      } else {
+        // HTTP proxy - use URL format
+        proxyRules = `http://${host}:${port}`;
+      }
+
+      this.log('info', `Applying local proxy for ${accountId}: ${proxyRules} (protocol: ${protocol})`);
+
+      // Apply proxy to session
+      await accountSession.setProxy({
+        mode: 'fixed_servers',
+        proxyRules: proxyRules,
+        proxyBypassRules: '<local>'
+      });
+
+      this.log('info', `Local proxy applied successfully for ${accountId}`);
+
+      if (hasChainedProxy) {
+        this.log('info', `Chained proxy configured for ${accountId}: ${chainedProxyConfig.host}:${chainedProxyConfig.port}`);
+
+        // Handle chained proxy authentication if provided
+        if (chainedProxyConfig.username && chainedProxyConfig.password) {
+          accountSession.removeAllListeners('login');
+          accountSession.on('login', (event, webContents, authenticationResponseDetails, authInfo, callback) => {
+            if (authInfo.isProxy) {
+              event.preventDefault();
+              callback(chainedProxyConfig.username, chainedProxyConfig.password);
+              this.log('info', `Chained proxy authentication provided for ${accountId}`);
+            }
+          });
+        }
+      }
+    } catch (error) {
+      this.log('error', `Failed to apply local proxy for ${accountId}:`, error);
+    }
+  }
+
+  /**
+   * Apply traditional proxy configuration
+   * 
+   * @private
+   * @param {string} accountId - Account identifier
+   * @param {Electron.Session} accountSession - Account session
+   * @param {Object} proxyConfig - Proxy configuration
+   * @returns {Promise<void>}
+   */
+  async _applyTraditionalProxy(accountId, accountSession, proxyConfig) {
+    try {
+      // Sanitize host: remove protocol prefix if user accidentally included it
+      let host = proxyConfig.host.replace(/^https?:\/\//, '');
+      const port = proxyConfig.port;
+      const protocol = proxyConfig.protocol || 'http';
+
+      // Electron expects format like: "http=host:port;https=host:port" or "socks5://host:port"
+      let proxyRules;
+      if (protocol === 'socks5' || protocol === 'socks4') {
+        proxyRules = `${protocol}://${host}:${port}`;
+      } else {
+        // For HTTP/HTTPS proxies, use the standard format
+        proxyRules = `http=${host}:${port};https=${host}:${port}`;
+      }
+
+      this.log('info', `Applying proxy for ${accountId}: ${proxyRules}`);
+
+      await accountSession.setProxy({
+        mode: 'fixed_servers',
+        proxyRules,
+        proxyBypassRules: '<local>'
+      });
+
+      this.log('info', `Proxy applied successfully for ${accountId}`);
+    } catch (error) {
+      this.log('error', `Failed to apply proxy for ${accountId}:`, error);
+    }
+  }
+
+  /**
    * Create a new BrowserView for an account
    * @param {string} accountId - Unique account identifier
    * @param {Electron.Session} accountSession - Isolated session for the account
@@ -68,54 +235,9 @@ class ViewFactory {
 
     this.log('info', `Creating BrowserView for account ${accountId}`);
 
-    // Apply network configuration in priority order: tunnel > proxy > direct
-    // Priority 1: Apply tunnel configuration (SOCKS5/HTTP for encrypted connections)
-    if (config.tunnel && config.tunnel.enabled) {
-      try {
-        const { TunnelManager } = require('../../../environment');
-        this.log('info', `[Tunnel] Applying tunnel configuration for ${accountId}...`);
-        const success = await TunnelManager.applyTunnelToSession(accountSession, config.tunnel);
-
-        if (success) {
-          this.log('info', `[Tunnel] ✓ Tunnel applied successfully for ${accountId}: ${config.tunnel.type}://${config.tunnel.host}:${config.tunnel.port}`);
-          // Add a small delay to ensure proxy configuration takes effect
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } else {
-          this.log('error', `[Tunnel] ✗ Failed to apply tunnel for ${accountId}`);
-        }
-      } catch (error) {
-        this.log('error', `[Tunnel] ✗ Error applying tunnel for ${accountId}:`, error);
-      }
-    }
-    // Priority 2: Apply proxy configuration (HTTP/HTTPS proxy)
-    else if (config.proxy && config.proxy.enabled) {
-      try {
-        // Sanitize host: remove protocol prefix if user accidentally included it
-        let host = config.proxy.host.replace(/^https?:\/\//, '');
-
-        const proxyRules = `${config.proxy.protocol}://${host}:${config.proxy.port}`;
-
-        this.log('info', `[Proxy] Applying proxy for ${accountId}: ${proxyRules}`);
-
-        await accountSession.setProxy({
-          proxyRules,
-          proxyBypassRules: '<local>'
-        });
-
-        this.log('info', `[Proxy] Proxy applied successfully for ${accountId}`);
-      } catch (error) {
-        this.log('error', `[Proxy] Failed to apply proxy for ${accountId}:`, error);
-      }
-    }
-    // Priority 3: Use direct connection (no tunnel, no proxy)
-    else {
-      try {
-        await accountSession.setProxy({ mode: 'direct' });
-        this.log('info', `[Network] Direct connection for ${accountId}`);
-      } catch (error) {
-        this.log('error', `[Network] Failed to set direct connection for ${accountId}:`, error);
-      }
-    }
+    // Apply proxy configuration to session if provided
+    // Supports both traditional proxy and local proxy with optional chained proxy
+    await this._applyProxyConfiguration(accountId, accountSession, config);
 
     // Set account ID in environment for preload script
     process.env.ACCOUNT_ID = accountId;
@@ -213,30 +335,16 @@ class ViewFactory {
       });
     } catch (_) { }
 
-    // Handle tunnel authentication (if tunnel requires auth)
-    if (
-      config.tunnel &&
-      config.tunnel.enabled &&
-      config.tunnel.username &&
-      config.tunnel.password
-    ) {
-      view.webContents.on('login', (event, request, authInfo, callback) => {
-        event.preventDefault();
-        this.log('info', `[Tunnel] Providing tunnel credentials for ${accountId}`);
-        callback(config.tunnel.username, config.tunnel.password);
-      });
-    }
-
-    // Handle proxy authentication (if proxy requires auth)
     if (
       config.proxy &&
       config.proxy.enabled &&
       config.proxy.username &&
-      config.proxy.password
+      config.proxy.password &&
+      !config.localProxy?.enabled // Only handle traditional proxy auth if local proxy is not enabled
     ) {
       view.webContents.on('login', (event, request, authInfo, callback) => {
         event.preventDefault();
-        this.log('info', `[Proxy] Providing proxy credentials for ${accountId}`);
+        this.log('info', `Providing proxy credentials for ${accountId}`);
         callback(config.proxy.username, config.proxy.password);
       });
     }

@@ -20,24 +20,34 @@ const { encryptFields, decryptFields } = require('../utils/encryption');
 // Default environment configuration
 // Note: fingerprint配置已移除，将在新指纹系统中实现
 const DEFAULT_CONFIG = {
-    tunnel: {
-        enabled: false,
-        type: 'socks5',  // socks5, http
-        host: '127.0.0.1',
-        port: 1080,
-        username: '',
-        password: ''
-    },
     proxy: {
         enabled: false,
+        mode: 'direct',  // 'direct' or 'local'
         configName: '',
         protocol: 'http',
         host: '',
         port: '',
         username: '',
         password: ''
+    },
+    // Local proxy configuration (for Clash, V2rayN, etc.)
+    localProxy: {
+        enabled: false,
+        presetId: '',
+        host: '127.0.0.1',
+        port: 0,
+        protocol: 'http'
+    },
+    // Chained proxy configuration (optional, for multi-hop proxy)
+    chainedProxy: {
+        enabled: false,
+        protocol: 'http',
+        host: '',
+        port: 0,
+        username: '',
+        password: ''
     }
-    };
+};
 
 // Fields to encrypt
 const ENCRYPTED_FIELDS = ['password'];
@@ -69,12 +79,14 @@ class EnvironmentConfigManager {
             return this._getDefaultConfig();
         }
 
-        // Decrypt sensitive fields
-        if (config.tunnel && config.tunnel.password) {
-            config.tunnel = decryptFields(config.tunnel, ENCRYPTED_FIELDS);
-        }
+        // Decrypt sensitive fields in proxy
         if (config.proxy && config.proxy.password) {
             config.proxy = decryptFields(config.proxy, ENCRYPTED_FIELDS);
+        }
+
+        // Decrypt sensitive fields in chained proxy
+        if (config.chainedProxy && config.chainedProxy.password) {
+            config.chainedProxy = decryptFields(config.chainedProxy, ENCRYPTED_FIELDS);
         }
 
         // Merge with defaults to ensure all fields exist
@@ -103,12 +115,14 @@ class EnvironmentConfigManager {
             // Create a copy to avoid modifying original
             const configToSave = JSON.parse(JSON.stringify(config));
 
-            // Encrypt sensitive fields
-            if (configToSave.tunnel && configToSave.tunnel.password) {
-                configToSave.tunnel = encryptFields(configToSave.tunnel, ENCRYPTED_FIELDS);
-            }
+            // Encrypt sensitive fields in proxy
             if (configToSave.proxy && configToSave.proxy.password) {
                 configToSave.proxy = encryptFields(configToSave.proxy, ENCRYPTED_FIELDS);
+            }
+
+            // Encrypt sensitive fields in chained proxy
+            if (configToSave.chainedProxy && configToSave.chainedProxy.password) {
+                configToSave.chainedProxy = encryptFields(configToSave.chainedProxy, ENCRYPTED_FIELDS);
             }
 
             // Save to store
@@ -185,8 +199,9 @@ class EnvironmentConfigManager {
         const defaults = this._getDefaultConfig();
 
         return {
-            tunnel: { ...defaults.tunnel, ...(config.tunnel || {}) },
-            proxy: { ...defaults.proxy, ...(config.proxy || {}) }
+            proxy: { ...defaults.proxy, ...(config.proxy || {}) },
+            localProxy: { ...defaults.localProxy, ...(config.localProxy || {}) },
+            chainedProxy: { ...defaults.chainedProxy, ...(config.chainedProxy || {}) }
             // Note: fingerprint合并已移除，将在新指纹系统中实现
         };
     }
@@ -198,24 +213,6 @@ class EnvironmentConfigManager {
      * @private
      */
     _validateConfig(config) {
-        // 隧道配置验证（可选，因为隧道可能未启用）
-        if (config.tunnel && typeof config.tunnel !== 'object') {
-            throw new Error('Invalid tunnel configuration');
-        }
-
-        // Validate tunnel fields
-        if (config.tunnel && config.tunnel.enabled) {
-            if (config.tunnel.type && !['socks5', 'http'].includes(config.tunnel.type)) {
-                throw new Error('Invalid tunnel type. Must be socks5 or http');
-            }
-            if (!config.tunnel.host || !config.tunnel.host.trim()) {
-                throw new Error('Tunnel host is required when tunnel is enabled');
-            }
-            if (!config.tunnel.port) {
-                throw new Error('Tunnel port is required when tunnel is enabled');
-            }
-        }
-
         // 代理配置验证（可选，因为代理可能未启用）
         if (config.proxy && typeof config.proxy !== 'object') {
             throw new Error('Invalid proxy configuration');
@@ -223,8 +220,30 @@ class EnvironmentConfigManager {
 
         // Validate proxy fields
         if (config.proxy && config.proxy.enabled) {
-            if (config.proxy.protocol && !['http', 'https'].includes(config.proxy.protocol)) {
+            if (config.proxy.protocol && !['http', 'https', 'socks5'].includes(config.proxy.protocol)) {
                 throw new Error('Invalid proxy protocol');
+            }
+        }
+
+        // Validate local proxy fields
+        if (config.localProxy && typeof config.localProxy !== 'object') {
+            throw new Error('Invalid local proxy configuration');
+        }
+
+        if (config.localProxy && config.localProxy.enabled) {
+            if (config.localProxy.protocol && !['http', 'https', 'socks5'].includes(config.localProxy.protocol)) {
+                throw new Error('Invalid local proxy protocol');
+            }
+        }
+
+        // Validate chained proxy fields
+        if (config.chainedProxy && typeof config.chainedProxy !== 'object') {
+            throw new Error('Invalid chained proxy configuration');
+        }
+
+        if (config.chainedProxy && config.chainedProxy.enabled) {
+            if (config.chainedProxy.protocol && !['http', 'https', 'socks5'].includes(config.chainedProxy.protocol)) {
+                throw new Error('Invalid chained proxy protocol');
             }
         }
 

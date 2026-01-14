@@ -18,7 +18,10 @@ const ProxyManager = require('./ProxyManager');
 const ProxyConfigStore = require('./ProxyConfigStore');
 const ProxyValidator = require('./ProxyValidator');
 const CookieManager = require('./CookieManager');
-const TunnelManager = require('./TunnelManager');
+const LocalProxyManager = require('./LocalProxyManager');
+const ProxyChainManager = require('./ProxyChainManager');
+const ProxyHealthMonitor = require('./ProxyHealthMonitor');
+const TranslationProxyAdapter = require('./TranslationProxyAdapter');
 
 module.exports = {
     EnvironmentConfigManager,
@@ -26,5 +29,8 @@ module.exports = {
     ProxyConfigStore,
     ProxyValidator,
     CookieManager,
-    TunnelManager
+    LocalProxyManager,
+    ProxyChainManager,
+    ProxyHealthMonitor,
+    TranslationProxyAdapter
 };

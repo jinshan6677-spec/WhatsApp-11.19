@@ -54,14 +54,22 @@ const invokeChannels = [
   'env:get-config',
   'env:save-config',
   'env:test-proxy',
-  'env:test-tunnel',
   'env:detect-network',
   'env:get-account-network-info',
   'env:get-proxy-configs',
   'env:save-proxy-config',
   'env:delete-proxy-config',
   'env:parse-proxy-string',
-  'env:parse-tunnel-string',
+  // Local proxy channels
+  'env:local-proxy:get-presets',
+  'env:local-proxy:get-preset',
+  'env:local-proxy:validate',
+  'env:local-proxy:test',
+  'env:proxy-chain:diagnose',
+  'env:health-monitor:start',
+  'env:health-monitor:stop',
+  'env:health-monitor:get-status',
+  'env:health-monitor:check-now',
   'fingerprint:generate',
   'fingerprint:save',
   'fingerprint:get',
@@ -150,7 +158,9 @@ const eventChannels = [
   'recovery:session-recovered',
   'recovery:account-reset',
   'recovery:reconnected',
-  'recovery:status-changed'
+  'recovery:status-changed',
+  // Health monitor events
+  'env:health-monitor:status-changed'
 ];
 
 module.exports = { invokeChannels, sendChannels, eventChannels };

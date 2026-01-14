@@ -30,6 +30,55 @@ const { BrowserView } = require('electron');
 // Store reference to translation service
 let _translationService = null;
 
+// Lazy load TranslationProxyAdapter
+let _TranslationProxyAdapter = null;
+function getTranslationProxyAdapter() {
+  if (!_TranslationProxyAdapter) {
+    try {
+      _TranslationProxyAdapter = require('../../../environment/TranslationProxyAdapter');
+    } catch (e) {
+      console.warn('[IPC:Translation] TranslationProxyAdapter not available:', e.message);
+    }
+  }
+  return _TranslationProxyAdapter;
+}
+
+/**
+ * Configure proxy for a specific account before translation
+ * @param {string} accountId - Account ID
+ */
+async function configureProxyForAccount(accountId) {
+  const ProxyAdapter = getTranslationProxyAdapter();
+  if (!ProxyAdapter) return;
+
+  try {
+    const EnvironmentConfigManager = require('../../../environment/EnvironmentConfigManager');
+    const envManager = new EnvironmentConfigManager();
+    const envConfig = envManager.getConfig(accountId);
+    
+    if (envConfig && envConfig.localProxy && envConfig.localProxy.enabled && envConfig.localProxy.port) {
+      const localProxyConfig = {
+        host: envConfig.localProxy.host || '127.0.0.1',
+        port: envConfig.localProxy.port,
+        protocol: envConfig.localProxy.protocol || 'http'
+      };
+      
+      // Configure with 'always' mode since user explicitly enabled local proxy
+      const result = ProxyAdapter.configure(localProxyConfig, 'always');
+      if (result.success) {
+        console.log(`[IPC:Translation] Proxy configured for account ${accountId}: ${localProxyConfig.host}:${localProxyConfig.port}`);
+      } else {
+        console.warn(`[IPC:Translation] Failed to configure proxy for account ${accountId}: ${result.error}`);
+      }
+    } else {
+      // No local proxy configured, use auto mode
+      ProxyAdapter.configure(null, 'auto');
+    }
+  } catch (error) {
+    console.error(`[IPC:Translation] Error configuring proxy for account ${accountId}:`, error);
+  }
+}
+
 /**
  * Request schemas for validation
  */
@@ -103,6 +152,9 @@ const handlers = {
     
     // Get account-specific translation config
     const accountConfig = _translationService.getConfig(accountId);
+    
+    // Configure translation proxy for this account before translating
+    await configureProxyForAccount(accountId);
     
     // Merge account config with request options
     const mergedOptions = {

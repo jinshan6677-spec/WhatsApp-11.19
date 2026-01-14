@@ -158,19 +158,23 @@ class ViewManager {
         environmentConfig = envManager.getConfig(accountId);
 
         if (environmentConfig) {
-          this.log('info', `[ENV_DEBUG] Loaded config for ${accountId}`, {
-            tunnel: environmentConfig.tunnel ? {
-              enabled: environmentConfig.tunnel.enabled,
-              type: environmentConfig.tunnel.type,
-              host: environmentConfig.tunnel.host,
-              port: environmentConfig.tunnel.port
-            } : 'none',
+          this.log('info', `[ENV_DEBUG] Loaded config for ${accountId}:`, JSON.stringify({
             proxy: environmentConfig.proxy ? {
               enabled: environmentConfig.proxy.enabled,
+              mode: environmentConfig.proxy.mode,
               host: environmentConfig.proxy.host,
               port: environmentConfig.proxy.port
+            } : 'none',
+            localProxy: environmentConfig.localProxy ? {
+              enabled: environmentConfig.localProxy.enabled,
+              host: environmentConfig.localProxy.host,
+              port: environmentConfig.localProxy.port,
+              protocol: environmentConfig.localProxy.protocol
+            } : 'none',
+            chainedProxy: environmentConfig.chainedProxy ? {
+              enabled: environmentConfig.chainedProxy.enabled
             } : 'none'
-          });
+          }));
         } else {
           this.log('warn', `[ENV_DEBUG] No config found for ${accountId}`);
         }
@@ -182,8 +186,9 @@ class ViewManager {
       const viewConfig = {
         ...config,
         userAgent: config.userAgent,
-        tunnel: environmentConfig?.tunnel,
-        proxy: environmentConfig?.proxy
+        proxy: environmentConfig?.proxy,
+        localProxy: environmentConfig?.localProxy,
+        chainedProxy: environmentConfig?.chainedProxy
       };
 
       // Load fingerprint configuration for this account
