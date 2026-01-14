@@ -198,21 +198,53 @@ function register(dependencies) {
             const manager = getEnvConfigManager();
             const config = manager.getConfig(accountId);
             const proxyConfig = config.proxy || {};
+            const localProxyConfig = config.localProxy || {};
+            const chainedProxyConfig = config.chainedProxy || {};
+
+            console.log('[EnvironmentIPCHandlers] env:get-account-network-info for', accountId);
+            console.log('[EnvironmentIPCHandlers] Config:', JSON.stringify({
+                proxyEnabled: proxyConfig.enabled,
+                localProxyEnabled: localProxyConfig.enabled,
+                localProxyPort: localProxyConfig.port
+            }));
 
             let result;
             let isProxy = false;
+            let connectionType = 'direct';
 
-            if (proxyConfig.enabled) {
-                // If proxy is enabled, test the proxy connection
+            // Check if local proxy mode is enabled (priority over direct proxy)
+            if (localProxyConfig.enabled && localProxyConfig.port) {
+                console.log('[EnvironmentIPCHandlers] Using local proxy mode for IP detection');
+                
+                // Build local proxy config for testing
+                const localProxy = {
+                    protocol: localProxyConfig.protocol || 'http',
+                    host: localProxyConfig.host || '127.0.0.1',
+                    port: localProxyConfig.port
+                };
+                
+                // Test through local proxy to get the actual IP
+                result = await ProxyValidator.testProxy(localProxy, 10000);
+                isProxy = true;
+                connectionType = chainedProxyConfig.enabled ? 'proxy' : 'local';
+                
+                if (result.success) {
+                    console.log('[EnvironmentIPCHandlers] Local proxy IP detected:', result.ip);
+                } else {
+                    console.log('[EnvironmentIPCHandlers] Local proxy test failed:', result.error);
+                }
+            } else if (proxyConfig.enabled) {
+                // If direct proxy is enabled, test the proxy connection
                 result = await ProxyValidator.testProxy(proxyConfig, 10000);
                 isProxy = true;
+                connectionType = 'proxy';
             } else {
                 // If direct connection, get current network info
                 result = await ProxyValidator.getCurrentNetwork(10000);
             }
 
             if (!result.success) {
-                return { success: false, error: result.error, isProxy };
+                return { success: false, error: result.error, isProxy, connectionType };
             }
 
             return {
@@ -223,9 +255,10 @@ function register(dependencies) {
                 type: result.type,
                 timezone: result.timezone,
                 isProxy: isProxy,
+                connectionType: connectionType,
                 proxyConfig: isProxy ? {
-                    host: proxyConfig.host,
-                    protocol: proxyConfig.protocol,
+                    host: localProxyConfig.enabled ? localProxyConfig.host : proxyConfig.host,
+                    protocol: localProxyConfig.enabled ? localProxyConfig.protocol : proxyConfig.protocol,
                     username: proxyConfig.username // Do not return password
                 } : null
             };

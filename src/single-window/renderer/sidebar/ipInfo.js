@@ -126,11 +126,27 @@ function renderIPDetails(container, info, account) {
   const row = document.createElement('div');
   row.className = 'ip-row compact';
 
-  // Icon instead of Tag
+  // Icon based on connection type
   const iconSpan = document.createElement('span');
   iconSpan.className = `ip-icon ${info.isProxy ? 'proxy' : 'local'}`;
-  // Use simple visual indicators: Plane for proxy, House for local
-  iconSpan.textContent = info.isProxy ? '✈️' : '🏠';
+  
+  // Different icons for different connection types
+  if (info.connectionType === 'tunnel') {
+    iconSpan.textContent = '🚇'; // Subway icon for tunnel
+    iconSpan.title = '加密隧道连接';
+  } else if (info.connectionType === 'proxy') {
+    iconSpan.textContent = '✈️'; // Plane icon for HTTP proxy
+    iconSpan.title = 'HTTP/HTTPS代理连接';
+  } else if (info.connectionType === 'local') {
+    iconSpan.textContent = '🔌'; // Plug icon for local proxy
+    iconSpan.title = '本地代理连接 (Clash/V2rayN等)';
+  } else if (info.isProxy) {
+    iconSpan.textContent = '✈️'; // Plane icon for proxy (fallback)
+    iconSpan.title = '代理连接';
+  } else {
+    iconSpan.textContent = '🏠'; // House icon for direct
+    iconSpan.title = '直连';
+  }
   row.appendChild(iconSpan);
 
   // IP Address (Masked by default)
@@ -230,7 +246,26 @@ function createEnvInfoIcon(account) {
     const ua = await getAccountUA(account.id);
     const localIP = await getLocalPublicIP(false);
     const proxyInfo = await getProxyIPInfo(account);
-    const proxyIP = proxyInfo && proxyInfo.isProxy ? (proxyInfo.ip || '') : '直连';
+    
+    // Determine connection type and IP display
+    let connectionType = '直连';
+    let currentIP = localIP || '获取中...';
+    
+    if (proxyInfo && proxyInfo.success) {
+      if (proxyInfo.connectionType === 'tunnel') {
+        connectionType = '加密隧道';
+        currentIP = proxyInfo.ip || '获取中...';
+      } else if (proxyInfo.connectionType === 'proxy') {
+        connectionType = 'HTTP代理';
+        currentIP = proxyInfo.ip || '获取中...';
+      } else if (proxyInfo.connectionType === 'local') {
+        connectionType = '本地代理';
+        currentIP = proxyInfo.ip || '获取中...';
+      } else if (proxyInfo.isProxy) {
+        connectionType = '代理';
+        currentIP = proxyInfo.ip || '获取中...';
+      }
+    }
 
     // Parse simplified UA
     let simpleUA = '默认';
@@ -245,7 +280,7 @@ function createEnvInfoIcon(account) {
       simpleUA = `${os} / ${browser}`;
     }
 
-    const tip = `代理 IP：${proxyIP}\n本机 IP：${localIP || '获取中...'}\n运行环境：${simpleUA}\n\n完整 UA：\n${ua}`;
+    const tip = `连接方式: ${connectionType}\n当前 IP: ${currentIP}\n本机 IP: ${localIP || '获取中...'}\n运行环境: ${simpleUA}\n\n完整 UA:\n${ua}`;
 
     if (btn.dataset.originalTitle) {
       btn.dataset.originalTitle = tip;

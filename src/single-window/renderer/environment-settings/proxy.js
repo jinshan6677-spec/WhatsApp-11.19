@@ -205,11 +205,29 @@
     return {
       proxy: {
         enabled: c.querySelector('#proxy-enabled').checked,
+        mode: 'direct',
         protocol: c.querySelector('#proxy-protocol').value,
         host: c.querySelector('#proxy-host').value,
         port: c.querySelector('#proxy-port').value,
         username: c.querySelector('#proxy-username').value,
         password: c.querySelector('#proxy-password').value
+      },
+      // Explicitly disable local proxy when in direct mode
+      localProxy: {
+        enabled: false,
+        presetId: '',
+        host: '127.0.0.1',
+        port: 0,
+        protocol: 'http'
+      },
+      // Explicitly disable chained proxy when in direct mode
+      chainedProxy: {
+        enabled: false,
+        protocol: 'http',
+        host: '',
+        port: 0,
+        username: '',
+        password: ''
       }
     };
   }

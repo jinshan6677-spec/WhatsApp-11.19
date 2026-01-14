@@ -531,14 +531,18 @@
    * Collect full proxy form data (for saving)
    */
   function collectProxyFormData() {
+    // Check if proxy is enabled (the main toggle switch)
+    const proxyEnabled = container().querySelector('#proxy-enabled').checked;
+    
     if (currentProxyMode === 'local') {
       const localConfig = collectLocalProxyConfig();
       const chainedConfig = collectChainedProxyConfig();
       
       // Return in the format expected by EnvironmentConfigManager
+      // Respect the proxy enabled toggle
       return {
         proxy: {
-          enabled: true,
+          enabled: proxyEnabled,
           mode: 'local',
           configName: '',
           protocol: 'http',
@@ -548,10 +552,10 @@
           password: ''
         },
         localProxy: {
-          enabled: true,
+          enabled: proxyEnabled, // Only enable local proxy if main toggle is on
           ...localConfig
         },
-        chainedProxy: chainedConfig || {
+        chainedProxy: proxyEnabled && chainedConfig ? chainedConfig : {
           enabled: false,
           protocol: 'http',
           host: '',
