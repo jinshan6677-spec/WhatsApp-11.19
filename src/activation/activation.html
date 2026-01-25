@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>老板稳了！天天旺 - 尊贵激活</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    :root {
+      --bg-color: #0b0205;
+      --card-bg: rgba(20, 10, 10, 0.65);
+      --card-border: rgba(251, 191, 36, 0.2);
+      --primary: #fbbf24;
+      /* Gold */
+      --secondary: #ef4444;
+      /* Red */
+      --accent: #f59e0b;
+      --text-main: #fffbeb;
+      --text-muted: #d6d3d1;
+      --success: #10b981;
+      --error: #ef4444;
+      --radius: 24px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-color);
+      background-image: url('assets/chinese_dragon_bg.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      perspective: 1000px;
+    }
+
+    /* Dark Overlay for readability */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.7) 100%);
+      z-index: -1;
+    }
+
+    /* Canvas Background */
+    #bgCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      /* Let clicks pass through if needed, but we capture mousemove on window */
+    }
+
+    /* Card */
+    .card {
+      position: relative;
+      z-index: 10;
+      width: 460px;
+      padding: 40px;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 20px 50px -10px rgba(0, 0, 0, 0.5);
+      transform-style: preserve-3d;
+      transition: transform 0.1s ease-out;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      flex-shrink: 0;
+    }
+
+    .logo-container {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 30px rgba(14, 165, 233, 0.15);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      color: var(--text-main);
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+    }
+
+    .title {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    /* Input */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 24px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 4px;
+      flex-shrink: 0;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15), 0 0 20px rgba(14, 165, 233, 0.1);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    textarea {
+      width: 100%;
+      height: 110px;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      /* Slightly smaller for better fit */
+      resize: none;
+      line-height: 1.6;
+
+      /* Fix text overflow issues - V7 Update */
+      word-break: break-all;
+      /* Breaks long words/strings at any character */
+      overflow-wrap: anywhere;
+      /* Forces wrapping even for unbreakable strings */
+      white-space: pre-wrap;
+      /* Preserves whitespace but wraps text */
+      box-sizing: border-box;
+      /* Ensures padding doesn't affect width */
+    }
+
+    textarea::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Scrollbar for textarea */
+    textarea::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    textarea::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    textarea::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    textarea::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      flex-shrink: 0;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-muted);
+      user-select: none;
+    }
+
+    .checkbox-custom {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      margin-right: 8px;
+      display: grid;
+      place-items: center;
+      transition: all 0.2s;
+    }
+
+    input[type="checkbox"]:checked+.checkbox-custom {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
+    }
+
+    .checkbox-custom svg {
+      width: 10px;
+      height: 10px;
+      stroke: #fff;
+      stroke-width: 3;
+      fill: none;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.2s;
+    }
+
+    input[type="checkbox"]:checked+.checkbox-custom svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .expire-badge {
+      font-size: 12px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      display: none;
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      height: 48px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      flex: 1;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      box-shadow: 0 4px 12px -2px rgba(14, 165, 233, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -4px rgba(14, 165, 233, 0.4);
+      filter: brightness(1.1);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      width: 90px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Footer & Status */
+    .footer {
+      margin-top: 28px;
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 16px;
+      flex-shrink: 0;
+    }
+
+    .device-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.25);
+      letter-spacing: 0.5px;
+    }
+
+    .error-msg {
+      margin-top: 16px;
+      color: #fca5a5;
+      font-size: 13px;
+      display: none;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 10px;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      text-align: left;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .error-msg::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .error-msg::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .error-msg::-webkit-scrollbar-thumb {
+      background: rgba(239, 68, 68, 0.3);
+      border-radius: 2px;
+    }
+
+    .error-msg svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .error-msg span {
+      flex: 1;
+      word-break: break-all;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      /* V7 Update */
+    }
+
+    /* Loading & Success */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 5, 5, 0.85);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      border-radius: var(--radius);
+    }
+
+    .overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .loader {
+      width: 36px;
+      height: 36px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .success-content {
+      text-align: center;
+      display: none;
+    }
+
+    .success-content.active {
+      display: block;
+    }
+
+    .success-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      animation: bounce 1s infinite;
+      display: inline-block;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="card" id="mainCard">
+
+    <!-- Form View -->
+    <div id="activationFormView">
+      <div class="header">
+        <div class="logo-container">
+          <!-- Shield Key Icon SVG -->
+          <svg class="logo-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <!-- V7: Updated Title as requested -->
+        <h1 class="title">老板稳了！天天旺</h1>
+        <p class="subtitle">专业版激活</p>
+      </div>
+
+      <div class="input-wrapper">
+        <textarea id="activationCode" placeholder="// 请在此粘贴您的产品授权码..." spellcheck="false"></textarea>
+      </div>
+
+      <div class="controls">
+        <label class="checkbox-label">
+          <input type="checkbox" id="rememberActivationCode" style="display: none;">
+          <div class="checkbox-custom">
+            <svg viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <span>记住授权码</span>
+        </label>
+        <div id="expireDateDisplay" class="expire-badge">
+          有效期至 <span id="expireDateText"></span>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-secondary" id="cancelBtn">退出</button>
+        <button class="btn btn-primary" id="activateBtn">立即激活</button>
+      </div>
+
+      <div id="errorMessage" class="error-msg">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>错误信息</span>
+      </div>
+
+      <div class="footer">
+        <div class="device-id" id="deviceIdText">设备ID: 加载中...</div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="overlay" id="loadingOverlay">
+      <div class="loader"></div>
+      <p style="margin-top: 16px; font-size: 14px; color: var(--text-muted);">正在验证授权...</p>
+    </div>
+
+    <!-- Success Overlay -->
+    <div class="overlay" id="successView" style="background: rgba(5, 5, 5, 0.9);">
+      <div class="success-content active">
+        <div class="success-icon">🎉</div>
+        <h2 style="font-size: 24px; margin-bottom: 8px; color: #fff;">激活成功</h2>
+        <p style="color: var(--text-muted); margin-bottom: 24px;">感谢您的支持，系统即将启动</p>
+        <div style="font-size: 14px; color: var(--primary);">
+          自动跳转 <span id="successCountdown">3</span>s
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="activation.js"></script>
+  <script>
+    // 3D Tilt Effect
+    const card = document.getElementById('mainCard');
+
+    document.addEventListener('mousemove', (e) => {
+      const { clientX, clientY } = e;
+      const { innerWidth, innerHeight } = window;
+
+      const x = (clientX - innerWidth / 2) / 30;
+      const y = (clientY - innerHeight / 2) / 30;
+
+      card.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
+    });
+
+    document.addEventListener('mouseleave', () => {
+      card.style.transform = 'rotateY(0) rotateX(0)';
+    });
+
+    // V9: REAL THUNDER STORM & DRAGON
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    let particles = [];
+    let lightnings = [];
+    let flashOpacity = 0;
+    let mouse = { x: -1000, y: -1000 };
+    let lastMouse = { x: -1000, y: -1000 };
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      init();
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+
+      // Trigger lightning on significant movement
+      const dist = Math.hypot(mouse.x - lastMouse.x, mouse.y - lastMouse.y);
+      if (dist > 50) {
+        // Strike from sky to mouse
+        if (Math.random() > 0.7) { // Don't spam too much
+          createBolt(mouse.x, mouse.y);
+          lastMouse.x = mouse.x;
+          lastMouse.y = mouse.y;
+        }
+      }
+    });
+
+    // Color Palette: Dragon Gold & Fire
+    const colors = [
+      '#fbbf24', // Amber 400
+      '#f59e0b', // Amber 500
+      '#d97706', // Amber 600
+      '#ef4444', // Red 500
+      '#b91c1c'  // Red 700
+    ];
+
+    // --- REALISTIC FRACTAL LIGHTNING ---
+    class Lightning {
+      constructor(x1, y1, x2, y2, thickness, opacity) {
+        this.start = { x: x1, y: y1 };
+        this.end = { x: x2, y: y2 };
+        this.thickness = thickness;
+        this.opacity = opacity;
+        this.segments = [];
+        this.life = 30; // Longer life for emphasis
+        this.branches = [];
+        this.generate();
+      }
+
+      generate() {
+        this.segments = [];
+        const displacement = 200;
+        this.recursiveBolt(this.start.x, this.start.y, this.end.x, this.end.y, displacement);
+
+        // Add flash
+        flashOpacity = 0.15 + Math.random() * 0.2;
+      }
+
+      recursiveBolt(x1, y1, x2, y2, displacement) {
+        if (displacement < 8) {
+          this.segments.push({ x1, y1, x2, y2 });
+          return;
+        }
+
+        let midX = (x1 + x2) / 2;
+        let midY = (y1 + y2) / 2;
+
+        // Jaggedness
+        midX += (Math.random() - 0.5) * displacement;
+        midY += (Math.random() - 0.5) * displacement;
+
+        this.recursiveBolt(x1, y1, midX, midY, displacement / 2);
+        this.recursiveBolt(midX, midY, x2, y2, displacement / 2);
+
+        // Chance to branch
+        if (displacement > 20 && Math.random() < 0.3) {
+          const angle = Math.random() * Math.PI * 2;
+          const len = displacement * 2;
+          const branchEndX = midX + Math.cos(angle) * len;
+          const branchEndY = midY + Math.sin(angle) * len;
+          // Add a smaller bolt as a "branch" (simplified)
+        }
+      }
+
+      update() {
+        this.life--;
+      }
+
+      draw() {
+        if (this.life <= 0) return;
+        // Flicker effect
+        const flicker = Math.random() > 0.5 ? 1 : 0.8;
+        const alpha = (this.life / 30) * this.opacity * flicker;
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Inner Core (White)
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255, 255, 240, ${alpha})`; // Bright white-yellow
+        ctx.lineWidth = this.thickness;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = '#fbbf24'; // Gold Glow
+
+        this.segments.forEach(seg => {
+          ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+        });
+        ctx.stroke();
+
+        // Outer Halo (Gold/Red)
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(251, 191, 36, ${alpha * 0.5})`;
+        ctx.lineWidth = this.thickness * 4;
+        ctx.shadowBlur = 0; // Already blurred by core
+        this.segments.forEach(seg => {
+          ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+        });
+        ctx.stroke();
+      }
+    }
+
+    function createBolt(targetX, targetY, isAmbient = false) {
+      // Start from random point at top
+      const startX = Math.random() * width;
+      const startY = -50;
+
+      // Main Bolt
+      lightnings.push(new Lightning(startX, startY, targetX, targetY, 3, 1));
+
+      // Branching bolts (Targeting nearby)
+      if (!isAmbient || Math.random() > 0.5) {
+        const branchX = targetX + (Math.random() - 0.5) * 300;
+        const branchY = targetY + (Math.random() - 0.5) * 200;
+        lightnings.push(new Lightning(startX, startY, branchX, branchY, 1.5, 0.7));
+      }
+    }
+
+    // --- PARTICLE SYSTEM (Embers) ---
+    class Particle {
+      constructor() {
+        this.reset();
+        this.y = Math.random() * height;
+      }
+
+      reset() {
+        this.x = Math.random() * width;
+        this.y = height + Math.random() * 100;
+        this.vx = (Math.random() - 0.5) * 1;
+        this.vy = -Math.random() * 2 - 0.5;
+        this.size = Math.random() * 3 + 0.5;
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+        this.life = Math.random() * 100 + 50;
+        this.opacity = Math.random() * 0.5 + 0.2;
+      }
+
+      update() {
+        this.x += this.vx + Math.sin(this.y * 0.01) * 0.5;
+        this.y += this.vy;
+        this.life -= 0.5;
+        if (this.life <= 0 || this.y < -50) {
+          this.reset();
+        }
+      }
+
+      draw() {
+        ctx.globalAlpha = this.opacity * (this.life / 150);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function init() {
+      particles = [];
+      const particleCount = Math.min((width * height) / 4000, 150);
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Flash Effect
+      if (flashOpacity > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+        ctx.fillRect(0, 0, width, height);
+        flashOpacity *= 0.85; // Quick fade
+        if (flashOpacity < 0.01) flashOpacity = 0;
+      }
+
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Draw Particles
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+
+      // Draw Lightnings
+      for (let i = lightnings.length - 1; i >= 0; i--) {
+        const l = lightnings[i];
+        l.update();
+        l.draw();
+        if (l.life <= 0) {
+          lightnings.splice(i, 1);
+        }
+      }
+
+      ctx.globalCompositeOperation = 'source-over';
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+    animate();
+
+  </script>
+</body>
+
+</html>

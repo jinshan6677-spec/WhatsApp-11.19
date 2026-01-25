@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>激活码管理后台</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .form-section {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+
+    .form-section h2 {
+      margin-bottom: 20px;
+      color: #333;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group .hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .result-section {
+      margin-top: 30px;
+    }
+
+    .result-section h3 {
+      margin-bottom: 15px;
+      color: #333;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .activation-codes {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .code-item {
+      background: white;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .code-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .code-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .code-item-header strong {
+      color: #333;
+      font-size: 14px;
+    }
+
+    .code-item-header .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .code-item textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .code-item-info {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .code-item-info span {
+      margin-right: 15px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      background: #28a745;
+      color: white;
+      border-radius: 6px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      animation: slideIn 0.3s ease-out;
+      z-index: 1000;
+    }
+
+    .toast.error {
+      background: #dc3545;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-card .number {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .stat-card .label {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 激活码管理后台</h1>
+      <p>生成和管理应用激活码</p>
+    </div>
+
+    <div class="content">
+      <!-- 统计信息 -->
+      <div class="stats">
+        <div class="stat-card">
+          <div class="number" id="totalCodes">0</div>
+          <div class="label">总激活码数</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="totalDevices">0</div>
+          <div class="label">总设备数</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="usedDevices">0</div>
+          <div class="label">已使用设备</div>
+        </div>
+      </div>
+
+      <!-- 生成激活码表单 -->
+      <div class="form-section">
+        <h2>📝 生成激活码</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label>有效天数</label>
+            <input type="number" id="validDays" value="30" min="1" max="3650">
+            <div class="hint">激活码的有效期（天）</div>
+          </div>
+          <div class="form-group">
+            <label>最大设备数</label>
+            <input type="number" id="maxDevices" value="3" min="1" max="100">
+            <div class="hint">每个激活码最多可激活的设备数</div>
+          </div>
+          <div class="form-group">
+            <label>生成数量</label>
+            <input type="number" id="count" value="1" min="1" max="100">
+            <div class="hint">一次生成的激活码数量</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>激活码类型</label>
+            <select id="codeType">
+              <option value="trial">试用版（30天）</option>
+              <option value="standard">标准版（365天）</option>
+              <option value="premium">高级版（730天）</option>
+              <option value="permanent">永久版</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>备注</label>
+            <input type="text" id="notes" placeholder="例如：客户A的激活码">
+            <div class="hint">可选，用于识别激活码</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="generateCodes()">🚀 生成激活码</button>
+      </div>
+
+      <!-- 激活码列表 -->
+      <div class="result-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3>📋 激活码列表</h3>
+          <button class="btn btn-secondary" onclick="loadCodes()">🔄 刷新列表</button>
+        </div>
+        <div class="activation-codes" id="codesList">
+          <div class="empty-state">暂无激活码</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

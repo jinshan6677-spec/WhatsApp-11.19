@@ -11,8 +11,12 @@
  * - IPCRouter: IPC路由
  */
 
-const { app } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require('path');
 try { if (!app.isPackaged) { process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'; } } catch (_) {}
+
+// 导入激活系统
+const { getInstance: getActivationManager } = require('./activation/ActivationManager');
 
 // 导入新的应用引导器
 const { initializeApp } = require('./app/bootstrap');
@@ -35,6 +39,7 @@ const OrphanedDataCleaner = require('./utils/OrphanedDataCleaner');
 
 // 全局变量
 let appBootstrap = null;
+let activationManager = null;
 
 /**
  * 确保所有账号都启用了翻译功能
@@ -85,6 +90,8 @@ async function registerAllIPCHandlers() {
   console.log('[INFO] 注册IPC处理器...');
 
   try {
+    // 注册激活IPC处理器
+    registerActivationIPCHandlers();
     const accountManager = appBootstrap.getManager('accountConfigManager');
     const viewManager = appBootstrap.getViewManager();
     const mainWindow = appBootstrap.getMainWindow();
@@ -127,6 +134,8 @@ function unregisterAllIPCHandlers() {
   console.log('[INFO] 注销IPC处理器...');
 
   try {
+    // 注销激活IPC处理器
+    unregisterActivationIPCHandlers();
     unregisterSingleWindowIPCHandlers();
     console.log('[INFO] 单窗口IPC处理器已注销');
   } catch (error) {
@@ -300,6 +309,164 @@ async function performOrphanedDataCleanup() {
 }
 
 /**
+ * 注册激活相关的IPC处理器
+ */
+function registerActivationIPCHandlers() {
+  // 处理激活请求
+  ipcMain.handle('activation:activate', async (event, activationCode, rememberCode = false) => {
+    console.log('[INFO] 收到激活请求，记住激活码:', rememberCode);
+    
+    if (!activationManager) {
+      return { success: false, error: '激活管理器未初始化' };
+    }
+
+    // 确保存储已初始化
+    if (!activationManager.storage) {
+      console.log('[INFO] 初始化激活管理器存储...');
+      await activationManager.initialize();
+    }
+
+    // 验证激活码
+    const validation = require('./activation/ActivationValidator').validate(activationCode, null);
+
+    if (!validation.valid) {
+      console.log('[INFO] 激活失败:', validation.error);
+      return { success: false, error: validation.error };
+    }
+
+    // 保存激活数据
+    const activateResult = await activationManager.activate(activationCode, rememberCode);
+    if (!activateResult.success) {
+      console.log('[INFO] 保存激活数据失败:', activateResult.error);
+      return { success: false, error: activateResult.error };
+    }
+
+    console.log('[INFO] 激活成功，切换到使用界面...');
+    
+    try {
+      // 确保所有账号启用翻译
+      const accountManager = appBootstrap.getManager('accountConfigManager');
+      if (accountManager) {
+        await ensureTranslationEnabled(accountManager);
+      }
+
+      // 执行自动数据清理
+      await performOrphanedDataCleanup();
+
+      // 注册其他IPC处理器（不包括激活处理器，因为它已经注册过了）
+      const viewManager = appBootstrap.getViewManager();
+      const mainWindow = appBootstrap.getMainWindow();
+      const translationIntegration = appBootstrap.getManager('translationIntegration');
+      const ipcRouter = appBootstrap.getIPCRouter();
+
+      // 注册单窗口架构IPC处理器
+      registerSingleWindowIPCHandlers(accountManager, viewManager, mainWindow, translationIntegration);
+      console.log('[INFO] 单窗口IPC处理器注册完成');
+
+      // 注册翻译服务IPC处理器
+      if (ipcRouter && translationService) {
+        await translationService.initialize();
+        TranslationServiceIPCHandlers.registerWithRouter(ipcRouter, { translationService });
+        console.log('[INFO] 翻译服务IPC处理器注册完成');
+        VoiceTranslationIPCHandlers.registerWithRouter(ipcRouter);
+        console.log('[INFO] 语音/LLM 翻译IPC处理器注册完成');
+      }
+
+      // 注册快捷回复IPC处理器
+      registerQuickReplyHandlers({
+        mainWindow: mainWindow.getWindow(),
+        accountManager: accountManager,
+        viewManager: viewManager
+      });
+      console.log('[INFO] 快捷回复IPC处理器注册完成');
+
+      console.log('[INFO] 所有IPC处理器注册完成');
+
+      // 加载账号配置
+      await loadAndSendAccounts();
+
+      // 检查自动启动配置
+      await autoStartAccounts();
+
+      console.log('[INFO] 应用启动完成');
+
+      // 在主窗口中切换到使用界面
+      if (mainWindow && mainWindow.getWindow()) {
+        console.log('[INFO] 在主窗口中切换到使用界面');
+        // 恢复正确的preload脚本
+        mainWindow.getWindow().webContents.session.setPreloads([
+          path.join(__dirname, 'single-window', 'renderer', 'preload-main.js')
+        ]);
+        mainWindow.getWindow().loadFile(path.join(__dirname, 'single-window', 'renderer', 'app.html'));
+      }
+    } catch (error) {
+      console.error('[ERROR] 启动客户端失败:', error);
+      return { success: false, error: '启动客户端失败：' + error.message };
+    }
+
+    return { success: true };
+  });
+
+  // 处理获取激活信息请求
+  ipcMain.handle('activation:get-info', async () => {
+    if (!activationManager) {
+      return null;
+    }
+
+    if (!activationManager.storage) {
+      await activationManager.initialize();
+    }
+
+    const info = activationManager.getActivationInfo();
+    if (info) {
+      return info;
+    }
+
+    if (activationManager.storage) {
+      return activationManager.storage.getActivationInfo();
+    }
+
+    return null;
+  });
+
+  // 处理获取设备信息请求
+  ipcMain.handle('activation:get-device-info', async () => {
+    if (!activationManager) {
+      return null;
+    }
+
+    return activationManager.getDeviceInfo();
+  });
+
+  // 处理退出应用请求
+  ipcMain.handle('activation:quit', () => {
+    app.quit();
+  });
+
+  // 处理取消激活请求
+  ipcMain.handle('activation:deactivate', async () => {
+    if (!activationManager) {
+      return { success: false, error: '激活管理器未初始化' };
+    }
+
+    return await activationManager.deactivate();
+  });
+
+  console.log('[INFO] 激活IPC处理器注册完成');
+}
+
+/**
+ * 注销激活相关的IPC处理器
+ */
+function unregisterActivationIPCHandlers() {
+  ipcMain.removeHandler('activation:activate');
+  ipcMain.removeHandler('activation:get-info');
+  ipcMain.removeHandler('activation:get-device-info');
+  ipcMain.removeHandler('activation:deactivate');
+  console.log('[INFO] 激活IPC处理器已注销');
+}
+
+/**
  * 应用程序就绪事件
  */
 app.whenReady().then(async () => {
@@ -315,6 +482,30 @@ app.whenReady().then(async () => {
   console.log('[INFO] ========================================');
 
   try {
+    // 0. 每次启动都显示激活界面（使用主窗口）
+    console.log('[INFO] 显示激活界面');
+    activationManager = getActivationManager();
+    
+    // 先初始化应用（创建主窗口）
+    appBootstrap = await initializeApp();
+    console.log('[INFO] 应用初始化完成');
+    
+    // 注册激活IPC处理器
+    registerActivationIPCHandlers();
+    
+    // 在主窗口中显示激活界面
+    const mainWindow = appBootstrap.getMainWindow();
+    if (mainWindow && mainWindow.getWindow()) {
+      console.log('[INFO] 在主窗口中显示激活界面');
+      // 临时更换preload脚本以支持激活功能
+      mainWindow.getWindow().webContents.session.setPreloads([
+        path.join(__dirname, 'preload-activation.js')
+      ]);
+      mainWindow.getWindow().loadFile(path.join(__dirname, 'activation', 'activation.html'));
+    }
+    
+    return;
+
     // 1. 初始化应用（使用新的引导器）
     appBootstrap = await initializeApp();
     console.log('[INFO] 应用初始化完成');
