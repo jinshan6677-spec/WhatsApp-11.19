@@ -327,7 +327,7 @@ function registerActivationIPCHandlers() {
     }
 
     // 验证激活码
-    const validation = require('./activation/ActivationValidator').validate(activationCode, null);
+    const validation = await require('./activation/ActivationValidator').validate(activationCode, null);
 
     if (!validation.valid) {
       console.log('[INFO] 激活失败:', validation.error);
@@ -413,20 +413,14 @@ function registerActivationIPCHandlers() {
       return null;
     }
 
+    // 直接从存储读取，不进行完整验证，提高加载速度
+    // 完整验证会在实际使用时进行
     if (!activationManager.storage) {
-      await activationManager.initialize();
+      activationManager.storage = new (require('./activation/storage/ActivationStorage'))();
     }
 
-    const info = activationManager.getActivationInfo();
-    if (info) {
-      return info;
-    }
-
-    if (activationManager.storage) {
-      return activationManager.storage.getActivationInfo();
-    }
-
-    return null;
+    const info = activationManager.storage.getActivationInfo();
+    return info;
   });
 
   // 处理获取设备信息请求

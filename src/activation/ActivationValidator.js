@@ -1,5 +1,6 @@
 const Signature = require('./crypto/Signature');
 const DeviceFingerprint = require('./DeviceFingerprint');
+const SecureTime = require('./SecureTime');
 
 /**
  * 激活码验证器
@@ -10,9 +11,9 @@ class ActivationValidator {
    * 验证激活码
    * @param {string} activationCode - 激活码
    * @param {object} activationData - 本地激活数据
-   * @returns {object} { valid: boolean, error?: string }
+   * @returns {Promise<object>} { valid: boolean, error?: string }
    */
-  static validate(activationCode, activationData) {
+  static async validate(activationCode, activationData) {
     try {
       // 1. 解析激活码
       const parsedData = ActivationValidator.parseActivationCode(activationCode);
@@ -44,16 +45,19 @@ class ActivationValidator {
         return { valid: false, error: '激活码签名验证失败，可能是伪造的激活码' };
       }
 
-      // 3. 验证过期时间（使用激活码创建时间）
+      // 3. 验证过期时间（使用激活码创建时间 + 安全时间验证）
       if (parsedData.validDays) {
         const createdAt = new Date(parsedData.createdAt);
         const expireDate = new Date(createdAt.getTime() + parsedData.validDays * 24 * 60 * 60 * 1000);
-        
-        if (new Date() > expireDate) {
-          const expiredDaysAgo = Math.ceil((new Date() - expireDate) / (1000 * 60 * 60 * 24));
-          return { 
-            valid: false, 
-            error: `激活码已于 ${expiredDaysAgo} 天前过期，请联系管理员获取新激活码` 
+
+        // 使用安全时间（网络时间+时间保护）防止用户修改系统时间
+        const currentTime = await SecureTime.getCurrentTime();
+
+        if (currentTime > expireDate) {
+          const expiredDaysAgo = Math.ceil((currentTime - expireDate) / (1000 * 60 * 60 * 24));
+          return {
+            valid: false,
+            error: `激活码已于 ${expiredDaysAgo} 天前过期，请联系管理员获取新激活码`
           };
         }
       }
@@ -101,9 +105,9 @@ class ActivationValidator {
   /**
    * 验证本地激活状态
    * @param {object} activationData - 本地激活数据
-   * @returns {object} { valid: boolean, error?: string }
+   * @returns {Promise<object>} { valid: boolean, error?: string }
    */
-  static validateLocalActivation(activationData) {
+  static async validateLocalActivation(activationData) {
     if (!activationData) {
       return { valid: false, error: '未检测到激活信息，请先激活应用' };
     }
@@ -113,7 +117,7 @@ class ActivationValidator {
     }
 
     // 验证激活码
-    const validation = ActivationValidator.validate(
+    const validation = await ActivationValidator.validate(
       activationData.activationCode,
       activationData
     );
@@ -139,9 +143,9 @@ class ActivationValidator {
    * 检查激活码是否即将过期（提前30天提醒）
    * @param {string} activationCode - 激活码
    * @param {object} activationData - 本地激活数据
-   * @returns {object} { expiring: boolean, daysLeft?: number, expireDate?: string }
+   * @returns {Promise<object>} { expiring: boolean, daysLeft?: number, expireDate?: string }
    */
-  static checkExpiration(activationCode, activationData) {
+  static async checkExpiration(activationCode, activationData) {
     try {
       const parsedData = ActivationValidator.parseActivationCode(activationCode);
       if (!parsedData || !parsedData.validDays) {
@@ -150,8 +154,10 @@ class ActivationValidator {
 
       const createdAt = new Date(parsedData.createdAt);
       const expireDate = new Date(createdAt.getTime() + parsedData.validDays * 24 * 60 * 60 * 1000);
-      const now = new Date();
-      const daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24));
+
+      // 使用安全时间计算剩余天数
+      const currentTime = await SecureTime.getCurrentTime();
+      const daysLeft = Math.ceil((expireDate - currentTime) / (1000 * 60 * 60 * 24));
 
       return {
         expiring: daysLeft <= 30,
@@ -159,6 +165,7 @@ class ActivationValidator {
         expireDate: expireDate.toISOString().split('T')[0]
       };
     } catch (error) {
+      console.error('[ActivationValidator] 检查过期时间失败:', error);
       return { expiring: false };
     }
   }}

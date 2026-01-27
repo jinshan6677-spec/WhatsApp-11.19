@@ -14,31 +14,44 @@ const expireDateDisplay = document.getElementById('expireDateDisplay');
 const expireDateText = document.getElementById('expireDateText');
 
 // 页面加载时获取设备信息和已保存的激活码
-window.addEventListener('DOMContentLoaded', async () => {
-  try {
-    // 1. 获取设备信息
-    const deviceInfoData = await window.electronAPI.activation.getDeviceInfo();
-    if (deviceInfoData) {
-      deviceIdText.textContent = deviceInfoData.deviceId;
-      // 可以选择性显示更多信息，但新UI只展示机器码以保持整洁
-    }
+window.addEventListener('DOMContentLoaded', () => {
+  // 不等待异步操作，先显示页面
+  // 在后台异步加载信息
 
-    // 2. 获取已保存的激活信息
-    const activationInfo = await window.electronAPI.activation.getInfo();
+  // 1. 异步获取设备信息
+  window.electronAPI.activation.getDeviceInfo().then(deviceInfoData => {
+    if (deviceInfoData) {
+      // 只显示设备ID的前16位，避免超出窗口
+      const shortDeviceId = deviceInfoData.deviceId.substring(0, 16) + '...';
+      deviceIdText.textContent = '设备ID: ' + shortDeviceId;
+    }
+  }).catch(error => {
+    console.error('获取设备信息失败:', error);
+    deviceIdText.textContent = '设备ID: 获取失败';
+  });
+
+  // 2. 异步获取已保存的激活信息
+  // 先显示加载提示
+  activationCodeInput.placeholder = '// 正在加载激活码...';
+
+  window.electronAPI.activation.getInfo().then(activationInfo => {
     if (activationInfo && activationInfo.activationCode && activationInfo.rememberCode) {
       // 只有用户选择记住时才自动填充激活码
       activationCodeInput.value = activationInfo.activationCode;
       document.getElementById('rememberActivationCode').checked = true;
-      
+
       // 显示到期日期
       if (activationInfo.expireDate) {
         updateExpireDateDisplay(new Date(activationInfo.expireDate));
       }
+    } else {
+      // 没有记住的激活码，恢复默认提示
+      activationCodeInput.placeholder = '// 请在此粘贴您的产品授权码...';
     }
-  } catch (error) {
-    console.error('获取信息失败:', error);
-    deviceIdText.textContent = '获取失败';
-  }
+  }).catch(error => {
+    console.error('获取激活信息失败:', error);
+    activationCodeInput.placeholder = '// 请在此粘贴您的产品授权码...';
+  });
 });
 
 // 监听激活错误消息

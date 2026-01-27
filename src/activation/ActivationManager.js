@@ -43,7 +43,7 @@ class ActivationManager extends EventEmitter {
       console.log('[ActivationManager] 找到激活数据，开始验证...');
 
       // 验证本地激活状态
-      const validation = ActivationValidator.validateLocalActivation(this.activationData);
+      const validation = await ActivationValidator.validateLocalActivation(this.activationData);
 
       if (!validation.valid) {
         console.log('[ActivationManager] 激活验证失败:', validation.error);
@@ -58,7 +58,7 @@ class ActivationManager extends EventEmitter {
       this.isActivated = true;
 
       // 检查是否即将过期
-      const expirationInfo = ActivationValidator.checkExpiration(
+      const expirationInfo = await ActivationValidator.checkExpiration(
         this.activationData.activationCode,
         this.activationData
       );
@@ -83,9 +83,9 @@ class ActivationManager extends EventEmitter {
   async activate(activationCode, rememberCode = false) {
     try {
       console.log('[ActivationManager] 开始激活，记住激活码:', rememberCode);
-      
+
       // 1. 验证激活码
-      const validation = ActivationValidator.validate(
+      const validation = await ActivationValidator.validate(
         activationCode,
         this.activationData
       );
@@ -247,14 +247,14 @@ class ActivationManager extends EventEmitter {
 
   /**
    * 检查激活状态
-   * @returns {object} { activated: boolean, error?: string }
+   * @returns {Promise<object>} { activated: boolean, error?: string }
    */
-  checkActivationStatus() {
+  async checkActivationStatus() {
     if (!this.isActivated) {
       return { activated: false, error: '应用未激活' };
     }
 
-    const validation = ActivationValidator.validateLocalActivation(this.activationData);
+    const validation = await ActivationValidator.validateLocalActivation(this.activationData);
 
     if (!validation.valid) {
       this.isActivated = false;

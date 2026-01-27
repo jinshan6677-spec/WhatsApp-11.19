@@ -2,6 +2,23 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// 单例实例保护
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('管理后台已在运行中，退出当前实例');
+  app.quit();
+  process.exit(0);
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // 当运行第二个实例时，将焦点设置到主窗口
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 let mainWindow = null;
 
 function createWindow() {
@@ -12,11 +29,18 @@ function createWindow() {
     minHeight: 600,
     title: '激活码管理后台',
     icon: path.join(__dirname, '../resources/icon.ico'),
+    show: false, // 先不显示窗口，等待 ready-to-show 事件
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
+  });
+
+  // 窗口准备好后显示，避免闪烁
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
